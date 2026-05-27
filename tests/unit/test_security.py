@@ -52,3 +52,11 @@ def test_redacts_nested_sensitive_keys_recursively():
     assert redacted["outer"][0]["cookie"] == "[REDACTED_SECRET]"
     assert redacted["outer"][1][0] == "email me at [REDACTED_PII]"
     assert redacted["outer"][1][1]["raw_content"] == "[REDACTED_SECRET]"
+
+
+def test_redaction_preserves_public_contract_hashes():
+    digest = "985845f6a3392dcbe3d04b61722630985845f6a3392dcbe3d04b61722630"
+    assert redact_secrets({"hash": digest, "contact": "owner@example.com"}) == {
+        "hash": digest,
+        "contact": "[REDACTED_PII]",
+    }

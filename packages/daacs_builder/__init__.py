@@ -8,9 +8,11 @@ from .adapters import (
     planning_to_build_spec,
 )
 from .offline_runner import DAACSOfflineRunner, find_blocked_operation_attempts
+from .dry_run_runner import DAACSDryRunRunner, DryRunRunnerProvider
 from .runner_provider import (
     ApprovalRecord,
     OfflineRunnerProvider,
+    RunnerPlan,
     RunnerPolicy,
     RunnerProviderRegistry,
     RunnerRequest,
@@ -20,8 +22,11 @@ from .runner_provider import (
 
 __all__ = [
     "ApprovalRecord",
+    "DAACSDryRunRunner",
     "DAACSOfflineRunner",
+    "DryRunRunnerProvider",
     "OfflineRunnerProvider",
+    "RunnerPlan",
     "RunnerPolicy",
     "RunnerProviderRegistry",
     "RunnerRequest",

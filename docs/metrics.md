@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-NEXT-07A` PRD/ImplementationBrief approval gate.
+Current snapshot after `AW-NEXT-07B` DAACS dry-run runner.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache | 55 |
-| Counted code/doc files, excluding cache | 55 |
-| Project lines, excluding cache | 4,557 |
-| Python files | 32 |
-| Markdown files | 19 |
+| Project files, excluding cache | 57 |
+| Counted code/doc files, excluding cache | 57 |
+| Project lines, excluding cache | 5,258 |
+| Python files | 33 |
+| Markdown files | 20 |
 | Test files | 9 |
 | Unit test files | 7 |
 | Smoke test files | 2 |
 | Integration test files | 0 |
-| Pytest collected cases | 83 |
-| Pytest passed cases | 83 |
+| Pytest collected cases | 94 |
+| Pytest passed cases | 94 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -264,3 +264,47 @@ Measured after explicit PRD/brief artifacts and user approval gate implementatio
 | approved hash mismatch blocks DAACSState mapping | covered |
 
 Interpretation: this measures offline content-approval contract coverage before DAACS handoff. It does not implement dry-run, live DAACS execution, Solar Pro 3 provider calls, generated-code quality, install/build success, hosted success, or production readiness.
+
+## AW-NEXT-07B DAACS Dry-Run Runner Metrics
+
+Measured after side-effect-free dry-run runner and `RunnerPlan` implementation.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 94 |
+| Pytest passed cases | 94 |
+| Regression delta vs AW-NEXT-07A baseline | +11 |
+| Dry-run provider tests | 9 |
+| New security redaction tests | 1 |
+| Default registered runner modes | 2 |
+| Live registered runner modes | 0 |
+| Missing approval block fixtures | 1 |
+| Mismatched approval block fixtures | 1 |
+| Mutated brief block fixtures | 1 |
+| Unsafe state block fixtures | 1 |
+| Process/file/network/import tripwire tests | 2 |
+| Plan redaction fixtures | 1 |
+| Live LLM calls during eval | 0 |
+| Live API calls during eval | 0 |
+| Provider calls during eval | 0 |
+| Provider imports during eval | 0 |
+| CLI agent invocations during eval | 0 |
+| Subprocess calls during eval | 0 |
+| Package install calls during eval | 0 |
+| Server start calls during eval | 0 |
+| Filesystem writes during eval | 0 |
+| Network calls during eval | 0 |
+| Executed action count | 0 |
+| Raw secret log count | 0 |
+
+| Gate | Result |
+|---|---|
+| approved `ImplementationBrief -> RunnerPlan` | covered |
+| no approval blocks dry-run | covered |
+| mismatched approval blocks dry-run | covered |
+| mutated brief after approval blocks dry-run | covered |
+| unsafe generated state blocks dry-run | covered |
+| process/file/network/import tripwire | covered |
+| plan/report/audit redaction fixture | covered |
+
+Interpretation: this measures dry-run planning coverage only. It does not implement live DAACS execution, Solar Pro 3 provider calls, generated-code quality, install/build success, hosted success, or production readiness.

@@ -375,6 +375,7 @@ def test_build_spec_to_daacs_state_blocks_missing_or_mismatched_spec_approval():
         approval_id="approval-mismatch",
         approved=True,
         approved_build_spec_hash="not-the-current-hash",
+        approved_implementation_brief_hash=brief.to_dict()["brief_hash"],
         approval_scope=["prd_package", "implementation_brief", "build_spec", "daacs_build"],
     )
     with pytest.raises(ValueError, match="approval hash does not match"):

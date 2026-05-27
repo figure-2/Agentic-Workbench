@@ -139,6 +139,7 @@ def _zero_execution_metrics() -> dict[str, int]:
         "server_start_calls": 0,
         "filesystem_writes": 0,
         "provider_imports": 0,
+        "network_calls": 0,
         "blocked_operation_count": len(BLOCKED_OPERATION_PATTERNS),
         "provider_import_attempt_count": 0,
         "subprocess_attempt_count": 0,

@@ -340,4 +340,4 @@ audit_log_completeness_rate
 
 ## Consulting Conclusion
 
-The correct next implementation is `RunnerProvider` skeleton plus registry, not Solar Pro 3 and not DAACS live execution. The skeleton should make unsafe mode transitions impossible by default, then dry-run should make live execution reviewable before any external state changes.
+The correct next implementation is a live runner gated skeleton with fake runtime only, not Solar Pro 3 and not real DAACS execution. The existing skeleton and dry-run path make unsafe mode transitions fail closed and make live execution reviewable before any external state changes.

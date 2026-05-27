@@ -68,6 +68,7 @@ flowchart TD
 - DAACS-compatible state를 실행 없이 검증하는 offline runner boundary
 - offline / dry-run / live runner provider boundary 설계
 - `RunnerProvider` skeleton과 fail-closed registry
+- 승인된 `ImplementationBrief`에서 side-effect 0 `RunnerPlan`을 생성하는 dry-run runner
 - fixture 기반 harness smoke test
 - secret redaction, evidence sanitization, claim boundary gate
 - path boundary, public artifact exposure gate
@@ -120,6 +121,7 @@ AW-NEXT-04: 67 passed
 AW-NEXT-05: docs-only runner provider boundary design
 AW-NEXT-06: 74 passed
 AW-NEXT-07A: 83 passed
+AW-NEXT-07B: 94 passed
 live LLM/API calls: 0
 ```
 
@@ -138,6 +140,7 @@ formatter -> lint -> typecheck -> unit test -> integration test -> smoke test ->
 - 기획, 리서치, 코드 생성, 검증을 연결한 artifact pipeline
 - fixture 기반 smoke test 통과
 - PRD/ImplementationBrief 승인 gate가 DAACS 진입 전 builder 호출을 차단함
+- 승인된 ImplementationBrief 기반 dry-run RunnerPlan 생성, side-effect counter 0
 
 금지:
 
@@ -148,7 +151,8 @@ formatter -> lint -> typecheck -> unit test -> integration test -> smoke test ->
 - 생산성 향상 수치 주장
 - Solar Pro 3 live 호출 성공
 - DAACS live 실행 성공
-- dry-run/live runner 구현 완료
+- live runner 구현 완료
+- dry-run 결과를 실제 DAACS 실행 또는 코드 생성 성공으로 표현
 
 ## Status
 

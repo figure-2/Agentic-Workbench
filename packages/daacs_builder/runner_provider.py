@@ -5,7 +5,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
-from packages.core.schemas import VerificationReport
+from packages.core.pathing import normalize_public_relative_path
+from packages.core.exposure import sanitize_public_payload
+from packages.core.schemas import (
+    ImplementationBrief,
+    JsonDict,
+    SpecApproval,
+    VerificationReport,
+    stable_contract_hash,
+    utc_now,
+)
 
 from .offline_runner import DAACSOfflineRunner
 
@@ -57,7 +66,74 @@ class RunnerRequest:
     mode: str
     state: dict[str, Any]
     policy: RunnerPolicy = field(default_factory=RunnerPolicy)
+    implementation_brief: ImplementationBrief | None = None
+    spec_approval: SpecApproval | None = None
     approval: ApprovalRecord | None = None
+
+
+@dataclass(slots=True)
+class RunnerPlan:
+    """Side-effect-free execution plan emitted by the dry-run runner boundary."""
+
+    run_id: str
+    mode: str
+    implementation_brief_hash: str
+    build_spec_hash: str
+    planned_actions: list[JsonDict] = field(default_factory=list)
+    artifact_manifest: list[JsonDict] = field(default_factory=list)
+    required_approvals: list[JsonDict] = field(default_factory=list)
+    side_effects: JsonDict = field(default_factory=dict)
+    created_at: str = field(default_factory=utc_now)
+
+    def validate(self) -> None:
+        if not self.run_id.strip():
+            raise ValueError("run_id is required")
+        if self.mode != "dry_run":
+            raise ValueError("RunnerPlan mode must be dry_run")
+        if not self.implementation_brief_hash.strip():
+            raise ValueError("implementation_brief_hash is required")
+        if not self.build_spec_hash.strip():
+            raise ValueError("build_spec_hash is required")
+        if not self.planned_actions:
+            raise ValueError("planned_actions are required")
+        for key, value in self.side_effects.items():
+            if value != 0:
+                raise ValueError(f"dry-run side effect must be zero: {key}")
+
+    def to_dict(self) -> JsonDict:
+        self.validate()
+        normalized_manifest: list[JsonDict] = []
+        for item in self.artifact_manifest:
+            if not isinstance(item, dict):
+                continue
+            normalized = dict(item)
+            if normalized.get("path"):
+                normalized["path"] = normalize_public_relative_path(str(normalized["path"]))
+            normalized_manifest.append(normalized)
+        payload = {
+            "run_id": self.run_id,
+            "mode": self.mode,
+            "implementation_brief_hash": self.implementation_brief_hash,
+            "build_spec_hash": self.build_spec_hash,
+            "planned_actions": self.planned_actions,
+            "artifact_manifest": normalized_manifest,
+            "required_approvals": self.required_approvals,
+            "side_effects": self.side_effects,
+            "created_at": self.created_at,
+        }
+        payload["plan_hash"] = stable_contract_hash(
+            {
+                "run_id": self.run_id,
+                "mode": self.mode,
+                "implementation_brief_hash": self.implementation_brief_hash,
+                "build_spec_hash": self.build_spec_hash,
+                "planned_actions": self.planned_actions,
+                "artifact_manifest": normalized_manifest,
+                "required_approvals": self.required_approvals,
+                "side_effects": self.side_effects,
+            }
+        )
+        return sanitize_public_payload(payload)
 
 
 @dataclass(slots=True)
@@ -68,7 +144,7 @@ class RunnerResult:
     mode: str
     status: str
     verification_report: VerificationReport
-    plan: dict[str, Any] | None = None
+    plan: RunnerPlan | None = None
     artifact_manifest: list[dict[str, Any]] = field(default_factory=list)
     audit_events: list[dict[str, Any]] = field(default_factory=list)
 
@@ -93,6 +169,7 @@ def _zero_side_effect_metrics() -> dict[str, int]:
         "server_start_calls": 0,
         "filesystem_writes": 0,
         "provider_imports": 0,
+        "network_calls": 0,
         "approval_bypass_count": 0,
     }
 
@@ -205,7 +282,10 @@ class RunnerProviderRegistry:
 
 
 def default_runner_provider_registry() -> RunnerProviderRegistry:
-    """Create the default registry. Only offline is executable in AW-NEXT-06."""
+    """Create the default registry. Offline and dry-run are executable."""
+    from .dry_run_runner import DryRunRunnerProvider
+
     registry = RunnerProviderRegistry()
     registry.register(OfflineRunnerProvider())
+    registry.register(DryRunRunnerProvider())
     return registry

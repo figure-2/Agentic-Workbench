@@ -71,5 +71,6 @@ Key mapped groups:
 - This does not prove generated code quality.
 - This does not run DAACS subgraphs.
 - This does not verify Solar Pro 3 or any provider output.
-- This does not implement dry-run/live DAACS execution.
+- This does not implement live DAACS execution.
+- The dry-run runner creates a `RunnerPlan` only; it does not execute DAACS or generate files.
 - DAACS itself still has risky execution surfaces that must stay behind explicit offline/live boundaries.

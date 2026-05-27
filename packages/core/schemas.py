@@ -54,6 +54,7 @@ class ArtifactKind(str, Enum):
     BUILD_SPEC = "build_spec"
     IMPLEMENTATION_BRIEF = "implementation_brief"
     SPEC_APPROVAL = "spec_approval"
+    RUNNER_PLAN = "runner_plan"
     GENERATED_CODE = "generated_code"
     VERIFICATION_REPORT = "verification_report"
     LOG = "log"
@@ -229,6 +230,7 @@ class SpecApproval:
     approval_id: str
     approved: bool
     approved_build_spec_hash: str = ""
+    approved_implementation_brief_hash: str = ""
     approval_scope: list[str] = field(default_factory=list)
     requested_changes: list[str] = field(default_factory=list)
     approver_role: str = "user"
@@ -240,6 +242,8 @@ class SpecApproval:
         if self.approved:
             if not self.approved_build_spec_hash.strip():
                 raise ValueError("approved_build_spec_hash is required for approval")
+            if not self.approved_implementation_brief_hash.strip():
+                raise ValueError("approved_implementation_brief_hash is required for approval")
             if "daacs_build" not in self.approval_scope:
                 raise ValueError("approval_scope must include daacs_build")
             if self.requested_changes:

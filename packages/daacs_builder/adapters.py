@@ -277,6 +277,7 @@ def create_spec_approval(
         approval_id=approval_id,
         approved=approved,
         approved_build_spec_hash=implementation_brief.build_spec_hash if approved else "",
+        approved_implementation_brief_hash=implementation_brief.to_dict()["brief_hash"] if approved else "",
         approval_scope=["prd_package", "implementation_brief", "build_spec", "daacs_build"]
         if approved
         else ["prd_package", "implementation_brief", "build_spec"],
@@ -301,6 +302,8 @@ def ensure_implementation_approved(
     if not approval.approved:
         raise ValueError("spec approval is not approved")
     if approval.approved_build_spec_hash != implementation_brief.build_spec_hash:
+        raise ValueError("approval hash does not match implementation brief")
+    if approval.approved_implementation_brief_hash != implementation_brief.to_dict()["brief_hash"]:
         raise ValueError("approval hash does not match implementation brief")
 
 
