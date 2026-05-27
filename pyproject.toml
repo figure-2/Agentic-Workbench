@@ -1,0 +1,11 @@
+[project]
+name = "agentic-workbench"
+version = "0.1.0"
+description = "AI Agent Workflow Harness connecting planning, research, code generation, and verification."
+requires-python = ">=3.11"
+readme = "README.md"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+

@@ -1,0 +1,31 @@
+{
+  "title": "Agentic Workbench Demo",
+  "problem": "Developers need a harness that connects planning artifacts to code generation and verification.",
+  "goals": [
+    "Normalize raw ideas into structured planning artifacts",
+    "Convert planning artifacts into build specifications",
+    "Record generated files and verification outcomes"
+  ],
+  "user_flows": [
+    "User submits an idea",
+    "Planner creates a blueprint",
+    "Adapter creates a BuildSpec",
+    "Builder generates code and verification report"
+  ],
+  "features": [
+    "Idea structuring",
+    "BuildSpec adapter",
+    "Verification report registry"
+  ],
+  "evidence": [
+    {
+      "title": "Local fixture evidence",
+      "url": "fixture://local"
+    }
+  ],
+  "visual_artifacts": [],
+  "assumptions": [
+    "MVP uses local/dev verification only"
+  ]
+}
+

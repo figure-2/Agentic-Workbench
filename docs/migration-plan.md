@@ -1,0 +1,71 @@
+# Migration Plan
+
+## Conclusion
+
+먼저 schema와 adapter를 고정한 뒤, DIV graph와 DAACS builder를 단계적으로 추출한다. 원본 repo는 보존하고 새 프로젝트에서 integration boundary를 만든다.
+
+## Execution Units
+
+| id | depends_on | scope | acceptance_tests | risk_level | rollback_plan |
+|---|---|---|---|---|---|
+| M1 | - | 새 프로젝트 골격, README, architecture 문서 작성 | 폴더 목적과 claim boundary 명확 | low | 문서/폴더 제거 |
+| M2 | M1 | 공통 schema 정의 | schema unit test 통과 | medium | schema v0 폐기 |
+| M3 | M2 | DIV output adapter 작성 | DIV-style fixture -> `PlanningBlueprint` 변환 | medium | adapter 제거 |
+| M4 | M2 | DAACS input/output adapter 작성 | `PlanningBlueprint -> BuildSpec -> DAACS state` 변환, endpoint/model/criteria/state key tests 통과 | medium | adapter 제거 |
+| M5 | M3,M4 | fixture harness smoke 구현 | idea -> blueprint -> spec -> report 통과 | high | fixture harness 제거 |
+| M6 | M5 | FastAPI fixture endpoint | `/api/v1/runs` fixture mode 응답 | medium | endpoint 비활성 |
+| M7 | M6 | 원본 DIV graph 추출 | live call 없이 planner wrapper 실행 | high | 원본 DIV 유지 |
+| M8 | M6 | DAACS runner boundary 분리 | offline/dry-run/live runner provider 계약 문서화, live 실행 직접 연결 금지 | high | runner boundary 문서/코드 제거 |
+| M8A | M8 | `RunnerProvider` skeleton | unknown/live mode without approval blocked, offline runner regression 유지, finding evidence redacted | high | skeleton 등록 제거 |
+| M8AA | M8A | `PRDPackage` / `ImplementationBrief` / `SpecApproval` gate | 승인 전 builder 호출 차단, 승인 hash mismatch 차단, PRD/brief artifact 생성, 기존 offline regression 유지 | high | 새 계약/adapter/gate 제거 |
+| M8B | M8AA | dry-run runner | 실행 계획과 승인 요청만 생성, side-effect 0 | high | dry-run runner 제거 |
+| M8C | M8B | gated live runner skeleton | fake runtime만 연결, approval 없으면 blocked | high | live runner 등록 비활성 |
+| M9 | M7,M8C | 실제 end-to-end demo | 샘플 1개가 검증 리포트까지 생성 | high | demo claim 축소 |
+
+Status note: M4 is implemented as an offline contract adapter. M8 has an offline runner boundary, a provider-boundary design, an AW-NEXT-06 `RunnerProviderRegistry` skeleton, and an AW-NEXT-07A PRD/ImplementationBrief approval gate. Only offline is registered by default. Dry-run, live DAACS extraction, and Solar Pro 3 calls are still not implemented.
+
+## Reuse Plan
+
+DAACS 재사용 후보 14개:
+
+- `daacs_workflow.py`
+- `backend_subgraph.py`
+- `frontend_subgraph.py`
+- `orchestrator_nodes.py`
+- `verification.py`
+- `daacs_state.py`
+- `config_loader.py`
+- `cli_executor.py`
+- `daacs_api_server.py`
+- `daacsApi.ts`
+- `WorkspacePanel.tsx`
+- `InteractionConsole.tsx`
+- `PreviewPanel.tsx`
+- `routes.ts`
+
+DIV 재사용 후보 15개:
+
+- `supervisor_graph.py`
+- `supervisor.py`
+- `idea_graph.py`
+- `plan_graph.py`
+- `research_graph.py`
+- `idea.py`
+- `plan.py`
+- `research.py`
+- `plan_core/generator.py`
+- `plan_core/nodes.py`
+- `visual_core/generator.py`
+- `llm.py`
+- `config.py`
+- prompts
+- state 참고 자료
+
+## Not Reused As-Is
+
+- DIV Streamlit UI
+- `st.session_state` 중심 상태 관리
+- raw markdown file read/write 중심 UI
+- import 시점 Tavily/Qdrant 초기화
+- DAACS/Nova-Canvas 중복 API 책임
+- 인증 없는 파일/로그 노출 구조

@@ -1,0 +1,16 @@
+{
+  "raw_prompt": "Create a small project tracker that turns user ideas into buildable specs and verification logs.",
+  "target_user": "AI workflow developer",
+  "product_type": "local developer tool",
+  "constraints": [
+    "No production deployment claim",
+    "No secrets in logs",
+    "Generate verifiable artifacts"
+  ],
+  "success_criteria": [
+    "Planning blueprint is generated",
+    "BuildSpec is derived",
+    "VerificationReport is recorded"
+  ]
+}
+
