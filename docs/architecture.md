@@ -94,3 +94,4 @@ BuildSpec(goal, api_spec, frontend_spec, constraints, acceptance_criteria)
 - 승인 전에는 builder/provider/DAACS runner를 호출하지 않는다.
 - `SpecApproval`은 PRD/brief 승인이고, `ApprovalRecord`는 live runner 실행 승인이다. 두 계약은 혼용하지 않는다.
 - verifier policy와 key identity는 `SpecApproval`이 아니라 provider/live 실행 승인 envelope의 신뢰 계층이다.
+- approval policy resolver, key identity registry, durable replay store는 provider/live 실행 승인 envelope의 admission boundary이며, 현재는 local skeleton이다.

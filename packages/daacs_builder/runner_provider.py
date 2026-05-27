@@ -49,6 +49,8 @@ class ApprovalRecord:
     verifier_id: str = ""
     key_id: str = ""
     verifier_scope: str = ""
+    verifier_policy_id: str = ""
+    key_identity_id: str = ""
 
 
 @dataclass(slots=True)
@@ -307,7 +309,12 @@ class RunnerProviderRegistry:
 
 def default_runner_provider_registry() -> RunnerProviderRegistry:
     """Create the default registry with fail-closed mode providers."""
-    from .approval_security import FakeApprovalVerifier, default_approval_replay_guard
+    from .approval_security import (
+        ApprovalPolicyResolver,
+        FakeApprovalVerifier,
+        KeyIdentityRegistry,
+        default_approval_replay_guard,
+    )
     from .dry_run_runner import DryRunRunnerProvider
     from .live_runner import LiveRunnerProvider
 
@@ -317,6 +324,8 @@ def default_runner_provider_registry() -> RunnerProviderRegistry:
     registry.register(
         LiveRunnerProvider(
             approval_verifier=FakeApprovalVerifier(),
+            approval_policy_resolver=ApprovalPolicyResolver(),
+            key_identity_registry=KeyIdentityRegistry(),
             replay_store=default_approval_replay_guard(),
         )
     )

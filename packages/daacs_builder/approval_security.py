@@ -18,10 +18,14 @@ APPROVAL_SIGNATURE_ID_PATTERN = re.compile(r"^sig-[A-Za-z0-9_.-]{8,80}$")
 APPROVAL_NONCE_PATTERN = re.compile(r"^nonce-[A-Za-z0-9_.-]{8,80}$")
 APPROVAL_VERIFIER_ID_PATTERN = re.compile(r"^verifier-[A-Za-z0-9_.-]{4,80}$")
 APPROVAL_KEY_ID_PATTERN = re.compile(r"^key-[A-Za-z0-9_.-]{4,80}$")
+APPROVAL_POLICY_ID_PATTERN = re.compile(r"^policy-[A-Za-z0-9_.-]{4,80}$")
+APPROVAL_KEY_IDENTITY_ID_PATTERN = re.compile(r"^key-identity-[A-Za-z0-9_.-]{4,80}$")
 APPROVAL_SCOPE_PATTERN = re.compile(r"^[A-Za-z0-9_.-]{4,80}$")
 CONTRACT_HASH_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 DEFAULT_VERIFIER_ID = "verifier-local-fake"
 DEFAULT_KEY_ID = "key-local-fake"
+DEFAULT_POLICY_ID = "policy-local-fake"
+DEFAULT_KEY_IDENTITY_ID = "key-identity-local-fake"
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,12 +40,25 @@ class ApprovalVerificationResult:
 class ApprovalVerifierPolicy:
     """Static verifier/key policy for local skeleton tests."""
 
+    policy_id: str = DEFAULT_POLICY_ID
     trusted_verifier_ids: tuple[str, ...] = (DEFAULT_VERIFIER_ID,)
     trusted_key_ids: tuple[str, ...] = (DEFAULT_KEY_ID,)
+    trusted_key_identity_ids: tuple[str, ...] = (DEFAULT_KEY_IDENTITY_ID,)
     revoked_verifier_ids: tuple[str, ...] = ()
     revoked_key_ids: tuple[str, ...] = ()
     allowed_scopes: tuple[str, ...] = ("live_runner", "provider_boundary")
     max_future_skew_seconds: int = 300
+
+
+@dataclass(frozen=True, slots=True)
+class KeyIdentityRecord:
+    """Resolved key identity reference used by local policy tests."""
+
+    identity_id: str = DEFAULT_KEY_IDENTITY_ID
+    key_id: str = DEFAULT_KEY_ID
+    verifier_id: str = DEFAULT_VERIFIER_ID
+    allowed_policy_ids: tuple[str, ...] = (DEFAULT_POLICY_ID,)
+    revoked: bool = False
 
 
 class ApprovalVerifier(Protocol):
@@ -49,6 +66,71 @@ class ApprovalVerifier(Protocol):
 
     def verify(self, approval: Any, *, scope: str, gate_prefix: str) -> ApprovalVerificationResult:
         """Verify an approval envelope without reading secrets or external systems."""
+
+
+class ApprovalPolicyResolver:
+    """Local policy resolver skeleton with explicit unknown-id failure."""
+
+    def __init__(self, policies: list[ApprovalVerifierPolicy] | None = None) -> None:
+        policy_source = [ApprovalVerifierPolicy()] if policies is None else policies
+        self._policies = {policy.policy_id: policy for policy in policy_source}
+
+    def resolve(self, policy_id: str) -> ApprovalVerifierPolicy | None:
+        if not isinstance(policy_id, str) or APPROVAL_POLICY_ID_PATTERN.fullmatch(policy_id) is None:
+            return None
+        return self._policies.get(policy_id)
+
+
+class KeyIdentityRegistry:
+    """Local key identity registry skeleton with revocation support."""
+
+    def __init__(self, identities: list[KeyIdentityRecord] | None = None) -> None:
+        identity_source = [KeyIdentityRecord()] if identities is None else identities
+        self._identities = {
+            identity.identity_id: identity
+            for identity in identity_source
+        }
+
+    def resolve(self, identity_id: str) -> KeyIdentityRecord | None:
+        if (
+            not isinstance(identity_id, str)
+            or APPROVAL_KEY_IDENTITY_ID_PATTERN.fullmatch(identity_id) is None
+        ):
+            return None
+        return self._identities.get(identity_id)
+
+
+class ReplayRecordAdapter(Protocol):
+    """Durable replay adapter contract for file/DB-backed future stores."""
+
+    def load_records(self) -> list[dict[str, str]]:
+        """Load sanitized replay records."""
+
+    def save_records(self, records: list[dict[str, str]]) -> None:
+        """Persist sanitized replay records."""
+
+
+class InMemoryReplayRecordAdapter:
+    """Shared in-memory adapter used to simulate durable process restart."""
+
+    def __init__(self, records: list[dict[str, str]] | None = None) -> None:
+        self._records = list(records or [])
+
+    def load_records(self) -> list[dict[str, str]]:
+        return [dict(record) for record in self._records]
+
+    def save_records(self, records: list[dict[str, str]]) -> None:
+        self._records = [dict(record) for record in records]
+
+
+class UnavailableReplayRecordAdapter:
+    """Adapter stub that simulates unavailable file/DB persistence."""
+
+    def load_records(self) -> list[dict[str, str]]:
+        raise RuntimeError("replay record adapter is unavailable")
+
+    def save_records(self, records: list[dict[str, str]]) -> None:
+        raise RuntimeError("replay record adapter is unavailable")
 
 
 def merge_verifier_metrics(*metric_sets: dict[str, int]) -> dict[str, int]:
@@ -108,6 +190,44 @@ class ApprovalReplayGuard(PersistentReplayStore):
     """Backward-compatible name for the replay store skeleton."""
 
 
+class DurableReplayStore(PersistentReplayStore):
+    """Replay store skeleton backed by a sanitized record adapter."""
+
+    def __init__(self, adapter: ReplayRecordAdapter) -> None:
+        super().__init__([])
+        self._adapter = adapter
+        self._loaded = False
+
+    def _load_once(self) -> None:
+        if self._loaded:
+            return
+        records = self._adapter.load_records()
+        self._used_keys.clear()
+        for record in records:
+            scope = str(record.get("scope", ""))
+            nonce_hash = str(record.get("nonce_hash", ""))
+            if scope and CONTRACT_HASH_PATTERN.fullmatch(nonce_hash):
+                self._used_keys.add((scope, nonce_hash))
+        self._loaded = True
+
+    def claim(self, *, scope: str, nonce: str) -> bool:
+        self._load_once()
+        key = (scope, self._nonce_hash(scope=scope, nonce=nonce))
+        if key in self._used_keys:
+            return False
+        self._used_keys.add(key)
+        try:
+            self._adapter.save_records(self.export_records())
+        except Exception:
+            self._used_keys.discard(key)
+            raise
+        return True
+
+    def export_records(self) -> list[dict[str, str]]:
+        self._load_once()
+        return super().export_records()
+
+
 _PROCESS_REPLAY_GUARD = ApprovalReplayGuard()
 
 
@@ -144,6 +264,8 @@ def sign_approval_for_tests(
     nonce: str,
     verifier_id: str = DEFAULT_VERIFIER_ID,
     key_id: str = DEFAULT_KEY_ID,
+    verifier_policy_id: str = DEFAULT_POLICY_ID,
+    key_identity_id: str = DEFAULT_KEY_IDENTITY_ID,
 ) -> Any:
     """Populate deterministic signature fields for fixture approvals."""
     approval.signature_id = signature_id
@@ -154,6 +276,10 @@ def sign_approval_for_tests(
         approval.key_id = key_id
     if not getattr(approval, "verifier_scope", ""):
         approval.verifier_scope = scope
+    if not getattr(approval, "verifier_policy_id", ""):
+        approval.verifier_policy_id = verifier_policy_id
+    if not getattr(approval, "key_identity_id", ""):
+        approval.key_identity_id = key_identity_id
     approval.signed_contract_hash = expected_signed_contract_hash(approval, scope=scope)
     return approval
 
@@ -248,6 +374,17 @@ def _zero_verifier_metrics() -> dict[str, int]:
         "approval_verifier_key_block_count": 0,
         "approval_verifier_scope_block_count": 0,
         "approval_verifier_skew_block_count": 0,
+        "approval_policy_resolver_check_count": 0,
+        "approval_policy_resolver_valid_count": 0,
+        "approval_policy_resolver_block_count": 0,
+        "approval_policy_resolver_missing_block_count": 0,
+        "approval_policy_unknown_block_count": 0,
+        "key_identity_registry_check_count": 0,
+        "key_identity_registry_valid_count": 0,
+        "key_identity_registry_block_count": 0,
+        "key_identity_registry_missing_block_count": 0,
+        "key_identity_revoked_block_count": 0,
+        "policy_key_mismatch_block_count": 0,
     }
 
 
@@ -330,6 +467,82 @@ def enforce_approval_contract_policy(
         scope=scope,
         gate_prefix=gate_prefix,
     )
+    if failures:
+        metrics["approval_verifier_policy_block_count"] = 1
+        return ApprovalVerificationResult(failures=failures, metrics=metrics)
+
+    policy_failures, policy_metrics = validate_approval_verifier_policy(
+        approval,
+        scope=scope,
+        gate_prefix=gate_prefix,
+        policy=policy,
+    )
+    metrics = merge_verifier_metrics(metrics, policy_metrics)
+    if policy_failures:
+        metrics["approval_verifier_policy_block_count"] = 1
+    else:
+        metrics["approval_verifier_policy_valid_count"] = 1
+    return ApprovalVerificationResult(failures=policy_failures, metrics=metrics)
+
+
+def enforce_resolved_approval_contract_policy(
+    approval: Any,
+    *,
+    scope: str,
+    gate_prefix: str,
+    policy_resolver: ApprovalPolicyResolver,
+    key_identity_registry: KeyIdentityRegistry,
+) -> ApprovalVerificationResult:
+    """Resolve policy/key identity, then enforce the minimum approval contract."""
+    metrics = _zero_verifier_metrics()
+    metrics["approval_verifier_policy_check_count"] = 1
+    metrics["approval_policy_resolver_check_count"] = 1
+    metrics["key_identity_registry_check_count"] = 1
+
+    failures = validate_approval_signature(
+        approval,
+        scope=scope,
+        gate_prefix=gate_prefix,
+    )
+    if failures:
+        metrics["approval_verifier_policy_block_count"] = 1
+        return ApprovalVerificationResult(failures=failures, metrics=metrics)
+
+    policy_id = getattr(approval, "verifier_policy_id", "")
+    key_identity_id = getattr(approval, "key_identity_id", "")
+    policy = policy_resolver.resolve(policy_id)
+    key_identity = key_identity_registry.resolve(key_identity_id)
+
+    if policy is None:
+        failures.append((f"{gate_prefix}_policy_resolved", "approval policy is not trusted."))
+        metrics["approval_policy_resolver_block_count"] = 1
+        metrics["approval_policy_unknown_block_count"] = 1
+    else:
+        metrics["approval_policy_resolver_valid_count"] = 1
+
+    if key_identity is None:
+        failures.append((f"{gate_prefix}_key_identity_trusted", "approval key identity is not trusted."))
+        metrics["key_identity_registry_block_count"] = 1
+    elif key_identity.revoked:
+        failures.append((f"{gate_prefix}_key_identity_trusted", "approval key identity is revoked."))
+        metrics["key_identity_registry_block_count"] = 1
+        metrics["key_identity_revoked_block_count"] = 1
+    else:
+        metrics["key_identity_registry_valid_count"] = 1
+
+    if policy is not None and key_identity is not None and not key_identity.revoked:
+        key_matches = (
+            key_identity.key_id == getattr(approval, "key_id", "")
+            and key_identity.verifier_id == getattr(approval, "verifier_id", "")
+            and policy.policy_id in key_identity.allowed_policy_ids
+            and key_identity.identity_id in policy.trusted_key_identity_ids
+        )
+        if not key_matches:
+            failures.append((f"{gate_prefix}_policy_key_matches", "approval policy and key identity do not match."))
+            metrics["approval_policy_resolver_block_count"] = 1
+            metrics["key_identity_registry_block_count"] = 1
+            metrics["policy_key_mismatch_block_count"] = 1
+
     if failures:
         metrics["approval_verifier_policy_block_count"] = 1
         return ApprovalVerificationResult(failures=failures, metrics=metrics)

@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-NEXT-12` verifier policy and key identity skeleton.
+Current snapshot after `AW-NEXT-13` policy resolver, key identity registry, and durable replay boundary skeleton.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache | 67 |
-| Counted code/doc files, excluding cache | 67 |
-| Project lines, excluding cache | 8,548 |
+| Project files, excluding cache | 68 |
+| Counted code/doc files, excluding cache | 68 |
+| Project lines, excluding cache | 9,399 |
 | Python files | 38 |
-| Markdown files | 25 |
+| Markdown files | 26 |
 | Test files | 11 |
 | Unit test files | 9 |
 | Smoke test files | 2 |
 | Integration test files | 0 |
-| Pytest collected cases | 201 |
-| Pytest passed cases | 201 |
+| Pytest collected cases | 223 |
+| Pytest passed cases | 223 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -541,7 +541,54 @@ Measured after static verifier trust policy, key identity references, scope bind
 | live revoked key blocked | covered |
 | live scope mismatch blocked | covered |
 | live future `approved_at` skew blocked | covered |
-| public output excludes verifier/key/signature/nonce/hash values | covered |
+| public output excludes verifier/key/signature/nonce/signed hash values | covered |
 | Solar Pro 3/DAACS live call 0 유지 | covered |
 
 Interpretation: this is a static policy/key identity skeleton for local boundary tests. It is not a production trust root, not key rotation, not external identity verification, and not real provider/runtime admission.
+
+## AW-NEXT-13 ApprovalPolicyResolver / DurableReplayStore Metrics
+
+Measured after resolver, registry, adapter-backed replay boundary skeletons, and public approval-field sanitizer coverage were added.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 223 |
+| Pytest passed cases | 223 |
+| Regression delta vs AW-NEXT-12 baseline | +22 |
+| Approval security unit tests | 7 |
+| Provider boundary test cases | 61 |
+| Runner provider registry tests | 76 |
+| New resolver/registry/durable replay test cases | 22 |
+| Direct approval security fixtures | 4 |
+| Provider resolver/registry/durable fixtures | 9 |
+| Live resolver/registry/durable fixtures | 9 |
+| Policy resolver block fixtures | 5 |
+| Empty resolver/registry fixtures | 4 |
+| Revoked key identity fixtures | 2 |
+| Policy/key mismatch fixtures | 3 |
+| Missing resolver/registry fixtures | 4 |
+| Durable replay adapter unavailable fixtures | 3 |
+| Durable restart replay fixtures | 3 |
+| Public sanitizer sensitive approval key coverage | 7 fields |
+| Live LLM calls during eval | 0 |
+| Live API calls during eval | 0 |
+| Provider calls during eval | 0 |
+| Provider imports during eval | 0 |
+| Network calls during eval | 0 |
+| Verifier secret value reads | 0 |
+| Verifier key file reads | 0 |
+| Solar Pro 3/DAACS live calls | 0 |
+
+| Gate | Result |
+|---|---|
+| unknown `policy_id` blocked | covered |
+| missing policy resolver blocked | covered |
+| missing key identity registry blocked | covered |
+| revoked key identity blocked | covered |
+| policy/key identity mismatch blocked | covered |
+| replay adapter unavailable blocks admission | covered |
+| process restart simulation preserves replay record | covered |
+| public output excludes signature_id, signed_contract_hash, nonce, verifier/key/policy/key identity IDs | covered |
+| Solar Pro 3/DAACS live call 0 유지 | covered |
+
+Interpretation: this adds admission boundary skeletons only. Safe contract hashes such as `approval_hash`, `state_hash`, `plan_hash`, `prompt_contract_hash`, and `content_hash` remain allowed as sanitized correlation evidence. `DurableReplayStore` with the in-memory adapter simulates restart durability, but it is not atomic disk/DB persistence and is not a production replay store.

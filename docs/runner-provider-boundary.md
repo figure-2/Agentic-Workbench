@@ -16,7 +16,7 @@
 |---|---|---:|---:|---:|---|
 | `offline` | state contract와 차단 정책 검증 | 0 | no | no | `VerificationReport` |
 | `dry_run` | 실행 계획, 권한 요청, 예상 산출물 manifest 생성 | 0 | no | no | `RunnerPlan` + `VerificationReport` |
-| `live` | 승인/dry-run/workspace/signature/replay/verifier gate 검증 후 fake runtime만 호출. future 단계에서만 격리 workspace DAACS 실행 | 0 in AW-NEXT-11 | no in AW-NEXT-11 | no in AW-NEXT-11 | fake live `VerificationReport` |
+| `live` | 승인/dry-run/workspace/signature/replay/verifier/resolver/registry gate 검증 후 fake runtime만 호출. future 단계에서만 격리 workspace DAACS 실행 | 0 in AW-NEXT-13 | no in AW-NEXT-13 | no in AW-NEXT-13 | fake live `VerificationReport` |
 
 핵심 판단: `dry_run`은 "mock execution"이 아니라 "live 실행 전에 무엇을 실행할지 설명하는 계획 산출 단계"여야 한다. 그래야 package install, server start, provider call이 실제로 한 번도 발생하지 않은 상태에서 승인 기준을 검토할 수 있다.
 
@@ -173,6 +173,11 @@ audit_log_id
 signature_id
 signed_contract_hash
 nonce
+verifier_id
+key_id
+verifier_scope
+verifier_policy_id
+key_identity_id
 ```
 
 The first fake live implementation requires all side-effect limits to be explicit zero. Future real live implementations may allow positive limits only after a separate provider/runtime approval contract is implemented. Missing limits mean blocked, not unlimited.
@@ -201,7 +206,15 @@ AW-NEXT-12 adds verifier policy and key identity boundaries:
 - future `approved_at` beyond policy skew blocks.
 - verifier/key IDs, signature IDs, nonces, and signed hashes stay out of public result/audit payloads.
 
-This is still a local skeleton. It does not implement production key rotation, external identity lookup, HSM/KMS verification, or real cryptographic trust roots.
+AW-NEXT-13 adds resolver, registry, and adapter-backed replay boundaries:
+
+- approvals carry `verifier_policy_id` and `key_identity_id` references.
+- `ApprovalPolicyResolver` blocks unknown or malformed policy IDs before fake provider/runtime invocation.
+- `KeyIdentityRegistry` blocks missing/revoked key identities and policy/key mismatch.
+- `DurableReplayStore` uses a sanitized record adapter and blocks when the file/DB adapter is unavailable.
+- restart simulation with a shared adapter preserves replay records across provider instances.
+
+This is still a local skeleton. It does not implement production key rotation, external identity lookup, HSM/KMS verification, real cryptographic trust roots, or atomic disk/DB-backed replay storage.
 
 ## Secret And PII Rule
 
@@ -283,12 +296,14 @@ ProviderApprovalRecord
   -> verifier_id
   -> key_id
   -> verifier_scope
+  -> verifier_policy_id
+  -> key_identity_id
 
 FakeSolarProProvider.invoke()
   -> validates request and approval
   -> validates structural approval signature
-  -> validates static verifier policy and key identity references
-  -> blocks reused nonce with in-memory replay guard
+  -> resolves policy and key identity before static verifier policy checks
+  -> blocks reused nonce with process-local or adapter-backed replay store skeleton
   -> records fake provider metrics
   -> never reads env values
   -> never imports Solar/Upstage SDKs
@@ -297,7 +312,7 @@ FakeSolarProProvider.invoke()
 
 AW-NEXT-09 is still not a Solar Pro 3 live integration. It proves only that the provider boundary can be admitted, blocked, audited, and measured without secret reads or external calls.
 
-AW-NEXT-11 extends this with `ApprovalVerifier` and `PersistentReplayStore` skeletons. AW-NEXT-12 extends verifier admission with static policy/key identity checks. It still does not perform a live provider call, DAACS runtime execution, production cryptographic signing, or production key registry lookup.
+AW-NEXT-11 extends this with `ApprovalVerifier` and `PersistentReplayStore` skeletons. AW-NEXT-12 extends verifier admission with static policy/key identity checks. AW-NEXT-13 extends admission with `ApprovalPolicyResolver`, `KeyIdentityRegistry`, and adapter-backed `DurableReplayStore` skeletons. It still does not perform a live provider call, DAACS runtime execution, production cryptographic signing, production key registry lookup, or production durable replay persistence.
 
 ## DAACS Runtime Boundary
 
@@ -373,17 +388,18 @@ artifact_boundary_error
 | AW-NEXT-10 | AW-NEXT-09 | provider/live approval signature and replay gate | unsigned approval blocked, tampered signed payload blocked, reused nonce blocked, expired approval block retained, public output excludes signature fields | high | remove approval signature/nonce gate |
 | AW-NEXT-11 | AW-NEXT-10 | persistent replay store and approval verifier skeleton | restart simulation reused nonce blocked, verifier missing blocked, verifier/store errors blocked, fake verifier metrics only, Solar/DAACS live call 0 | high | remove verifier/store boundary and return to AW-NEXT-10 process-local gate |
 | AW-NEXT-12 | AW-NEXT-11 | verifier policy and key identity skeleton | unknown verifier/key blocked, revoked verifier/key blocked, scope mismatch blocked, future approved_at skew blocked, public output excludes identity/signature values, Solar/DAACS live call 0 | high | remove verifier policy/key identity layer and return to AW-NEXT-11 verifier/store boundary |
+| AW-NEXT-13 | AW-NEXT-12 | approval policy resolver, key identity registry, durable replay store boundary skeleton | unknown policy_id blocked, revoked key identity blocked, policy/key mismatch blocked, replay adapter unavailable blocked, restart simulation replay preserved, Solar/DAACS live call 0 | high | remove resolver/registry/durable store boundary and return to AW-NEXT-12 static policy |
 
 ## Quantitative Targets
 
 | Metric | Target before live DAACS |
 |---|---:|
-| Existing regression tests | 201/201 pass |
+| Existing regression tests | 223/223 pass |
 | Runner modes documented | 3 |
 | State transitions documented | 7 |
 | Blocked direct transitions documented | 4 |
 | Operation policy rows | 10 |
-| Approval fields | 19 |
+| Approval fields | 22 |
 | Live calls in offline/dry-run eval | 0 |
 | Provider imports in offline/dry-run eval | 0 |
 | Subprocess/package/server/write in offline/dry-run eval | 0 |
@@ -418,4 +434,4 @@ audit_log_completeness_rate
 
 ## Consulting Conclusion
 
-AW-NEXT-12 keeps the system in fake runtime/fake provider mode while adding static verifier policy and key identity boundaries. The next correct step is a real approval policy resolver and durable replay store design before any real Solar Pro 3 or DAACS live execution is opened.
+AW-NEXT-13 keeps the system in fake runtime/fake provider mode while adding resolver/registry/durable replay boundaries. The next correct step is adapter-backed policy/key/replay persistence hardening and sanitizer evidence coverage before any real Solar Pro 3 or DAACS live execution is opened.

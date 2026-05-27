@@ -16,10 +16,16 @@ from packages.daacs_builder.adapters import (
     planning_to_build_spec,
 )
 from packages.daacs_builder.approval_security import (
+    ApprovalPolicyResolver,
+    DurableReplayStore,
     ApprovalVerificationResult,
     ApprovalVerifierPolicy,
     FakeApprovalVerifier,
+    InMemoryReplayRecordAdapter,
+    KeyIdentityRecord,
+    KeyIdentityRegistry,
     PersistentReplayStore,
+    UnavailableReplayRecordAdapter,
     sign_approval_for_tests,
 )
 from packages.daacs_builder.live_runner import LIVE_APPROVAL_SCOPE, LiveRunnerProvider
@@ -151,6 +157,8 @@ def _valid_live_policy(**overrides):
 def _live_provider(**overrides):
     fields = {
         "approval_verifier": FakeApprovalVerifier(),
+        "approval_verifier_policy": ApprovalVerifierPolicy(),
+        "key_identity_registry": KeyIdentityRegistry(),
         "replay_store": PersistentReplayStore(),
     }
     fields.update(overrides)
@@ -702,6 +710,9 @@ def test_live_enforces_policy_contract_after_custom_verifier(
     result = _live_provider(
         approval_verifier=PermissiveApprovalVerifier(),
         approval_verifier_policy=verifier_policy,
+        key_identity_registry=KeyIdentityRegistry(
+            [KeyIdentityRecord(verifier_id=approval.verifier_id, key_id=approval.key_id)]
+        ),
     ).run(
         RunnerRequest(
             run_id="run-provider",
@@ -722,6 +733,133 @@ def test_live_enforces_policy_contract_after_custom_verifier(
     assert result.verification_report.metrics["solar_provider_calls"] == 0
     assert result.verification_report.metrics["real_daacs_invocations"] == 0
     assert result.verification_report.metrics["network_calls"] == 0
+
+
+@pytest.mark.parametrize(
+    ("provider_overrides", "expected_gate", "expected_metric"),
+    [
+        (
+            {"approval_verifier_policy": None, "approval_policy_resolver": None},
+            "live_approval_policy_resolver_present",
+            "approval_policy_resolver_missing_block_count",
+        ),
+        (
+            {"key_identity_registry": None},
+            "live_approval_key_identity_registry_present",
+            "key_identity_registry_missing_block_count",
+        ),
+    ],
+)
+def test_live_blocks_missing_resolver_or_registry(
+    provider_overrides,
+    expected_gate,
+    expected_metric,
+):
+    state, plan = _approved_dry_run_result()
+    result = _live_provider(**provider_overrides).run(
+        RunnerRequest(
+            run_id="run-provider",
+            mode="live",
+            state=state,
+            approval=_valid_live_approval(),
+            plan=plan,
+            policy=_valid_live_policy(),
+        )
+    )
+    checks = {check["name"]: check["passed"] for check in result.verification_report.checks}
+
+    assert result.status == "blocked"
+    assert checks[expected_gate] is False
+    assert result.verification_report.metrics[expected_metric] == 1
+    assert result.verification_report.metrics["fake_live_runtime_invocations"] == 0
+    assert result.verification_report.metrics["provider_calls"] == 0
+    assert result.verification_report.metrics["solar_provider_calls"] == 0
+    assert result.verification_report.metrics["real_daacs_invocations"] == 0
+    assert result.verification_report.metrics["network_calls"] == 0
+
+
+@pytest.mark.parametrize(
+    ("approval_overrides", "provider_overrides", "expected_gate", "expected_metric"),
+    [
+        (
+            {"verifier_policy_id": "policy-unknown-local"},
+            {},
+            "live_approval_policy_resolved",
+            "approval_policy_unknown_block_count",
+        ),
+        (
+            {},
+            {"approval_policy_resolver": ApprovalPolicyResolver([])},
+            "live_approval_policy_resolved",
+            "approval_policy_unknown_block_count",
+        ),
+        (
+            {},
+            {"key_identity_registry": KeyIdentityRegistry([])},
+            "live_approval_key_identity_trusted",
+            "key_identity_registry_block_count",
+        ),
+        (
+            {"key_identity_id": "key-identity-revoked"},
+            {
+                "key_identity_registry": KeyIdentityRegistry(
+                    [KeyIdentityRecord(identity_id="key-identity-revoked", revoked=True)]
+                )
+            },
+            "live_approval_key_identity_trusted",
+            "key_identity_revoked_block_count",
+        ),
+        (
+            {},
+            {
+                "key_identity_registry": KeyIdentityRegistry(
+                    [KeyIdentityRecord(key_id="key-other-local")]
+                )
+            },
+            "live_approval_policy_key_matches",
+            "policy_key_mismatch_block_count",
+        ),
+    ],
+)
+def test_live_blocks_policy_resolver_and_key_identity_failures(
+    approval_overrides,
+    provider_overrides,
+    expected_gate,
+    expected_metric,
+):
+    state, plan = _approved_dry_run_result()
+    approval = _valid_live_approval(**approval_overrides)
+    result = _live_provider(**provider_overrides).run(
+        RunnerRequest(
+            run_id="run-provider",
+            mode="live",
+            state=state,
+            approval=approval,
+            plan=plan,
+            policy=_valid_live_policy(),
+        )
+    )
+    serialized = str(
+        {
+            "report": result.verification_report.to_dict(),
+            "audit_events": result.audit_events,
+        }
+    )
+    checks = {check["name"]: check["passed"] for check in result.verification_report.checks}
+
+    assert result.status == "blocked"
+    assert checks[expected_gate] is False
+    assert result.verification_report.metrics[expected_metric] == 1
+    assert result.verification_report.metrics["fake_live_runtime_invocations"] == 0
+    assert result.verification_report.metrics["provider_calls"] == 0
+    assert result.verification_report.metrics["solar_provider_calls"] == 0
+    assert result.verification_report.metrics["real_daacs_invocations"] == 0
+    assert result.verification_report.metrics["network_calls"] == 0
+    assert approval.signature_id not in serialized
+    assert approval.nonce not in serialized
+    assert approval.signed_contract_hash not in serialized
+    assert approval.verifier_policy_id not in serialized
+    assert approval.key_identity_id not in serialized
 
 
 def test_live_blocks_unsigned_approval():
@@ -912,6 +1050,56 @@ def test_live_blocks_replay_store_exception_without_consuming_runtime():
     assert "nonce" not in serialized
     assert "signed_contract_hash" not in serialized
     assert "postgres://secret" not in serialized
+
+
+def test_live_blocks_unavailable_durable_replay_adapter():
+    state, plan = _approved_dry_run_result()
+    result = _live_provider(replay_store=DurableReplayStore(UnavailableReplayRecordAdapter())).run(
+        RunnerRequest(
+            run_id="run-provider",
+            mode="live",
+            state=state,
+            approval=_valid_live_approval(),
+            plan=plan,
+            policy=_valid_live_policy(),
+        )
+    )
+    checks = {check["name"]: check["passed"] for check in result.verification_report.checks}
+
+    assert result.status == "blocked"
+    assert checks["live_approval_replay_store_available"] is False
+    assert result.verification_report.metrics["fake_live_runtime_invocations"] == 0
+    assert result.verification_report.metrics["provider_calls"] == 0
+    assert result.verification_report.metrics["solar_provider_calls"] == 0
+    assert result.verification_report.metrics["real_daacs_invocations"] == 0
+    assert result.verification_report.metrics["network_calls"] == 0
+
+
+def test_live_blocks_reused_nonce_after_durable_restart_simulation():
+    state, plan = _approved_dry_run_result()
+    adapter = InMemoryReplayRecordAdapter()
+    request = RunnerRequest(
+        run_id="run-provider",
+        mode="live",
+        state=state,
+        approval=_valid_live_approval(
+            signature_id="sig-live-durable-restart",
+            nonce="nonce-live-durable-restart",
+        ),
+        plan=plan,
+        policy=_valid_live_policy(),
+    )
+
+    first = _live_provider(replay_store=DurableReplayStore(adapter)).run(request)
+    second = _live_provider(replay_store=DurableReplayStore(adapter)).run(request)
+    checks = {check["name"]: check["passed"] for check in second.verification_report.checks}
+
+    assert first.status == "passed"
+    assert second.status == "blocked"
+    assert checks["live_approval_replay_fresh"] is False
+    assert second.verification_report.metrics["approval_replay_store_hit_count"] == 1
+    assert second.verification_report.metrics["fake_live_runtime_invocations"] == 0
+    assert second.verification_report.metrics["real_daacs_invocations"] == 0
 
 
 @pytest.mark.parametrize(
@@ -1234,4 +1422,6 @@ def test_live_fake_runtime_public_payloads_are_sanitized():
     assert approval.signed_contract_hash not in serialized
     assert approval.verifier_id not in serialized
     assert approval.key_id not in serialized
+    assert approval.verifier_policy_id not in serialized
+    assert approval.key_identity_id not in serialized
     assert "signed_contract_hash" not in serialized

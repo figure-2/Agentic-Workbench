@@ -58,11 +58,22 @@ def test_public_payload_sanitization_drops_forbidden_fields_and_redacts_values()
     payload = {
         "title": "Research",
         "raw_content": "do not expose",
-        "nested": {"full_prompt": "secret prompt", "summary": "email user@example.com"},
+        "nested": {
+            "full_prompt": "secret prompt",
+            "summary": "email user@example.com",
+            "nonce": "nonce-live-sensitive",
+            "signed_contract_hash": "a" * 64,
+            "verifier_policy_id": "policy-local-fake",
+            "key_identity_id": "key-identity-local-fake",
+        },
     }
 
     sanitized = sanitize_public_payload(payload)
 
     assert "raw_content" not in sanitized
     assert "full_prompt" not in sanitized["nested"]
+    assert "nonce" not in sanitized["nested"]
+    assert "signed_contract_hash" not in sanitized["nested"]
+    assert "verifier_policy_id" not in sanitized["nested"]
+    assert "key_identity_id" not in sanitized["nested"]
     assert sanitized["nested"]["summary"] == "email [REDACTED_PII]"

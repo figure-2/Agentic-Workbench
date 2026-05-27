@@ -22,10 +22,16 @@ from packages.daacs_builder.provider_boundary import (
     SOLAR_PRO_3_ENV_KEY_NAME,
 )
 from packages.daacs_builder.approval_security import (
+    ApprovalPolicyResolver,
     ApprovalVerificationResult,
     ApprovalVerifierPolicy,
+    DurableReplayStore,
     FakeApprovalVerifier,
+    InMemoryReplayRecordAdapter,
+    KeyIdentityRecord,
+    KeyIdentityRegistry,
     PersistentReplayStore,
+    UnavailableReplayRecordAdapter,
     sign_approval_for_tests,
 )
 from packages.daacs_builder.runner_provider import RunnerRequest, default_runner_provider_registry
@@ -105,6 +111,8 @@ def _provider_request(**overrides):
 def _fake_provider(**overrides):
     fields = {
         "approval_verifier": FakeApprovalVerifier(),
+        "approval_verifier_policy": ApprovalVerifierPolicy(),
+        "key_identity_registry": KeyIdentityRegistry(),
         "replay_store": PersistentReplayStore(),
     }
     fields.update(overrides)
@@ -327,6 +335,9 @@ def test_provider_boundary_enforces_policy_contract_after_custom_verifier(
     result = _fake_provider(
         approval_verifier=PermissiveApprovalVerifier(),
         approval_verifier_policy=verifier_policy,
+        key_identity_registry=KeyIdentityRegistry(
+            [KeyIdentityRecord(verifier_id=approval.verifier_id, key_id=approval.key_id)]
+        ),
     ).invoke(_provider_request(approval=approval))
     checks = {check["name"]: check["passed"] for check in result.checks}
 
@@ -338,6 +349,108 @@ def test_provider_boundary_enforces_policy_contract_after_custom_verifier(
     assert result.metrics["live_api_calls"] == 0
     assert result.metrics["live_llm_calls"] == 0
     assert result.metrics["network_calls"] == 0
+
+
+@pytest.mark.parametrize(
+    ("provider_overrides", "expected_gate", "expected_metric"),
+    [
+        (
+            {"approval_verifier_policy": None, "approval_policy_resolver": None},
+            "provider_approval_policy_resolver_present",
+            "approval_policy_resolver_missing_block_count",
+        ),
+        (
+            {"key_identity_registry": None},
+            "provider_approval_key_identity_registry_present",
+            "key_identity_registry_missing_block_count",
+        ),
+    ],
+)
+def test_provider_boundary_blocks_missing_resolver_or_registry(
+    provider_overrides,
+    expected_gate,
+    expected_metric,
+):
+    result = _fake_provider(**provider_overrides).invoke(_provider_request())
+    checks = {check["name"]: check["passed"] for check in result.checks}
+
+    assert result.status == "blocked"
+    assert checks[expected_gate] is False
+    assert result.metrics[expected_metric] == 1
+    assert result.metrics["fake_provider_invocations"] == 0
+    assert result.metrics["provider_calls"] == 0
+    assert result.metrics["live_api_calls"] == 0
+    assert result.metrics["live_llm_calls"] == 0
+    assert result.metrics["network_calls"] == 0
+
+
+@pytest.mark.parametrize(
+    ("approval_overrides", "provider_overrides", "expected_gate", "expected_metric"),
+    [
+        (
+            {"verifier_policy_id": "policy-unknown-local"},
+            {},
+            "provider_approval_policy_resolved",
+            "approval_policy_unknown_block_count",
+        ),
+        (
+            {},
+            {"approval_policy_resolver": ApprovalPolicyResolver([])},
+            "provider_approval_policy_resolved",
+            "approval_policy_unknown_block_count",
+        ),
+        (
+            {},
+            {"key_identity_registry": KeyIdentityRegistry([])},
+            "provider_approval_key_identity_trusted",
+            "key_identity_registry_block_count",
+        ),
+        (
+            {"key_identity_id": "key-identity-revoked"},
+            {
+                "key_identity_registry": KeyIdentityRegistry(
+                    [KeyIdentityRecord(identity_id="key-identity-revoked", revoked=True)]
+                )
+            },
+            "provider_approval_key_identity_trusted",
+            "key_identity_revoked_block_count",
+        ),
+        (
+            {},
+            {
+                "key_identity_registry": KeyIdentityRegistry(
+                    [KeyIdentityRecord(key_id="key-other-local")]
+                )
+            },
+            "provider_approval_policy_key_matches",
+            "policy_key_mismatch_block_count",
+        ),
+    ],
+)
+def test_provider_boundary_blocks_policy_resolver_and_key_identity_failures(
+    approval_overrides,
+    provider_overrides,
+    expected_gate,
+    expected_metric,
+):
+    approval = _provider_approval(**approval_overrides)
+    result = _fake_provider(**provider_overrides).invoke(_provider_request(approval=approval))
+    serialized = str(result.to_dict())
+    checks = {check["name"]: check["passed"] for check in result.checks}
+
+    assert result.status == "blocked"
+    assert checks[expected_gate] is False
+    assert result.metrics[expected_metric] == 1
+    assert result.metrics["fake_provider_invocations"] == 0
+    assert result.metrics["provider_calls"] == 0
+    assert result.metrics["live_api_calls"] == 0
+    assert result.metrics["live_llm_calls"] == 0
+    assert result.metrics["network_calls"] == 0
+    assert approval.signature_id not in serialized
+    assert approval.nonce not in serialized
+    assert approval.signed_contract_hash not in serialized
+    assert approval.verifier_policy_id not in serialized
+    assert approval.key_identity_id not in serialized
 
 
 def test_provider_boundary_blocks_unsigned_approval():
@@ -461,6 +574,42 @@ def test_provider_boundary_blocks_replay_store_exception_without_consuming_runti
     assert "nonce" not in serialized
     assert "signed_contract_hash" not in serialized
     assert "postgres://secret" not in serialized
+
+
+def test_provider_boundary_blocks_unavailable_durable_replay_adapter():
+    result = _fake_provider(replay_store=DurableReplayStore(UnavailableReplayRecordAdapter())).invoke(
+        _provider_request()
+    )
+    checks = {check["name"]: check["passed"] for check in result.checks}
+
+    assert result.status == "blocked"
+    assert checks["provider_approval_replay_store_available"] is False
+    assert result.metrics["fake_provider_invocations"] == 0
+    assert result.metrics["provider_calls"] == 0
+    assert result.metrics["live_api_calls"] == 0
+    assert result.metrics["live_llm_calls"] == 0
+    assert result.metrics["network_calls"] == 0
+
+
+def test_provider_boundary_blocks_reused_nonce_after_durable_restart_simulation():
+    adapter = InMemoryReplayRecordAdapter()
+    request = _provider_request(
+        approval=_provider_approval(
+            signature_id="sig-provider-durable-restart",
+            nonce="nonce-provider-durable-restart",
+        )
+    )
+
+    first = _fake_provider(replay_store=DurableReplayStore(adapter)).invoke(request)
+    second = _fake_provider(replay_store=DurableReplayStore(adapter)).invoke(request)
+    checks = {check["name"]: check["passed"] for check in second.checks}
+
+    assert first.status == "passed"
+    assert second.status == "blocked"
+    assert checks["provider_approval_replay_fresh"] is False
+    assert second.metrics["approval_replay_store_hit_count"] == 1
+    assert second.metrics["fake_provider_invocations"] == 0
+    assert second.metrics["provider_calls"] == 0
 
 
 @pytest.mark.parametrize(
@@ -654,6 +803,8 @@ def test_provider_boundary_public_payload_contains_env_key_name_only():
     assert approval.signed_contract_hash not in serialized
     assert approval.verifier_id not in serialized
     assert approval.key_id not in serialized
+    assert approval.verifier_policy_id not in serialized
+    assert approval.key_identity_id not in serialized
     assert "signed_contract_hash" not in serialized
 
 

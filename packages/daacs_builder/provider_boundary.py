@@ -16,12 +16,14 @@ from packages.core.exposure import sanitize_public_payload
 from packages.core.schemas import JsonDict, stable_contract_hash
 
 from .approval_security import (
+    ApprovalPolicyResolver,
     ApprovalVerifier,
     ApprovalVerifierPolicy,
+    KeyIdentityRegistry,
     PersistentReplayStore,
     claim_approval_replay,
     default_approval_replay_guard,
-    enforce_approval_contract_policy,
+    enforce_resolved_approval_contract_policy,
     merge_verifier_metrics,
 )
 from .runner_provider import is_safe_run_id, safe_public_run_id
@@ -57,6 +59,8 @@ class ProviderApprovalRecord:
     verifier_id: str = ""
     key_id: str = ""
     verifier_scope: str = ""
+    verifier_policy_id: str = ""
+    key_identity_id: str = ""
 
 
 @dataclass(slots=True)
@@ -129,6 +133,17 @@ def zero_provider_side_effect_metrics() -> dict[str, int]:
         "approval_verifier_key_block_count": 0,
         "approval_verifier_scope_block_count": 0,
         "approval_verifier_skew_block_count": 0,
+        "approval_policy_resolver_check_count": 0,
+        "approval_policy_resolver_valid_count": 0,
+        "approval_policy_resolver_block_count": 0,
+        "approval_policy_resolver_missing_block_count": 0,
+        "approval_policy_unknown_block_count": 0,
+        "key_identity_registry_check_count": 0,
+        "key_identity_registry_valid_count": 0,
+        "key_identity_registry_block_count": 0,
+        "key_identity_registry_missing_block_count": 0,
+        "key_identity_revoked_block_count": 0,
+        "policy_key_mismatch_block_count": 0,
     }
 
 
@@ -274,11 +289,20 @@ class FakeSolarProProvider:
         *,
         approval_verifier: ApprovalVerifier | None = None,
         approval_verifier_policy: ApprovalVerifierPolicy | None = None,
+        approval_policy_resolver: ApprovalPolicyResolver | None = None,
+        key_identity_registry: KeyIdentityRegistry | None = None,
         replay_store: PersistentReplayStore | None = None,
         replay_guard: PersistentReplayStore | None = None,
     ) -> None:
         self.approval_verifier = approval_verifier
-        self.approval_verifier_policy = approval_verifier_policy or ApprovalVerifierPolicy()
+        self.approval_verifier_policy = approval_verifier_policy
+        if approval_policy_resolver is not None:
+            self.approval_policy_resolver = approval_policy_resolver
+        elif approval_verifier_policy is not None:
+            self.approval_policy_resolver = ApprovalPolicyResolver([approval_verifier_policy])
+        else:
+            self.approval_policy_resolver = None
+        self.key_identity_registry = key_identity_registry
         self.replay_store = replay_store or replay_guard or default_approval_replay_guard()
 
     def invoke(self, request: ProviderRequest) -> ProviderResult:
@@ -312,11 +336,30 @@ class FakeSolarProProvider:
             result.metrics.update(verification.metrics)
             return result
 
-        policy_verification = enforce_approval_contract_policy(
+        if self.approval_policy_resolver is None:
+            result = _blocked_result(
+                request,
+                [("provider_approval_policy_resolver_present", "approval policy resolver is required.")],
+            )
+            result.metrics.update(verification.metrics)
+            result.metrics["approval_policy_resolver_missing_block_count"] = 1
+            return result
+
+        if self.key_identity_registry is None:
+            result = _blocked_result(
+                request,
+                [("provider_approval_key_identity_registry_present", "key identity registry is required.")],
+            )
+            result.metrics.update(verification.metrics)
+            result.metrics["key_identity_registry_missing_block_count"] = 1
+            return result
+
+        policy_verification = enforce_resolved_approval_contract_policy(
             request.approval,
             scope=PROVIDER_APPROVAL_SCOPE,
             gate_prefix="provider_approval",
-            policy=self.approval_verifier_policy,
+            policy_resolver=self.approval_policy_resolver,
+            key_identity_registry=self.key_identity_registry,
         )
         verification_metrics = merge_verifier_metrics(
             verification.metrics,

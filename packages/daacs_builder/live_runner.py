@@ -15,12 +15,14 @@ from packages.core.pathing import PathBoundaryError, normalize_public_relative_p
 from packages.core.schemas import VerificationReport, stable_contract_hash
 
 from .approval_security import (
+    ApprovalPolicyResolver,
     ApprovalVerifier,
     ApprovalVerifierPolicy,
+    KeyIdentityRegistry,
     PersistentReplayStore,
     claim_approval_replay,
     default_approval_replay_guard,
-    enforce_approval_contract_policy,
+    enforce_resolved_approval_contract_policy,
     merge_verifier_metrics,
 )
 from .offline_runner import DAACSOfflineRunner
@@ -91,6 +93,17 @@ ZERO_FAKE_LIVE_RUNTIME_METRICS: dict[str, int] = {
     "approval_verifier_key_block_count": 0,
     "approval_verifier_scope_block_count": 0,
     "approval_verifier_skew_block_count": 0,
+    "approval_policy_resolver_check_count": 0,
+    "approval_policy_resolver_valid_count": 0,
+    "approval_policy_resolver_block_count": 0,
+    "approval_policy_resolver_missing_block_count": 0,
+    "approval_policy_unknown_block_count": 0,
+    "key_identity_registry_check_count": 0,
+    "key_identity_registry_valid_count": 0,
+    "key_identity_registry_block_count": 0,
+    "key_identity_registry_missing_block_count": 0,
+    "key_identity_revoked_block_count": 0,
+    "policy_key_mismatch_block_count": 0,
 }
 
 
@@ -327,13 +340,22 @@ class LiveRunnerProvider:
         offline_runner: DAACSOfflineRunner | None = None,
         approval_verifier: ApprovalVerifier | None = None,
         approval_verifier_policy: ApprovalVerifierPolicy | None = None,
+        approval_policy_resolver: ApprovalPolicyResolver | None = None,
+        key_identity_registry: KeyIdentityRegistry | None = None,
         replay_store: PersistentReplayStore | None = None,
         replay_guard: PersistentReplayStore | None = None,
     ) -> None:
         self.runtime = runtime or FakeLiveRuntime()
         self.offline_runner = offline_runner or DAACSOfflineRunner()
         self.approval_verifier = approval_verifier
-        self.approval_verifier_policy = approval_verifier_policy or ApprovalVerifierPolicy()
+        self.approval_verifier_policy = approval_verifier_policy
+        if approval_policy_resolver is not None:
+            self.approval_policy_resolver = approval_policy_resolver
+        elif approval_verifier_policy is not None:
+            self.approval_policy_resolver = ApprovalPolicyResolver([approval_verifier_policy])
+        else:
+            self.approval_policy_resolver = None
+        self.key_identity_registry = key_identity_registry
         self.replay_store = replay_store or replay_guard or default_approval_replay_guard()
 
     def run(self, request: RunnerRequest) -> RunnerResult:
@@ -380,11 +402,34 @@ class LiveRunnerProvider:
                 },
             )
 
-        policy_verification = enforce_approval_contract_policy(
+        if self.approval_policy_resolver is None:
+            return _blocked_result(
+                request=request,
+                failures=[("live_approval_policy_resolver_present", "approval policy resolver is required.")],
+                extra_metrics={
+                    "approval_bypass_count": 1,
+                    **verification.metrics,
+                    "approval_policy_resolver_missing_block_count": 1,
+                },
+            )
+
+        if self.key_identity_registry is None:
+            return _blocked_result(
+                request=request,
+                failures=[("live_approval_key_identity_registry_present", "key identity registry is required.")],
+                extra_metrics={
+                    "approval_bypass_count": 1,
+                    **verification.metrics,
+                    "key_identity_registry_missing_block_count": 1,
+                },
+            )
+
+        policy_verification = enforce_resolved_approval_contract_policy(
             request.approval,
             scope=LIVE_APPROVAL_SCOPE,
             gate_prefix="live_approval",
-            policy=self.approval_verifier_policy,
+            policy_resolver=self.approval_policy_resolver,
+            key_identity_registry=self.key_identity_registry,
         )
         verification_metrics = merge_verifier_metrics(
             verification.metrics,

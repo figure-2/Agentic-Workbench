@@ -19,6 +19,13 @@ FORBIDDEN_PUBLIC_KEYS = {
     "search_results",
     "private_corpus",
     "privateCorpus",
+    "signature_id",
+    "signed_contract_hash",
+    "nonce",
+    "verifier_id",
+    "key_id",
+    "verifier_policy_id",
+    "key_identity_id",
 }
 
 
