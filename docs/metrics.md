@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-NEXT-08` gated fake live runner skeleton.
+Current snapshot after `AW-NEXT-09` Solar Pro 3 provider boundary skeleton.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache | 59 |
-| Counted code/doc files, excluding cache | 59 |
-| Project lines, excluding cache | 6,049 |
-| Python files | 34 |
-| Markdown files | 21 |
-| Test files | 9 |
-| Unit test files | 7 |
+| Project files, excluding cache | 62 |
+| Counted code/doc files, excluding cache | 62 |
+| Project lines, excluding cache | 6,709 |
+| Python files | 36 |
+| Markdown files | 22 |
+| Test files | 10 |
+| Unit test files | 8 |
 | Smoke test files | 2 |
 | Integration test files | 0 |
-| Pytest collected cases | 121 |
-| Pytest passed cases | 121 |
+| Pytest collected cases | 148 |
+| Pytest passed cases | 148 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -361,3 +361,47 @@ Measured after `LiveRunnerProvider` and `FakeLiveRuntime` implementation.
 | public payload sanitization | covered |
 
 Interpretation: this measures fake live admission gate coverage only. It does not implement real DAACS execution, Solar Pro 3 provider calls, generated-code quality, install/build success, hosted success, or production readiness.
+
+## AW-NEXT-09 Solar Pro 3 Provider Boundary Metrics
+
+Measured after `ProviderRequest`, `ProviderApprovalRecord`, `ProviderResult`, and `FakeSolarProProvider` implementation.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 148 |
+| Pytest passed cases | 148 |
+| Regression delta vs AW-NEXT-08 baseline | +27 |
+| Provider boundary test cases | 27 |
+| Provider/request negative cases | 22 |
+| Unsafe `run_id` public exposure regression cases | 1 |
+| Secret/env read tripwire tests | 2 |
+| Provider import tripwire tests | 2 |
+| Offline/dry-run provider import regression tests | 1 |
+| Fake provider invocations on approved fake path | 1 |
+| Env key name references on approved fake path | 1 |
+| Live LLM calls during eval | 0 |
+| Live API calls during eval | 0 |
+| Provider calls during eval | 0 |
+| Provider imports during eval | 0 |
+| Provider secret value reads during eval | 0 |
+| Network calls during eval | 0 |
+| `.env` file reads during eval | 0 |
+| Raw secret exposure in tested public payload | 0 |
+
+| Gate | Result |
+|---|---|
+| provider approval missing blocked | covered |
+| malformed provider approval blocked | covered |
+| provider/request field mismatch blocked | covered |
+| non-fake mode blocked | covered |
+| invalid env key names blocked | covered |
+| live API/LLM limits above 0 blocked | covered |
+| invalid prompt contract hash blocked | covered |
+| unsafe `run_id` blocked without public exposure | covered |
+| fake provider success path live calls 0 | covered |
+| `.env`/env secret value read tripwire | covered |
+| Solar/Upstage/provider import tripwire | covered |
+| offline/dry-run provider import regression | covered |
+| public payload keeps env key name only | covered |
+
+Interpretation: this measures provider boundary contract coverage only. It does not implement Solar Pro 3 API calls, Upstage SDK imports, real token usage, response quality, DAACS live execution, or production readiness.

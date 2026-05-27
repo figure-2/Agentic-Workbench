@@ -226,6 +226,39 @@ Rules:
 - offline and dry-run tests must assert Solar/Upstage modules are not imported
 - provider call count, token usage, latency, and error type must be recorded as sanitized metrics
 
+AW-NEXT-09 implemented boundary:
+
+```text
+ProviderRequest
+  -> run_id
+  -> provider_name = solar-pro-3
+  -> model_name = solar-pro-3
+  -> mode = fake
+  -> env_key_name = UPSTAGE_API_KEY
+  -> prompt_contract_hash
+  -> approval: ProviderApprovalRecord | null
+
+ProviderApprovalRecord
+  -> run_id
+  -> provider_name
+  -> model_name
+  -> mode = fake
+  -> env_key_name
+  -> max_live_api_calls = 0
+  -> max_live_llm_calls = 0
+  -> expires_at
+  -> audit_log_id
+
+FakeSolarProProvider.invoke()
+  -> validates request and approval
+  -> records fake provider metrics
+  -> never reads env values
+  -> never imports Solar/Upstage SDKs
+  -> never opens network
+```
+
+AW-NEXT-09 is still not a Solar Pro 3 live integration. It proves only that the provider boundary can be admitted, blocked, audited, and measured without secret reads or external calls.
+
 ## DAACS Runtime Boundary
 
 DAACS original modules should be imported lazily inside `LiveRunner`, never at package import time.
@@ -296,13 +329,13 @@ artifact_boundary_error
 | AW-NEXT-07A | AW-NEXT-06 | PRD/ImplementationBrief approval gate | `PRDPackage`, `ImplementationBrief`, and `SpecApproval` artifacts exist; builder is not called before content approval; hash mismatch blocks DAACSState handoff | high | remove approval artifacts and gate |
 | AW-NEXT-07B | AW-NEXT-07A | dry-run runner | dry-run emits `RunnerPlan`, side-effect counters all 0, simulated action counters recorded, approval_required true for live operations | high | remove dry-run runner |
 | AW-NEXT-08 | AW-NEXT-07B | live runner gated skeleton | live mode without approval returns blocked report; fake approval requires rollback/audit IDs; dry-run `RunnerPlan` is required; fake runtime no external calls occur | high | disable live runner registration |
-| AW-NEXT-09 | AW-NEXT-08 | Solar Pro 3 provider boundary | provider adapter uses env-only credentials, dry-run import count 0, live fake provider call metrics recorded | high | remove provider registration |
+| AW-NEXT-09 | AW-NEXT-08 | Solar Pro 3 provider boundary | provider adapter references env key name only, approval missing blocks boundary, dry-run/offline import count 0, fake provider metrics recorded | high | remove provider boundary files and exports |
 
 ## Quantitative Targets
 
 | Metric | Target before live DAACS |
 |---|---:|
-| Existing regression tests | 121/121 pass |
+| Existing regression tests | 148/148 pass |
 | Runner modes documented | 3 |
 | State transitions documented | 7 |
 | Blocked direct transitions documented | 4 |

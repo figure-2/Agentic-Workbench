@@ -1,0 +1,295 @@
+import builtins
+import os
+import socket
+import urllib.request
+from pathlib import Path
+
+import pytest
+
+from packages.core.schemas import stable_contract_hash
+from packages.daacs_builder.adapters import (
+    build_spec_to_daacs_initial_state,
+    create_spec_approval,
+    implementation_brief_from_prd_package,
+    planning_to_build_spec,
+)
+from packages.daacs_builder.provider_boundary import (
+    FakeSolarProProvider,
+    ProviderApprovalRecord,
+    ProviderRequest,
+    SOLAR_PRO_3_ENV_KEY_NAME,
+)
+from packages.daacs_builder.runner_provider import RunnerRequest, default_runner_provider_registry
+from packages.div_planner.adapters import planning_blueprint_from_div_state, planning_to_prd_package
+
+
+def _prompt_contract_hash():
+    return stable_contract_hash(
+        {
+            "purpose": "fake solar provider boundary",
+            "input_contract": "sanitized prompt hash only",
+        }
+    )
+
+
+def _provider_approval(**overrides):
+    fields = {
+        "approved_by": "local-user",
+        "approved_at": "2026-05-27T00:00:00Z",
+        "run_id": "run-provider",
+        "provider_name": "solar-pro-3",
+        "model_name": "solar-pro-3",
+        "mode": "fake",
+        "env_key_name": SOLAR_PRO_3_ENV_KEY_NAME,
+        "max_live_api_calls": 0,
+        "max_live_llm_calls": 0,
+        "expires_at": "2099-01-01T00:00:00Z",
+        "audit_log_id": "provider-audit-run-provider",
+    }
+    fields.update(overrides)
+    return ProviderApprovalRecord(**fields)
+
+
+def _provider_request(**overrides):
+    fields = {
+        "run_id": "run-provider",
+        "prompt_contract_hash": _prompt_contract_hash(),
+        "approval": _provider_approval(),
+    }
+    fields.update(overrides)
+    return ProviderRequest(**fields)
+
+
+def _approved_dry_run_request():
+    blueprint = planning_blueprint_from_div_state(
+        {
+            "idea": {
+                "toc": ["Agentic Workbench"],
+                "rationale": "Need provider boundary isolation.",
+                "blueprint": [
+                    {"title": "Provider Boundary", "guideline": "plan provider usage only"},
+                    {"title": "Approval Gate", "guideline": "block live provider calls"},
+                ],
+            }
+        }
+    )
+    spec = planning_to_build_spec(blueprint)
+    prd_package = planning_to_prd_package(blueprint, build_spec=spec)
+    brief = implementation_brief_from_prd_package(prd_package, spec)
+    approval = create_spec_approval(brief, approval_id="approval-provider-boundary", approved=True)
+    state = build_spec_to_daacs_initial_state(
+        spec,
+        run_id="run-provider",
+        implementation_brief=brief,
+        approval=approval,
+        require_approval=True,
+    )
+    return RunnerRequest(
+        run_id="run-provider",
+        mode="dry_run",
+        state=state,
+        implementation_brief=brief,
+        spec_approval=approval,
+    )
+
+
+def test_provider_boundary_blocks_without_approval():
+    result = FakeSolarProProvider().invoke(
+        ProviderRequest(run_id="run-provider", prompt_contract_hash=_prompt_contract_hash())
+    )
+    checks = {check["name"]: check["passed"] for check in result.checks}
+
+    assert result.status == "blocked"
+    assert checks["provider_approval_present"] is False
+    assert result.metrics["approval_bypass_count"] == 1
+    assert result.metrics["provider_calls"] == 0
+    assert result.metrics["live_api_calls"] == 0
+    assert result.metrics["live_llm_calls"] == 0
+
+
+def test_provider_boundary_blocks_malformed_approval():
+    result = FakeSolarProProvider().invoke(
+        ProviderRequest(
+            run_id="run-provider",
+            prompt_contract_hash=_prompt_contract_hash(),
+            approval="approved in chat",
+        )
+    )
+    checks = {check["name"]: check["passed"] for check in result.checks}
+
+    assert result.status == "blocked"
+    assert checks["provider_approval_valid"] is False
+    assert result.metrics["provider_imports"] == 0
+
+
+@pytest.mark.parametrize(
+    ("approval_overrides", "request_overrides", "expected_gate"),
+    [
+        ({"run_id": "other-run"}, {}, "provider_approval_valid"),
+        ({"provider_name": "other-provider"}, {}, "provider_approval_valid"),
+        ({"model_name": "other-model"}, {}, "provider_approval_valid"),
+        ({"mode": "live"}, {}, "provider_approval_valid"),
+        ({"env_key_name": "OTHER_API_KEY"}, {}, "provider_approval_valid"),
+        ({"max_live_api_calls": 1}, {}, "provider_approval_valid"),
+        ({"max_live_llm_calls": 1}, {}, "provider_approval_valid"),
+        ({"audit_log_id": ""}, {}, "provider_audit_configured"),
+        (
+            {"approved_at": "2026-05-27T00:00:00Z", "expires_at": "2026-05-27T00:00:00Z"},
+            {},
+            "provider_approval_valid",
+        ),
+        ({"expires_at": "2000-01-01T00:00:00Z", "approved_at": "1999-01-01T00:00:00Z"}, {}, "provider_approval_valid"),
+        ({}, {"provider_name": "other-provider"}, "provider_name_supported"),
+        ({}, {"model_name": "other-model"}, "provider_model_supported"),
+        ({}, {"mode": "live"}, "provider_mode_fake"),
+        ({}, {"env_key_name": "upstage_api_key"}, "provider_env_key_name_valid"),
+        ({}, {"env_key_name": "UPSTAGE_API_KEY "}, "provider_env_key_name_valid"),
+        ({}, {"env_key_name": "API_KEY"}, "provider_env_key_name_valid"),
+        ({}, {"env_key_name": "UPSTAGE_API_KEY=secret"}, "provider_env_key_name_valid"),
+        ({}, {"env_key_name": "SECRET_VALUE"}, "provider_env_key_name_valid"),
+        ({}, {"prompt_contract_hash": "raw prompt"}, "provider_prompt_contract_hash_valid"),
+    ],
+)
+def test_provider_boundary_blocks_invalid_contracts(
+    approval_overrides,
+    request_overrides,
+    expected_gate,
+):
+    approval = _provider_approval(**approval_overrides)
+    request = _provider_request(approval=approval, **request_overrides)
+
+    result = FakeSolarProProvider().invoke(request)
+    checks = {check["name"]: check["passed"] for check in result.checks}
+
+    assert result.status == "blocked"
+    assert checks[expected_gate] is False
+    assert result.metrics["fake_provider_invocations"] == 0
+    assert result.metrics["provider_calls"] == 0
+    assert result.metrics["network_calls"] == 0
+
+
+def test_provider_boundary_blocks_unsafe_run_id_without_public_exposure():
+    unsafe_run_id = "owner@example.com/demo"
+    result = FakeSolarProProvider().invoke(
+        _provider_request(
+            run_id=unsafe_run_id,
+            approval=_provider_approval(run_id=unsafe_run_id),
+        )
+    )
+    serialized = str(result.to_dict())
+    checks = {check["name"]: check["passed"] for check in result.checks}
+
+    assert result.status == "blocked"
+    assert result.run_id == "invalid-run-id"
+    assert checks["provider_run_id_valid"] is False
+    assert unsafe_run_id not in serialized
+    assert "owner@example.com" not in serialized
+    assert result.metrics["provider_secret_value_reads"] == 0
+
+
+def test_fake_solar_provider_passes_without_reading_env_secret_or_calling_live_provider(
+    monkeypatch,
+):
+    dummy_secret = "upstage-test-secret-value"
+    monkeypatch.setenv(SOLAR_PRO_3_ENV_KEY_NAME, dummy_secret)
+
+    def fail_if_env_value_read(*args, **kwargs):
+        raise AssertionError("provider boundary attempted to read an env secret value")
+
+    monkeypatch.setattr(os, "getenv", fail_if_env_value_read)
+    monkeypatch.setattr(os.environ, "get", fail_if_env_value_read)
+
+    result = FakeSolarProProvider().invoke(_provider_request())
+    serialized = str(result.to_dict())
+
+    assert result.status == "passed"
+    assert result.output_contract["env_key_name"] == SOLAR_PRO_3_ENV_KEY_NAME
+    assert dummy_secret not in serialized
+    assert result.metrics["fake_provider_invocations"] == 1
+    assert result.metrics["env_key_name_reference_count"] == 1
+    assert result.metrics["provider_secret_value_reads"] == 0
+    assert result.metrics["provider_calls"] == 0
+    assert result.metrics["live_api_calls"] == 0
+    assert result.metrics["live_llm_calls"] == 0
+    assert result.metrics["network_calls"] == 0
+
+
+def test_fake_solar_provider_does_not_read_dotenv_or_call_network(monkeypatch):
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("provider boundary attempted a blocked side effect")
+
+    monkeypatch.setattr(builtins, "open", fail_if_called)
+    monkeypatch.setattr(Path, "read_text", fail_if_called)
+    monkeypatch.setattr(socket, "create_connection", fail_if_called)
+    monkeypatch.setattr(urllib.request, "urlopen", fail_if_called)
+
+    result = FakeSolarProProvider().invoke(_provider_request())
+
+    assert result.status == "passed"
+    assert result.metrics["network_calls"] == 0
+    assert result.metrics["provider_secret_value_reads"] == 0
+
+
+def test_fake_solar_provider_does_not_import_upstage_or_provider_runtime(monkeypatch):
+    real_import = builtins.__import__
+
+    def fail_blocked_import(name, *args, **kwargs):
+        blocked_prefixes = (
+            "upstage",
+            "langchain_upstage",
+            "openai",
+            "anthropic",
+            "httpx",
+            "requests",
+        )
+        if name.startswith(blocked_prefixes):
+            raise AssertionError(f"provider boundary attempted blocked import: {name}")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fail_blocked_import)
+    result = FakeSolarProProvider().invoke(_provider_request())
+
+    assert result.status == "passed"
+    assert result.metrics["provider_imports"] == 0
+
+
+def test_provider_boundary_public_payload_contains_env_key_name_only():
+    approval = _provider_approval(approved_by="local-user@example.com")
+    result = FakeSolarProProvider().invoke(_provider_request(approval=approval))
+    serialized = str(result.to_dict())
+
+    assert result.status == "passed"
+    assert SOLAR_PRO_3_ENV_KEY_NAME in serialized
+    assert "local-user@example.com" not in serialized
+    assert "raw_prompt" not in serialized
+    assert "raw_content" not in serialized
+    assert "Authorization" not in serialized
+
+
+def test_offline_and_dry_run_do_not_import_solar_or_upstage_modules(monkeypatch):
+    real_import = builtins.__import__
+
+    def fail_blocked_import(name, *args, **kwargs):
+        blocked_prefixes = (
+            "upstage",
+            "langchain_upstage",
+            "openai",
+            "anthropic",
+            "httpx",
+            "requests",
+        )
+        if name.startswith(blocked_prefixes):
+            raise AssertionError(f"offline/dry-run attempted blocked provider import: {name}")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fail_blocked_import)
+
+    offline_result = default_runner_provider_registry().run(
+        RunnerRequest(run_id="run-provider", mode="offline", state=_approved_dry_run_request().state)
+    )
+    dry_run_result = default_runner_provider_registry().run(_approved_dry_run_request())
+
+    assert offline_result.status == "passed"
+    assert dry_run_result.status == "approval_required"
+    assert offline_result.verification_report.metrics["provider_imports"] == 0
+    assert dry_run_result.verification_report.metrics["provider_imports"] == 0
