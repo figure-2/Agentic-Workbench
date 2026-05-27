@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-NEXT-07B` DAACS dry-run runner.
+Current snapshot after `AW-NEXT-08` gated fake live runner skeleton.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache | 57 |
-| Counted code/doc files, excluding cache | 57 |
-| Project lines, excluding cache | 5,258 |
-| Python files | 33 |
-| Markdown files | 20 |
+| Project files, excluding cache | 59 |
+| Counted code/doc files, excluding cache | 59 |
+| Project lines, excluding cache | 6,049 |
+| Python files | 34 |
+| Markdown files | 21 |
 | Test files | 9 |
 | Unit test files | 7 |
 | Smoke test files | 2 |
 | Integration test files | 0 |
-| Pytest collected cases | 94 |
-| Pytest passed cases | 94 |
+| Pytest collected cases | 121 |
+| Pytest passed cases | 121 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -308,3 +308,56 @@ Measured after side-effect-free dry-run runner and `RunnerPlan` implementation.
 | plan/report/audit redaction fixture | covered |
 
 Interpretation: this measures dry-run planning coverage only. It does not implement live DAACS execution, Solar Pro 3 provider calls, generated-code quality, install/build success, hosted success, or production readiness.
+
+## AW-NEXT-08 Gated Fake Live Runner Metrics
+
+Measured after `LiveRunnerProvider` and `FakeLiveRuntime` implementation.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 121 |
+| Pytest passed cases | 121 |
+| Regression delta vs AW-NEXT-07B baseline | +27 |
+| Runner provider registry tests | 42 |
+| AW-NEXT-08 live/fake test cases | 27 |
+| Unsafe `run_id` public exposure regression cases | 1 |
+| Approval validation negative cases | 13 |
+| Workspace boundary negative cases | 6 |
+| Host command tripwire tests | 1 |
+| File/network tripwire tests | 1 |
+| DAACS/provider import tripwire tests | 1 |
+| Default registered runner modes | 3 |
+| Live provider registrations | 1 |
+| Fake live runtime invocations on approved fake path | 1 |
+| Real DAACS invocations on approved fake path | 0 |
+| Solar/provider calls on approved fake path | 0 |
+| Executed actions on approved fake path | 0 |
+| Generated files on approved fake path | 0 |
+| Artifact manifest entries on approved fake path | 0 |
+| Live LLM calls during eval | 0 |
+| Live API calls during eval | 0 |
+| Provider calls during eval | 0 |
+| Provider imports during eval | 0 |
+| CLI agent invocations during eval | 0 |
+| Subprocess calls during eval | 0 |
+| Package install calls during eval | 0 |
+| Server start calls during eval | 0 |
+| Filesystem writes during eval | 0 |
+| Network calls during eval | 0 |
+| Raw secret exposure in tested public payload | 0 |
+
+| Gate | Result |
+|---|---|
+| live without approval blocked | covered |
+| malformed live approval blocked | covered |
+| live without dry-run plan blocked | covered |
+| unsafe `run_id` blocked without public exposure | covered |
+| approval field validation | covered |
+| workspace root boundary | covered |
+| policy escalation blocked | covered |
+| dry-run plan hash/state mismatch blocked | covered |
+| fake live side-effect zero path | covered |
+| process/file/network/import tripwire | covered |
+| public payload sanitization | covered |
+
+Interpretation: this measures fake live admission gate coverage only. It does not implement real DAACS execution, Solar Pro 3 provider calls, generated-code quality, install/build success, hosted success, or production readiness.

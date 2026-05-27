@@ -16,7 +16,7 @@
 |---|---|---:|---:|---:|---|
 | `offline` | state contract와 차단 정책 검증 | 0 | no | no | `VerificationReport` |
 | `dry_run` | 실행 계획, 권한 요청, 예상 산출물 manifest 생성 | 0 | no | no | `RunnerPlan` + `VerificationReport` |
-| `live` | 승인된 격리 workspace에서 DAACS 실행 | explicit only | yes, delayed | explicit only | generated files + `VerificationReport` |
+| `live` | AW-NEXT-08 기준 승인/dry-run/workspace gate 검증 후 fake runtime만 호출. future 단계에서만 격리 workspace DAACS 실행 | 0 in AW-NEXT-08 | no in AW-NEXT-08 | no in AW-NEXT-08 | fake live `VerificationReport` |
 
 핵심 판단: `dry_run`은 "mock execution"이 아니라 "live 실행 전에 무엇을 실행할지 설명하는 계획 산출 단계"여야 한다. 그래야 package install, server start, provider call이 실제로 한 번도 발생하지 않은 상태에서 승인 기준을 검토할 수 있다.
 
@@ -172,7 +172,7 @@ rollback_plan_id
 audit_log_id
 ```
 
-The first live implementation should require all limits to be explicit positive integers. Missing limits mean blocked, not unlimited.
+The first fake live implementation requires all side-effect limits to be explicit zero. Future real live implementations may allow positive limits only after a separate provider/runtime approval contract is implemented. Missing limits mean blocked, not unlimited.
 
 ## Secret And PII Rule
 
@@ -202,6 +202,8 @@ AW-NEXT-06 changed the offline runner finding shape to sanitized evidence only. 
 | filesystem write | block | plan only | workspace-only |
 | network call | block | plan only | provider/localhost allowlist only |
 | public artifact write | sanitized only | sanitized only | sanitized only |
+
+AW-NEXT-08의 `live` 구현은 위 matrix의 future live 목표가 아니라 fake runtime gate다. 현재 구현에서 provider import, provider call, CLI agent, subprocess, package install, server start, filesystem write, network call은 모두 0으로 고정된다.
 
 ## Solar Pro 3 Boundary
 
@@ -293,14 +295,14 @@ artifact_boundary_error
 | AW-NEXT-06 | AW-NEXT-05 | `RunnerProvider` interface skeleton | unit tests prove offline provider preserves current 67 tests, registry rejects unknown/live mode without approval, finding excerpts are redacted | high | remove new interface files |
 | AW-NEXT-07A | AW-NEXT-06 | PRD/ImplementationBrief approval gate | `PRDPackage`, `ImplementationBrief`, and `SpecApproval` artifacts exist; builder is not called before content approval; hash mismatch blocks DAACSState handoff | high | remove approval artifacts and gate |
 | AW-NEXT-07B | AW-NEXT-07A | dry-run runner | dry-run emits `RunnerPlan`, side-effect counters all 0, simulated action counters recorded, approval_required true for live operations | high | remove dry-run runner |
-| AW-NEXT-08 | AW-NEXT-07B | live runner gated skeleton | live mode without approval returns blocked report; fake approval requires rollback/audit IDs; fake runtime no external calls occur | high | disable live runner registration |
+| AW-NEXT-08 | AW-NEXT-07B | live runner gated skeleton | live mode without approval returns blocked report; fake approval requires rollback/audit IDs; dry-run `RunnerPlan` is required; fake runtime no external calls occur | high | disable live runner registration |
 | AW-NEXT-09 | AW-NEXT-08 | Solar Pro 3 provider boundary | provider adapter uses env-only credentials, dry-run import count 0, live fake provider call metrics recorded | high | remove provider registration |
 
 ## Quantitative Targets
 
 | Metric | Target before live DAACS |
 |---|---:|
-| Existing regression tests | 67/67 pass |
+| Existing regression tests | 121/121 pass |
 | Runner modes documented | 3 |
 | State transitions documented | 7 |
 | Blocked direct transitions documented | 4 |
@@ -340,4 +342,4 @@ audit_log_completeness_rate
 
 ## Consulting Conclusion
 
-The correct next implementation is a live runner gated skeleton with fake runtime only, not Solar Pro 3 and not real DAACS execution. The existing skeleton and dry-run path make unsafe mode transitions fail closed and make live execution reviewable before any external state changes.
+AW-NEXT-08 implements a live runner gated skeleton with fake runtime only, not Solar Pro 3 and not real DAACS execution. The next correct step is a provider boundary skeleton that keeps credentials env-only and still blocks live API calls until explicit provider approval is added.

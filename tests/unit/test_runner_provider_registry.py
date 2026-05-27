@@ -6,6 +6,8 @@ import socket
 import urllib.request
 from pathlib import Path
 
+import pytest
+
 from packages.daacs_builder.adapters import (
     build_spec_to_daacs_initial_state,
     create_spec_approval,
@@ -65,6 +67,48 @@ def _approved_dry_run_parts():
     return state, brief, approval
 
 
+def _approved_dry_run_result():
+    state, brief, approval = _approved_dry_run_parts()
+    result = default_runner_provider_registry().run(
+        RunnerRequest(
+            run_id="run-provider",
+            mode="dry_run",
+            state=state,
+            implementation_brief=brief,
+            spec_approval=approval,
+        )
+    )
+    assert result.plan is not None
+    return state, result.plan
+
+
+def _valid_live_approval(**overrides):
+    fields = {
+        "approved_by": "local-user",
+        "approved_at": "2026-05-27T00:00:00Z",
+        "run_id": "run-provider",
+        "mode": "live",
+        "allowed_operations": ["fake_runtime"],
+        "max_provider_calls": 0,
+        "max_subprocess_calls": 0,
+        "max_package_installs": 0,
+        "max_server_starts": 0,
+        "max_files_written": 0,
+        "workspace_root": "runs/run-provider",
+        "expires_at": "2099-01-01T00:00:00Z",
+        "rollback_plan_id": "rollback-run-provider",
+        "audit_log_id": "audit-run-provider",
+    }
+    fields.update(overrides)
+    return ApprovalRecord(**fields)
+
+
+def _valid_live_policy(**overrides):
+    fields = {"workspace_root": "runs/run-provider"}
+    fields.update(overrides)
+    return RunnerPolicy(**fields)
+
+
 def test_default_registry_routes_offline_provider_without_live_execution():
     result = default_runner_provider_registry().run(
         RunnerRequest(run_id="run-provider", mode="offline", state=_state())
@@ -80,8 +124,8 @@ def test_default_registry_routes_offline_provider_without_live_execution():
     assert result.artifact_manifest == []
 
 
-def test_default_registry_registers_offline_and_dry_run_only():
-    assert default_runner_provider_registry().registered_modes() == ["dry_run", "offline"]
+def test_default_registry_registers_offline_dry_run_and_fake_live():
+    assert default_runner_provider_registry().registered_modes() == ["dry_run", "live", "offline"]
 
 
 def test_default_registry_routes_dry_run_provider_without_side_effects():
@@ -371,35 +415,310 @@ def test_registry_blocks_live_mode_with_malformed_approval():
     assert result.verification_report.metrics["provider_calls"] == 0
 
 
-def test_registry_keeps_live_mode_blocked_even_with_skeleton_approval():
-    approval = ApprovalRecord(
-        approved_by="local-user",
-        approved_at="2026-05-27T00:00:00Z",
-        run_id="run-provider",
-        mode="live",
-        allowed_operations=["provider_call"],
-        max_provider_calls=1,
-        max_subprocess_calls=0,
-        max_package_installs=0,
-        max_server_starts=0,
-        max_files_written=0,
-        workspace_root="runs/run-provider",
-        expires_at="2026-05-27T01:00:00Z",
-        rollback_plan_id="rollback-run-provider",
-        audit_log_id="audit-run-provider",
+def test_live_blocks_unsafe_run_id_without_public_exposure():
+    unsafe_run_id = "john@example.com/demo"
+    result = default_runner_provider_registry().run(
+        RunnerRequest(
+            run_id=unsafe_run_id,
+            mode="live",
+            state=_state(),
+            approval=_valid_live_approval(run_id=unsafe_run_id),
+            policy=_valid_live_policy(),
+        )
     )
+    serialized = str(
+        {
+            "result_run_id": result.run_id,
+            "report": result.verification_report.to_dict(),
+            "audit_events": result.audit_events,
+        }
+    )
+    checks = {check["name"]: check["passed"] for check in result.verification_report.checks}
 
+    assert result.status == "blocked"
+    assert result.run_id == "invalid-run-id"
+    assert result.verification_report.run_id == "invalid-run-id"
+    assert checks["live_run_id_valid"] is False
+    assert unsafe_run_id not in serialized
+    assert "john@example.com" not in serialized
+    assert result.verification_report.metrics["provider_calls"] == 0
+
+
+def test_live_blocks_without_dry_run_plan_even_with_valid_approval():
     result = default_runner_provider_registry().run(
         RunnerRequest(
             run_id="run-provider",
             mode="live",
             state=_state(),
-            approval=approval,
+            approval=_valid_live_approval(),
+            policy=_valid_live_policy(),
         )
     )
     checks = {check["name"]: check["passed"] for check in result.verification_report.checks}
 
     assert result.status == "blocked"
-    assert checks["live_runner_registered"] is False
-    assert result.verification_report.metrics["approval_bypass_count"] == 0
+    assert checks["dry_run_plan_present"] is False
+    assert result.verification_report.metrics["approval_bypass_count"] == 1
     assert result.verification_report.metrics["provider_calls"] == 0
+
+
+@pytest.mark.parametrize(
+    ("overrides", "expected_gate"),
+    [
+        ({"run_id": "other-run"}, "live_approval_valid"),
+        ({"mode": "dry_run"}, "live_approval_valid"),
+        ({"allowed_operations": []}, "live_approval_valid"),
+        ({"allowed_operations": ["fake_runtime", "provider_call"]}, "live_approval_valid"),
+        ({"max_provider_calls": 1}, "live_approval_valid"),
+        ({"max_subprocess_calls": 1}, "live_approval_valid"),
+        ({"max_package_installs": 1}, "live_approval_valid"),
+        ({"max_server_starts": 1}, "live_approval_valid"),
+        ({"max_files_written": 1}, "live_approval_valid"),
+        (
+            {"approved_at": "2026-05-27T00:00:00Z", "expires_at": "2026-05-27T00:00:00Z"},
+            "live_approval_valid",
+        ),
+        ({"expires_at": "2000-01-01T00:00:00Z", "approved_at": "1999-01-01T00:00:00Z"}, "live_approval_valid"),
+        ({"rollback_plan_id": ""}, "live_rollback_configured"),
+        ({"audit_log_id": ""}, "live_audit_configured"),
+    ],
+)
+def test_live_blocks_invalid_approval_fields(overrides, expected_gate):
+    state, plan = _approved_dry_run_result()
+    result = default_runner_provider_registry().run(
+        RunnerRequest(
+            run_id="run-provider",
+            mode="live",
+            state=state,
+            approval=_valid_live_approval(**overrides),
+            plan=plan,
+            policy=_valid_live_policy(),
+        )
+    )
+    checks = {check["name"]: check["passed"] for check in result.verification_report.checks}
+
+    assert result.status == "blocked"
+    assert checks[expected_gate] is False
+    assert result.verification_report.metrics["provider_calls"] == 0
+    assert result.verification_report.metrics["real_daacs_invocations"] == 0
+
+
+@pytest.mark.parametrize(
+    "workspace_root",
+    [
+        "",
+        "../escape",
+        "..%2Fescape",
+        "C:/tmp/run-provider",
+        "runs/other-run",
+        "runs/run-provider\x00bad",
+    ],
+)
+def test_live_blocks_unsafe_workspace_roots(workspace_root):
+    state, plan = _approved_dry_run_result()
+    result = default_runner_provider_registry().run(
+        RunnerRequest(
+            run_id="run-provider",
+            mode="live",
+            state=state,
+            approval=_valid_live_approval(workspace_root=workspace_root),
+            plan=plan,
+            policy=_valid_live_policy(workspace_root=workspace_root or "runs/run-provider"),
+        )
+    )
+    checks = {check["name"]: check["passed"] for check in result.verification_report.checks}
+
+    assert result.status == "blocked"
+    assert checks["live_workspace_valid"] is False
+    assert result.verification_report.metrics["filesystem_writes"] == 0
+
+
+def test_live_blocks_policy_escalation_for_fake_runtime():
+    state, plan = _approved_dry_run_result()
+    result = default_runner_provider_registry().run(
+        RunnerRequest(
+            run_id="run-provider",
+            mode="live",
+            state=state,
+            approval=_valid_live_approval(),
+            plan=plan,
+            policy=_valid_live_policy(allow_provider_calls=True),
+        )
+    )
+    checks = {check["name"]: check["passed"] for check in result.verification_report.checks}
+
+    assert result.status == "blocked"
+    assert checks["live_policy_fake_only"] is False
+    assert result.verification_report.metrics["provider_calls"] == 0
+
+
+def test_live_blocks_tampered_dry_run_plan_reference():
+    state, plan = _approved_dry_run_result()
+    state["implementation_brief_hash"] = "tampered"
+
+    result = default_runner_provider_registry().run(
+        RunnerRequest(
+            run_id="run-provider",
+            mode="live",
+            state=state,
+            approval=_valid_live_approval(),
+            plan=plan,
+            policy=_valid_live_policy(),
+        )
+    )
+    checks = {check["name"]: check["passed"] for check in result.verification_report.checks}
+
+    assert result.status == "blocked"
+    assert checks["dry_run_plan_valid"] is False
+    assert result.verification_report.metrics["provider_calls"] == 0
+
+
+def test_live_fake_runtime_passes_with_zero_side_effects_after_dry_run_plan():
+    state, plan = _approved_dry_run_result()
+    result = default_runner_provider_registry().run(
+        RunnerRequest(
+            run_id="run-provider",
+            mode="live",
+            state=state,
+            approval=_valid_live_approval(),
+            plan=plan,
+            policy=_valid_live_policy(),
+        )
+    )
+    metrics = result.verification_report.metrics
+    checks = {check["name"]: check["passed"] for check in result.verification_report.checks}
+
+    assert result.status == "passed"
+    assert result.mode == "live"
+    assert result.verification_report.passed is True
+    assert result.verification_report.generated_files == []
+    assert result.artifact_manifest == []
+    assert checks["fake_runtime_only"] is True
+    assert metrics["fake_live_runtime_invocations"] == 1
+    assert metrics["real_daacs_invocations"] == 0
+    assert metrics["solar_provider_calls"] == 0
+    assert metrics["executed_action_count"] == 0
+    assert metrics["provider_calls"] == 0
+    assert metrics["subprocess_calls"] == 0
+    assert metrics["package_install_calls"] == 0
+    assert metrics["server_start_calls"] == 0
+    assert metrics["filesystem_writes"] == 0
+    assert metrics["network_calls"] == 0
+    assert metrics["approval_bypass_count"] == 0
+
+
+def test_live_fake_runtime_does_not_call_host_commands(monkeypatch):
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("fake live runner attempted a blocked side effect")
+
+    monkeypatch.setattr(subprocess, "run", fail_if_called)
+    monkeypatch.setattr(subprocess, "Popen", fail_if_called)
+    monkeypatch.setattr(os, "system", fail_if_called)
+
+    state, plan = _approved_dry_run_result()
+    result = default_runner_provider_registry().run(
+        RunnerRequest(
+            run_id="run-provider",
+            mode="live",
+            state=state,
+            approval=_valid_live_approval(),
+            plan=plan,
+            policy=_valid_live_policy(),
+        )
+    )
+
+    assert result.status == "passed"
+    assert result.verification_report.metrics["subprocess_calls"] == 0
+    assert result.verification_report.metrics["package_install_calls"] == 0
+    assert result.verification_report.metrics["server_start_calls"] == 0
+
+
+def test_live_fake_runtime_does_not_write_files_or_call_network(monkeypatch):
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("fake live runner attempted a blocked side effect")
+
+    monkeypatch.setattr(builtins, "open", fail_if_called)
+    monkeypatch.setattr(Path, "write_text", fail_if_called)
+    monkeypatch.setattr(Path, "write_bytes", fail_if_called)
+    monkeypatch.setattr(Path, "mkdir", fail_if_called)
+    monkeypatch.setattr(socket, "create_connection", fail_if_called)
+    monkeypatch.setattr(urllib.request, "urlopen", fail_if_called)
+
+    state, plan = _approved_dry_run_result()
+    result = default_runner_provider_registry().run(
+        RunnerRequest(
+            run_id="run-provider",
+            mode="live",
+            state=state,
+            approval=_valid_live_approval(),
+            plan=plan,
+            policy=_valid_live_policy(),
+        )
+    )
+
+    assert result.status == "passed"
+    assert result.verification_report.metrics["fake_live_runtime_invocations"] == 1
+    assert result.verification_report.metrics["network_calls"] == 0
+
+
+def test_live_fake_runtime_does_not_import_daacs_or_provider_modules(monkeypatch):
+    real_import = builtins.__import__
+
+    def fail_blocked_import(name, *args, **kwargs):
+        blocked_prefixes = (
+            "daacs",
+            "langchain_upstage",
+            "langchain_tavily",
+            "qdrant_client",
+            "openai",
+            "anthropic",
+        )
+        if name.startswith(blocked_prefixes):
+            raise AssertionError(f"fake live runner attempted blocked import: {name}")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fail_blocked_import)
+    state, plan = _approved_dry_run_result()
+    result = default_runner_provider_registry().run(
+        RunnerRequest(
+            run_id="run-provider",
+            mode="live",
+            state=state,
+            approval=_valid_live_approval(),
+            plan=plan,
+            policy=_valid_live_policy(),
+        )
+    )
+
+    assert result.status == "passed"
+    assert result.verification_report.metrics["provider_imports"] == 0
+
+
+def test_live_fake_runtime_public_payloads_are_sanitized():
+    state, plan = _approved_dry_run_result()
+    state["safe_note"] = "Bearer live-secret-token"
+    approval = _valid_live_approval(approved_by="local-user@example.com")
+
+    result = default_runner_provider_registry().run(
+        RunnerRequest(
+            run_id="run-provider",
+            mode="live",
+            state=state,
+            approval=approval,
+            plan=plan,
+            policy=_valid_live_policy(),
+        )
+    )
+    serialized = str(
+        {
+            "report": result.verification_report.to_dict(),
+            "audit_events": result.audit_events,
+            "artifact_manifest": result.artifact_manifest,
+        }
+    )
+
+    assert result.status == "passed"
+    assert "live-secret-token" not in serialized
+    assert "local-user@example.com" not in serialized
+    assert "raw_content" not in serialized
+    assert "C:\\\\" not in serialized

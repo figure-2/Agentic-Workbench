@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import re
 from typing import Any, Protocol
 
 from packages.core.pathing import normalize_public_relative_path
@@ -21,6 +22,7 @@ from .offline_runner import DAACSOfflineRunner
 
 RUNNER_MODES = {"offline", "dry_run", "live"}
 LIVE_MODE = "live"
+RUN_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,80}$")
 
 
 @dataclass(slots=True)
@@ -69,6 +71,7 @@ class RunnerRequest:
     implementation_brief: ImplementationBrief | None = None
     spec_approval: SpecApproval | None = None
     approval: ApprovalRecord | None = None
+    plan: RunnerPlan | None = None
 
 
 @dataclass(slots=True)
@@ -174,6 +177,20 @@ def _zero_side_effect_metrics() -> dict[str, int]:
     }
 
 
+def is_safe_run_id(run_id: str) -> bool:
+    return (
+        isinstance(run_id, str)
+        and RUN_ID_PATTERN.fullmatch(run_id) is not None
+        and ".." not in run_id
+        and "/" not in run_id
+        and "\\" not in run_id
+    )
+
+
+def safe_public_run_id(run_id: str) -> str:
+    return run_id if is_safe_run_id(run_id) else "invalid-run-id"
+
+
 def _blocked_result(
     *,
     request: RunnerRequest,
@@ -187,8 +204,9 @@ def _blocked_result(
         "runner_admission_block_count": 1,
         **(metrics or {}),
     }
+    report_run_id = safe_public_run_id(request.run_id)
     report = VerificationReport(
-        run_id=request.run_id,
+        run_id=report_run_id,
         passed=False,
         checks=[{"name": check_name, "passed": False}],
         errors=[error],
@@ -196,7 +214,7 @@ def _blocked_result(
         metrics=merged_metrics,
     )
     return RunnerResult(
-        run_id=request.run_id,
+        run_id=report_run_id,
         mode=request.mode,
         status="blocked",
         verification_report=report,
@@ -282,10 +300,12 @@ class RunnerProviderRegistry:
 
 
 def default_runner_provider_registry() -> RunnerProviderRegistry:
-    """Create the default registry. Offline and dry-run are executable."""
+    """Create the default registry with fail-closed mode providers."""
     from .dry_run_runner import DryRunRunnerProvider
+    from .live_runner import LiveRunnerProvider
 
     registry = RunnerProviderRegistry()
     registry.register(OfflineRunnerProvider())
     registry.register(DryRunRunnerProvider())
+    registry.register(LiveRunnerProvider())
     return registry

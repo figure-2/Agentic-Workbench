@@ -9,6 +9,7 @@ from .adapters import (
 )
 from .offline_runner import DAACSOfflineRunner, find_blocked_operation_attempts
 from .dry_run_runner import DAACSDryRunRunner, DryRunRunnerProvider
+from .live_runner import FakeLiveRuntime, LiveRunnerProvider
 from .runner_provider import (
     ApprovalRecord,
     OfflineRunnerProvider,
@@ -25,6 +26,8 @@ __all__ = [
     "DAACSDryRunRunner",
     "DAACSOfflineRunner",
     "DryRunRunnerProvider",
+    "FakeLiveRuntime",
+    "LiveRunnerProvider",
     "OfflineRunnerProvider",
     "RunnerPlan",
     "RunnerPolicy",
