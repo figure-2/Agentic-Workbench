@@ -21,9 +21,10 @@
 | M8B | M8AA | dry-run runner | 실행 계획과 승인 요청만 생성, side-effect 0 | high | dry-run runner 제거 |
 | M8C | M8B | gated live runner skeleton | fake runtime만 연결, approval 없으면 blocked | high | live runner 등록 비활성 |
 | M8D | M8C | Solar Pro 3 provider boundary skeleton | env key 이름만 참조, approval 없으면 blocked, fake provider metrics만 기록, 실제 API 호출 0 | high | provider boundary 파일과 export 제거 |
-| M9 | M7,M8C | 실제 end-to-end demo | 샘플 1개가 검증 리포트까지 생성 | high | demo claim 축소 |
+| M8E | M8D | approval signature / nonce replay gate | unsigned approval, tampered signed approval, reused nonce blocked | high | approval signature/nonce gate 제거 |
+| M9 | M7,M8E | 실제 end-to-end demo | 샘플 1개가 검증 리포트까지 생성 | high | demo claim 축소 |
 
-Status note: M4 is implemented as an offline contract adapter. M8 has an offline runner boundary, a provider-boundary design, an AW-NEXT-06 `RunnerProviderRegistry` skeleton, an AW-NEXT-07A PRD/ImplementationBrief approval gate, an AW-NEXT-07B side-effect-free dry-run runner, an AW-NEXT-08 gated fake live runner skeleton, and an AW-NEXT-09 fake Solar Pro 3 provider boundary skeleton. Offline, dry-run, and fake live are registered by default. Live DAACS extraction and Solar Pro 3 calls are still not implemented.
+Status note: M4 is implemented as an offline contract adapter. M8 has an offline runner boundary, a provider-boundary design, an AW-NEXT-06 `RunnerProviderRegistry` skeleton, an AW-NEXT-07A PRD/ImplementationBrief approval gate, an AW-NEXT-07B side-effect-free dry-run runner, an AW-NEXT-08 gated fake live runner skeleton, an AW-NEXT-09 fake Solar Pro 3 provider boundary skeleton, and an AW-NEXT-10 structural approval signature/nonce replay gate. Offline, dry-run, and fake live are registered by default. Live DAACS extraction, persistent replay storage, production approval signing, and Solar Pro 3 calls are still not implemented.
 
 ## Reuse Plan
 

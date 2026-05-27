@@ -1,4 +1,5 @@
 import builtins
+from itertools import count
 import os
 import subprocess
 import sys
@@ -14,6 +15,8 @@ from packages.daacs_builder.adapters import (
     implementation_brief_from_prd_package,
     planning_to_build_spec,
 )
+from packages.daacs_builder.approval_security import sign_approval_for_tests
+from packages.daacs_builder.live_runner import LIVE_APPROVAL_SCOPE, LiveRunnerProvider
 from packages.daacs_builder.runner_provider import (
     ApprovalRecord,
     RunnerPolicy,
@@ -21,6 +24,9 @@ from packages.daacs_builder.runner_provider import (
     default_runner_provider_registry,
 )
 from packages.div_planner.adapters import planning_blueprint_from_div_state, planning_to_prd_package
+
+
+_live_approval_counter = count(1)
 
 
 def _state():
@@ -83,6 +89,10 @@ def _approved_dry_run_result():
 
 
 def _valid_live_approval(**overrides):
+    approval_index = next(_live_approval_counter)
+    signed = overrides.pop("signed", True)
+    signature_id = overrides.pop("signature_id", f"sig-live-run-provider-{approval_index:04d}")
+    nonce = overrides.pop("nonce", f"nonce-live-run-provider-{approval_index:04d}")
     fields = {
         "approved_by": "local-user",
         "approved_at": "2026-05-27T00:00:00Z",
@@ -100,7 +110,15 @@ def _valid_live_approval(**overrides):
         "audit_log_id": "audit-run-provider",
     }
     fields.update(overrides)
-    return ApprovalRecord(**fields)
+    approval = ApprovalRecord(**fields)
+    if signed:
+        sign_approval_for_tests(
+            approval,
+            scope=LIVE_APPROVAL_SCOPE,
+            signature_id=signature_id,
+            nonce=nonce,
+        )
+    return approval
 
 
 def _valid_live_policy(**overrides):
@@ -462,6 +480,159 @@ def test_live_blocks_without_dry_run_plan_even_with_valid_approval():
     assert result.verification_report.metrics["provider_calls"] == 0
 
 
+def test_live_blocks_unsigned_approval():
+    state, plan = _approved_dry_run_result()
+    result = default_runner_provider_registry().run(
+        RunnerRequest(
+            run_id="run-provider",
+            mode="live",
+            state=state,
+            approval=_valid_live_approval(signed=False),
+            plan=plan,
+            policy=_valid_live_policy(),
+        )
+    )
+    serialized = str(
+        {
+            "report": result.verification_report.to_dict(),
+            "audit_events": result.audit_events,
+        }
+    )
+    checks = {check["name"]: check["passed"] for check in result.verification_report.checks}
+
+    assert result.status == "blocked"
+    assert checks["live_approval_signature_valid"] is False
+    assert result.verification_report.metrics["fake_live_runtime_invocations"] == 0
+    assert result.verification_report.metrics["provider_calls"] == 0
+    assert result.verification_report.metrics["network_calls"] == 0
+    assert "signature_id" not in serialized
+    assert "signed_contract_hash" not in serialized
+    assert "nonce" not in serialized
+
+
+def test_live_blocks_tampered_signed_approval_payload():
+    state, plan = _approved_dry_run_result()
+    approval = _valid_live_approval()
+    approval.rollback_plan_id = "rollback-run-provider-tampered"
+
+    result = default_runner_provider_registry().run(
+        RunnerRequest(
+            run_id="run-provider",
+            mode="live",
+            state=state,
+            approval=approval,
+            plan=plan,
+            policy=_valid_live_policy(),
+        )
+    )
+    checks = {check["name"]: check["passed"] for check in result.verification_report.checks}
+
+    assert result.status == "blocked"
+    assert checks["live_approval_signature_valid"] is False
+    assert result.verification_report.metrics["fake_live_runtime_invocations"] == 0
+    assert result.verification_report.metrics["real_daacs_invocations"] == 0
+
+
+def test_live_blocks_reused_nonce_after_first_fake_runtime_pass():
+    state, plan = _approved_dry_run_result()
+    provider = LiveRunnerProvider()
+    request = RunnerRequest(
+        run_id="run-provider",
+        mode="live",
+        state=state,
+        approval=_valid_live_approval(),
+        plan=plan,
+        policy=_valid_live_policy(),
+    )
+
+    first = provider.run(request)
+    second = provider.run(request)
+    checks = {check["name"]: check["passed"] for check in second.verification_report.checks}
+
+    assert first.status == "passed"
+    assert second.status == "blocked"
+    assert checks["live_approval_replay_fresh"] is False
+    assert second.verification_report.metrics["approval_replay_block_count"] == 1
+    assert second.verification_report.metrics["fake_live_runtime_invocations"] == 0
+    assert second.verification_report.metrics["real_daacs_invocations"] == 0
+
+
+def test_live_blocks_reused_nonce_across_fresh_default_registries():
+    state, plan = _approved_dry_run_result()
+    request = RunnerRequest(
+        run_id="run-provider",
+        mode="live",
+        state=state,
+        approval=_valid_live_approval(
+            signature_id="sig-live-cross-registry",
+            nonce="nonce-live-cross-registry",
+        ),
+        plan=plan,
+        policy=_valid_live_policy(),
+    )
+
+    first = default_runner_provider_registry().run(request)
+    second = default_runner_provider_registry().run(request)
+    checks = {check["name"]: check["passed"] for check in second.verification_report.checks}
+
+    assert first.status == "passed"
+    assert second.status == "blocked"
+    assert checks["live_approval_replay_fresh"] is False
+    assert second.verification_report.metrics["approval_replay_block_count"] == 1
+    assert second.verification_report.metrics["fake_live_runtime_invocations"] == 0
+
+
+@pytest.mark.parametrize(
+    "approval_overrides",
+    [
+        {
+            "signed": False,
+            "signature_id": "bad",
+            "nonce": "nonce-live-malformed-sig",
+            "signed_contract_hash": "a" * 64,
+        },
+        {
+            "signed": False,
+            "signature_id": "sig-live-malformed-nonce",
+            "nonce": "bad",
+            "signed_contract_hash": "a" * 64,
+        },
+        {
+            "signed": False,
+            "signature_id": "sig-live-malformed-hash",
+            "nonce": "nonce-live-malformed-hash",
+            "signed_contract_hash": "bad",
+        },
+    ],
+)
+def test_live_blocks_malformed_signature_envelope(approval_overrides):
+    state, plan = _approved_dry_run_result()
+    result = default_runner_provider_registry().run(
+        RunnerRequest(
+            run_id="run-provider",
+            mode="live",
+            state=state,
+            approval=_valid_live_approval(**approval_overrides),
+            plan=plan,
+            policy=_valid_live_policy(),
+        )
+    )
+    serialized = str(
+        {
+            "report": result.verification_report.to_dict(),
+            "audit_events": result.audit_events,
+        }
+    )
+    checks = {check["name"]: check["passed"] for check in result.verification_report.checks}
+
+    assert result.status == "blocked"
+    assert checks["live_approval_signature_valid"] is False
+    assert result.verification_report.metrics["fake_live_runtime_invocations"] == 0
+    assert "signature_id" not in serialized
+    assert "signed_contract_hash" not in serialized
+    assert "nonce" not in serialized
+
+
 @pytest.mark.parametrize(
     ("overrides", "expected_gate"),
     [
@@ -722,3 +893,7 @@ def test_live_fake_runtime_public_payloads_are_sanitized():
     assert "local-user@example.com" not in serialized
     assert "raw_content" not in serialized
     assert "C:\\\\" not in serialized
+    assert approval.signature_id not in serialized
+    assert approval.nonce not in serialized
+    assert approval.signed_contract_hash not in serialized
+    assert "signed_contract_hash" not in serialized

@@ -14,6 +14,13 @@ from typing import Any
 from packages.core.pathing import PathBoundaryError, normalize_public_relative_path
 from packages.core.schemas import VerificationReport, stable_contract_hash
 
+from .approval_security import (
+    ApprovalReplayGuard,
+    default_approval_replay_guard,
+    mark_approval_nonce_used,
+    validate_approval_nonce_fresh,
+    validate_approval_signature,
+)
 from .offline_runner import DAACSOfflineRunner
 from .runner_provider import (
     ApprovalRecord,
@@ -25,6 +32,7 @@ from .runner_provider import (
 
 
 FAKE_LIVE_OPERATION = "fake_runtime"
+LIVE_APPROVAL_SCOPE = "live_runner"
 
 LIVE_LIMIT_FIELDS = (
     "max_provider_calls",
@@ -63,6 +71,9 @@ ZERO_FAKE_LIVE_RUNTIME_METRICS: dict[str, int] = {
     "real_daacs_invocations": 0,
     "solar_provider_calls": 0,
     "executed_action_count": 0,
+    "approval_signature_valid_count": 0,
+    "approval_replay_mark_count": 0,
+    "approval_replay_block_count": 0,
 }
 
 
@@ -177,6 +188,13 @@ def _validate_approval(
     if not isinstance(approval.audit_log_id, str) or not approval.audit_log_id.strip():
         failures.append(("live_audit_configured", "audit_log_id is required."))
 
+    failures.extend(
+        validate_approval_signature(
+            approval,
+            scope=LIVE_APPROVAL_SCOPE,
+            gate_prefix="live_approval",
+        )
+    )
     _validate_workspace(approval, request, failures)
 
 
@@ -297,9 +315,11 @@ class LiveRunnerProvider:
         *,
         runtime: FakeLiveRuntime | None = None,
         offline_runner: DAACSOfflineRunner | None = None,
+        replay_guard: ApprovalReplayGuard | None = None,
     ) -> None:
         self.runtime = runtime or FakeLiveRuntime()
         self.offline_runner = offline_runner or DAACSOfflineRunner()
+        self.replay_guard = replay_guard or default_approval_replay_guard()
 
     def run(self, request: RunnerRequest) -> RunnerResult:
         failures = validate_fake_live_request(request)
@@ -326,6 +346,22 @@ class LiveRunnerProvider:
                 },
             )
 
+        nonce_failures = validate_approval_nonce_fresh(
+            request.approval,
+            scope=LIVE_APPROVAL_SCOPE,
+            gate_prefix="live_approval",
+            replay_guard=self.replay_guard,
+        )
+        if nonce_failures:
+            return _blocked_result(
+                request=request,
+                failures=nonce_failures,
+                extra_metrics={
+                    "approval_bypass_count": 1,
+                    "approval_replay_block_count": 1,
+                },
+            )
+
         approval_payload = asdict(request.approval)
         plan_payload = request.plan.to_dict() if request.plan is not None else {}
         approval_hash = stable_contract_hash(approval_payload)
@@ -349,16 +385,25 @@ class LiveRunnerProvider:
                 "rollback_plan_configured_count": 1,
                 "audit_log_configured_count": 1,
                 "fake_runtime_evidence_count": 1,
+                "approval_signature_valid_count": 1,
+                "approval_replay_mark_count": 1,
                 "planned_action_count": len(request.plan.planned_actions)
                 if request.plan is not None
                 else 0,
             }
+        )
+        mark_approval_nonce_used(
+            request.approval,
+            scope=LIVE_APPROVAL_SCOPE,
+            replay_guard=self.replay_guard,
         )
         report = VerificationReport(
             run_id=request.run_id,
             passed=True,
             checks=[
                 {"name": "live_approval_valid", "passed": True},
+                {"name": "live_approval_signature_valid", "passed": True},
+                {"name": "live_approval_replay_fresh", "passed": True},
                 {"name": "live_workspace_valid", "passed": True},
                 {"name": "live_policy_fake_only", "passed": True},
                 {"name": "dry_run_plan_present", "passed": True},

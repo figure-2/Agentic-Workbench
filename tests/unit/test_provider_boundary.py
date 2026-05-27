@@ -1,4 +1,5 @@
 import builtins
+from itertools import count
 import os
 import socket
 import urllib.request
@@ -15,12 +16,17 @@ from packages.daacs_builder.adapters import (
 )
 from packages.daacs_builder.provider_boundary import (
     FakeSolarProProvider,
+    PROVIDER_APPROVAL_SCOPE,
     ProviderApprovalRecord,
     ProviderRequest,
     SOLAR_PRO_3_ENV_KEY_NAME,
 )
+from packages.daacs_builder.approval_security import sign_approval_for_tests
 from packages.daacs_builder.runner_provider import RunnerRequest, default_runner_provider_registry
 from packages.div_planner.adapters import planning_blueprint_from_div_state, planning_to_prd_package
+
+
+_provider_approval_counter = count(1)
 
 
 def _prompt_contract_hash():
@@ -33,6 +39,13 @@ def _prompt_contract_hash():
 
 
 def _provider_approval(**overrides):
+    approval_index = next(_provider_approval_counter)
+    signed = overrides.pop("signed", True)
+    signature_id = overrides.pop(
+        "signature_id",
+        f"sig-provider-run-provider-{approval_index:04d}",
+    )
+    nonce = overrides.pop("nonce", f"nonce-provider-run-provider-{approval_index:04d}")
     fields = {
         "approved_by": "local-user",
         "approved_at": "2026-05-27T00:00:00Z",
@@ -47,7 +60,15 @@ def _provider_approval(**overrides):
         "audit_log_id": "provider-audit-run-provider",
     }
     fields.update(overrides)
-    return ProviderApprovalRecord(**fields)
+    approval = ProviderApprovalRecord(**fields)
+    if signed:
+        sign_approval_for_tests(
+            approval,
+            scope=PROVIDER_APPROVAL_SCOPE,
+            signature_id=signature_id,
+            nonce=nonce,
+        )
+    return approval
 
 
 def _provider_request(**overrides):
@@ -120,6 +141,108 @@ def test_provider_boundary_blocks_malformed_approval():
     assert result.status == "blocked"
     assert checks["provider_approval_valid"] is False
     assert result.metrics["provider_imports"] == 0
+
+
+def test_provider_boundary_blocks_unsigned_approval():
+    result = FakeSolarProProvider().invoke(
+        _provider_request(approval=_provider_approval(signed=False))
+    )
+    serialized = str(result.to_dict())
+    checks = {check["name"]: check["passed"] for check in result.checks}
+
+    assert result.status == "blocked"
+    assert checks["provider_approval_signature_valid"] is False
+    assert result.metrics["fake_provider_invocations"] == 0
+    assert result.metrics["provider_calls"] == 0
+    assert result.metrics["network_calls"] == 0
+    assert "signature_id" not in serialized
+    assert "signed_contract_hash" not in serialized
+    assert "nonce" not in serialized
+
+
+def test_provider_boundary_blocks_tampered_signed_approval_payload():
+    approval = _provider_approval()
+    approval.audit_log_id = "provider-audit-run-provider-tampered"
+
+    result = FakeSolarProProvider().invoke(_provider_request(approval=approval))
+    checks = {check["name"]: check["passed"] for check in result.checks}
+
+    assert result.status == "blocked"
+    assert checks["provider_approval_signature_valid"] is False
+    assert result.metrics["fake_provider_invocations"] == 0
+    assert result.metrics["provider_calls"] == 0
+
+
+def test_provider_boundary_blocks_reused_nonce():
+    provider = FakeSolarProProvider()
+    request = _provider_request()
+
+    first = provider.invoke(request)
+    second = provider.invoke(request)
+    checks = {check["name"]: check["passed"] for check in second.checks}
+
+    assert first.status == "passed"
+    assert second.status == "blocked"
+    assert checks["provider_approval_replay_fresh"] is False
+    assert second.metrics["approval_replay_block_count"] == 1
+    assert second.metrics["fake_provider_invocations"] == 0
+    assert second.metrics["provider_calls"] == 0
+
+
+def test_provider_boundary_blocks_reused_nonce_across_fresh_provider_instances():
+    request = _provider_request(
+        approval=_provider_approval(
+            signature_id="sig-provider-cross-instance",
+            nonce="nonce-provider-cross-instance",
+        )
+    )
+
+    first = FakeSolarProProvider().invoke(request)
+    second = FakeSolarProProvider().invoke(request)
+    checks = {check["name"]: check["passed"] for check in second.checks}
+
+    assert first.status == "passed"
+    assert second.status == "blocked"
+    assert checks["provider_approval_replay_fresh"] is False
+    assert second.metrics["approval_replay_block_count"] == 1
+    assert second.metrics["fake_provider_invocations"] == 0
+
+
+@pytest.mark.parametrize(
+    "approval_overrides",
+    [
+        {
+            "signed": False,
+            "signature_id": "bad",
+            "nonce": "nonce-provider-malformed-sig",
+            "signed_contract_hash": "a" * 64,
+        },
+        {
+            "signed": False,
+            "signature_id": "sig-provider-malformed-nonce",
+            "nonce": "bad",
+            "signed_contract_hash": "a" * 64,
+        },
+        {
+            "signed": False,
+            "signature_id": "sig-provider-malformed-hash",
+            "nonce": "nonce-provider-malformed-hash",
+            "signed_contract_hash": "bad",
+        },
+    ],
+)
+def test_provider_boundary_blocks_malformed_signature_envelope(approval_overrides):
+    approval = _provider_approval(**approval_overrides)
+    result = FakeSolarProProvider().invoke(_provider_request(approval=approval))
+    serialized = str(result.to_dict())
+    checks = {check["name"]: check["passed"] for check in result.checks}
+
+    assert result.status == "blocked"
+    assert checks["provider_approval_signature_valid"] is False
+    assert result.metrics["fake_provider_invocations"] == 0
+    assert "signature_id" not in serialized
+    assert "signed_contract_hash" not in serialized
+    assert "nonce" not in serialized
 
 
 @pytest.mark.parametrize(
@@ -264,6 +387,10 @@ def test_provider_boundary_public_payload_contains_env_key_name_only():
     assert "raw_prompt" not in serialized
     assert "raw_content" not in serialized
     assert "Authorization" not in serialized
+    assert approval.signature_id not in serialized
+    assert approval.nonce not in serialized
+    assert approval.signed_contract_hash not in serialized
+    assert "signed_contract_hash" not in serialized
 
 
 def test_offline_and_dry_run_do_not_import_solar_or_upstage_modules(monkeypatch):

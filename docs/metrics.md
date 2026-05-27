@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-NEXT-09` Solar Pro 3 provider boundary skeleton.
+Current snapshot after `AW-NEXT-10` approval signature and nonce replay gate skeleton.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache | 62 |
-| Counted code/doc files, excluding cache | 62 |
-| Project lines, excluding cache | 6,709 |
-| Python files | 36 |
-| Markdown files | 22 |
+| Project files, excluding cache | 64 |
+| Counted code/doc files, excluding cache | 64 |
+| Project lines, excluding cache | 7,309 |
+| Python files | 37 |
+| Markdown files | 23 |
 | Test files | 10 |
 | Unit test files | 8 |
 | Smoke test files | 2 |
 | Integration test files | 0 |
-| Pytest collected cases | 148 |
-| Pytest passed cases | 148 |
+| Pytest collected cases | 162 |
+| Pytest passed cases | 162 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -405,3 +405,44 @@ Measured after `ProviderRequest`, `ProviderApprovalRecord`, `ProviderResult`, an
 | public payload keeps env key name only | covered |
 
 Interpretation: this measures provider boundary contract coverage only. It does not implement Solar Pro 3 API calls, Upstage SDK imports, real token usage, response quality, DAACS live execution, or production readiness.
+
+## AW-NEXT-10 ProviderApproval Signature / Nonce Gate Metrics
+
+Measured after structural approval signature fields and in-memory nonce replay guard were added to both fake live runner and fake provider boundary.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 162 |
+| Pytest passed cases | 162 |
+| Regression delta vs AW-NEXT-09 baseline | +14 |
+| Provider boundary test cases | 34 |
+| Runner provider registry tests | 49 |
+| New approval signature/replay test cases | 14 |
+| Unsigned approval block fixtures | 2 |
+| Tampered signed approval block fixtures | 2 |
+| Reused nonce block fixtures | 4 |
+| Malformed signature envelope fixtures | 6 |
+| Approval signature fields added | 3 |
+| Replay guard implementations | 1 process-local in-memory skeleton |
+| Approval hash/audit public secret exposure in tested payloads | 0 |
+| Live LLM calls during eval | 0 |
+| Live API calls during eval | 0 |
+| Provider calls during eval | 0 |
+| Provider imports during eval | 0 |
+| Network calls during eval | 0 |
+| `.env` file reads during eval | 0 |
+
+| Gate | Result |
+|---|---|
+| provider unsigned approval blocked | covered |
+| provider tampered signed approval blocked | covered |
+| provider reused nonce blocked | covered |
+| live unsigned approval blocked | covered |
+| live tampered signed approval blocked | covered |
+| live reused nonce blocked | covered |
+| fresh provider/registry instance reused nonce blocked | covered |
+| malformed signature envelope blocked | covered |
+| expired approval blocked 유지 | covered by existing provider/live expiry fixtures |
+| public runtime output excludes signature_id, nonce, signed_contract_hash | covered |
+
+Interpretation: this is a structural approval gate skeleton. `signed_contract_hash` is internal canonical contract binding for tests, not a production cryptographic signature. The replay store is process-local in-memory and must become persistent before real live/provider execution.

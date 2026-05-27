@@ -15,6 +15,13 @@ from typing import Any, Protocol
 from packages.core.exposure import sanitize_public_payload
 from packages.core.schemas import JsonDict, stable_contract_hash
 
+from .approval_security import (
+    ApprovalReplayGuard,
+    default_approval_replay_guard,
+    mark_approval_nonce_used,
+    validate_approval_nonce_fresh,
+    validate_approval_signature,
+)
 from .runner_provider import is_safe_run_id, safe_public_run_id
 
 
@@ -22,6 +29,7 @@ SOLAR_PRO_3_PROVIDER = "solar-pro-3"
 SOLAR_PRO_3_MODEL = "solar-pro-3"
 SOLAR_PRO_3_ENV_KEY_NAME = "UPSTAGE_API_KEY"
 FAKE_PROVIDER_MODE = "fake"
+PROVIDER_APPROVAL_SCOPE = "provider_boundary"
 ENV_KEY_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]{0,80}$")
 CONTRACT_HASH_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 
@@ -41,6 +49,9 @@ class ProviderApprovalRecord:
     max_live_llm_calls: int
     expires_at: str
     audit_log_id: str
+    signature_id: str = ""
+    signed_contract_hash: str = ""
+    nonce: str = ""
 
 
 @dataclass(slots=True)
@@ -95,6 +106,9 @@ def zero_provider_side_effect_metrics() -> dict[str, int]:
         "fake_provider_invocations": 0,
         "provider_boundary_block_count": 0,
         "approval_bypass_count": 0,
+        "approval_signature_valid_count": 0,
+        "approval_replay_mark_count": 0,
+        "approval_replay_block_count": 0,
     }
 
 
@@ -198,6 +212,13 @@ def validate_provider_request(request: ProviderRequest) -> list[tuple[str, str]]
 
     if not isinstance(approval.audit_log_id, str) or not approval.audit_log_id.strip():
         failures.append(("provider_audit_configured", "audit_log_id is required."))
+    failures.extend(
+        validate_approval_signature(
+            approval,
+            scope=PROVIDER_APPROVAL_SCOPE,
+            gate_prefix="provider_approval",
+        )
+    )
     return failures
 
 
@@ -235,10 +256,24 @@ class FakeSolarProProvider:
 
     provider_name = SOLAR_PRO_3_PROVIDER
 
+    def __init__(self, replay_guard: ApprovalReplayGuard | None = None) -> None:
+        self.replay_guard = replay_guard or default_approval_replay_guard()
+
     def invoke(self, request: ProviderRequest) -> ProviderResult:
         failures = validate_provider_request(request)
         if failures:
             return _blocked_result(request, failures)
+
+        nonce_failures = validate_approval_nonce_fresh(
+            request.approval,
+            scope=PROVIDER_APPROVAL_SCOPE,
+            gate_prefix="provider_approval",
+            replay_guard=self.replay_guard,
+        )
+        if nonce_failures:
+            result = _blocked_result(request, nonce_failures)
+            result.metrics["approval_replay_block_count"] = 1
+            return result
 
         approval_payload = asdict(request.approval)
         approval_hash = stable_contract_hash(approval_payload)
@@ -258,7 +293,7 @@ class FakeSolarProProvider:
                 }
             ),
         }
-        return ProviderResult(
+        result = ProviderResult(
             run_id=request.run_id,
             provider_name=request.provider_name,
             model_name=request.model_name,
@@ -269,6 +304,8 @@ class FakeSolarProProvider:
                 {"name": "provider_mode_fake", "passed": True},
                 {"name": "provider_env_key_name_only", "passed": True},
                 {"name": "provider_live_calls_zero", "passed": True},
+                {"name": "provider_approval_signature_valid", "passed": True},
+                {"name": "provider_approval_replay_fresh", "passed": True},
             ],
             errors=[],
             output_contract=output_contract,
@@ -276,6 +313,8 @@ class FakeSolarProProvider:
                 {
                     "fake_provider_invocations": 1,
                     "env_key_name_reference_count": 1,
+                    "approval_signature_valid_count": 1,
+                    "approval_replay_mark_count": 1,
                 }
             ),
             audit_events=[
@@ -290,3 +329,9 @@ class FakeSolarProProvider:
                 }
             ],
         )
+        mark_approval_nonce_used(
+            request.approval,
+            scope=PROVIDER_APPROVAL_SCOPE,
+            replay_guard=self.replay_guard,
+        )
+        return result

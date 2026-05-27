@@ -43,6 +43,9 @@ class ApprovalRecord:
     expires_at: str
     rollback_plan_id: str
     audit_log_id: str
+    signature_id: str = ""
+    signed_contract_hash: str = ""
+    nonce: str = ""
 
 
 @dataclass(slots=True)
