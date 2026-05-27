@@ -16,7 +16,7 @@
 |---|---|---:|---:|---:|---|
 | `offline` | state contract와 차단 정책 검증 | 0 | no | no | `VerificationReport` |
 | `dry_run` | 실행 계획, 권한 요청, 예상 산출물 manifest 생성 | 0 | no | no | `RunnerPlan` + `VerificationReport` |
-| `live` | 승인/dry-run/workspace/signature/nonce gate 검증 후 fake runtime만 호출. future 단계에서만 격리 workspace DAACS 실행 | 0 in AW-NEXT-10 | no in AW-NEXT-10 | no in AW-NEXT-10 | fake live `VerificationReport` |
+| `live` | 승인/dry-run/workspace/signature/replay/verifier gate 검증 후 fake runtime만 호출. future 단계에서만 격리 workspace DAACS 실행 | 0 in AW-NEXT-11 | no in AW-NEXT-11 | no in AW-NEXT-11 | fake live `VerificationReport` |
 
 핵심 판단: `dry_run`은 "mock execution"이 아니라 "live 실행 전에 무엇을 실행할지 설명하는 계획 산출 단계"여야 한다. 그래야 package install, server start, provider call이 실제로 한 번도 발생하지 않은 상태에서 승인 기준을 검토할 수 있다.
 
@@ -184,6 +184,14 @@ AW-NEXT-10 adds structural approval replay protection:
 - `nonce` must be unused for the approval scope.
 - current replay guard is in-memory only and is not sufficient for real live/provider execution.
 
+AW-NEXT-11 adds verifier and replay store boundaries:
+
+- `ApprovalVerifier` is required before provider/live admission.
+- missing or unavailable verifier blocks execution.
+- `PersistentReplayStore.claim(scope, nonce)` is the single replay admission point.
+- replay store failure blocks provider/live execution before fake runtime/provider invocation.
+- current persistence is export/import restart simulation only, not disk/DB durability.
+
 ## Secret And PII Rule
 
 Runner errors, audit events, and public artifacts must not store raw matched state text. Blocked-operation findings should store:
@@ -274,7 +282,7 @@ FakeSolarProProvider.invoke()
 
 AW-NEXT-09 is still not a Solar Pro 3 live integration. It proves only that the provider boundary can be admitted, blocked, audited, and measured without secret reads or external calls.
 
-AW-NEXT-10 extends this with a provider approval signature/nonce gate. It still does not perform a live provider call and does not implement production cryptographic signing.
+AW-NEXT-11 extends this with `ApprovalVerifier` and `PersistentReplayStore` skeletons. It still does not perform a live provider call, DAACS runtime execution, or production cryptographic signing.
 
 ## DAACS Runtime Boundary
 
@@ -348,12 +356,13 @@ artifact_boundary_error
 | AW-NEXT-08 | AW-NEXT-07B | live runner gated skeleton | live mode without approval returns blocked report; fake approval requires rollback/audit IDs; dry-run `RunnerPlan` is required; fake runtime no external calls occur | high | disable live runner registration |
 | AW-NEXT-09 | AW-NEXT-08 | Solar Pro 3 provider boundary | provider adapter references env key name only, approval missing blocks boundary, dry-run/offline import count 0, fake provider metrics recorded | high | remove provider boundary files and exports |
 | AW-NEXT-10 | AW-NEXT-09 | provider/live approval signature and replay gate | unsigned approval blocked, tampered signed payload blocked, reused nonce blocked, expired approval block retained, public output excludes signature fields | high | remove approval signature/nonce gate |
+| AW-NEXT-11 | AW-NEXT-10 | persistent replay store and approval verifier skeleton | restart simulation reused nonce blocked, verifier missing blocked, verifier/store errors blocked, fake verifier metrics only, Solar/DAACS live call 0 | high | remove verifier/store boundary and return to AW-NEXT-10 process-local gate |
 
 ## Quantitative Targets
 
 | Metric | Target before live DAACS |
 |---|---:|
-| Existing regression tests | 162/162 pass |
+| Existing regression tests | 172/172 pass |
 | Runner modes documented | 3 |
 | State transitions documented | 7 |
 | Blocked direct transitions documented | 4 |
@@ -393,4 +402,4 @@ audit_log_completeness_rate
 
 ## Consulting Conclusion
 
-AW-NEXT-10 keeps the system in fake runtime/fake provider mode while adding structural approval signature and nonce replay gates. The next correct step is a persistent replay store plus explicit approval verifier interface before any real Solar Pro 3 or DAACS live execution is opened.
+AW-NEXT-11 keeps the system in fake runtime/fake provider mode while adding verifier and replay store boundaries. The next correct step is a real signer/verifier policy and disk/DB-backed replay persistence design before any real Solar Pro 3 or DAACS live execution is opened.

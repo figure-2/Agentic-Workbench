@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-NEXT-10` approval signature and nonce replay gate skeleton.
+Current snapshot after `AW-NEXT-11` persistent replay store and approval verifier skeleton.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache | 64 |
-| Counted code/doc files, excluding cache | 64 |
-| Project lines, excluding cache | 7,309 |
-| Python files | 37 |
-| Markdown files | 23 |
-| Test files | 10 |
-| Unit test files | 8 |
+| Project files, excluding cache | 66 |
+| Counted code/doc files, excluding cache | 66 |
+| Project lines, excluding cache | 7,786 |
+| Python files | 38 |
+| Markdown files | 24 |
+| Test files | 11 |
+| Unit test files | 9 |
 | Smoke test files | 2 |
 | Integration test files | 0 |
-| Pytest collected cases | 162 |
-| Pytest passed cases | 162 |
+| Pytest collected cases | 172 |
+| Pytest passed cases | 172 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -446,3 +446,48 @@ Measured after structural approval signature fields and in-memory nonce replay g
 | public runtime output excludes signature_id, nonce, signed_contract_hash | covered |
 
 Interpretation: this is a structural approval gate skeleton. `signed_contract_hash` is internal canonical contract binding for tests, not a production cryptographic signature. The replay store is process-local in-memory and must become persistent before real live/provider execution.
+
+## AW-NEXT-11 PersistentReplayStore / ApprovalVerifier Metrics
+
+Measured after `PersistentReplayStore`, `ApprovalVerifier`, and `FakeApprovalVerifier` skeletons were added.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 172 |
+| Pytest passed cases | 172 |
+| Regression delta vs AW-NEXT-10 baseline | +10 |
+| Approval security unit tests | 2 |
+| Provider boundary test cases | 38 |
+| Runner provider registry tests | 53 |
+| New verifier/replay store test cases | 10 |
+| Verifier-missing block fixtures | 2 |
+| Verifier exception block fixtures | 2 |
+| Replay store exception block fixtures | 2 |
+| Restart simulation replay fixtures | 3 |
+| Scope isolation fixtures | 1 |
+| Fake verifier implementations | 1 |
+| Replay store implementations | 1 export/import skeleton |
+| Live LLM calls during eval | 0 |
+| Live API calls during eval | 0 |
+| Provider calls during eval | 0 |
+| Provider imports during eval | 0 |
+| Network calls during eval | 0 |
+| Verifier secret value reads | 0 |
+| Verifier key file reads | 0 |
+| `.env` file reads during eval | 0 |
+
+| Gate | Result |
+|---|---|
+| provider without verifier blocked | covered |
+| live without verifier blocked | covered |
+| provider verifier exception blocked without public leakage | covered |
+| live verifier exception blocked without public leakage | covered |
+| provider replay store exception blocks fake provider invocation | covered |
+| live replay store exception blocks fake runtime invocation | covered |
+| provider restart simulation reused authorization blocked | covered |
+| live restart simulation reused authorization blocked | covered |
+| replay store export excludes raw nonce | covered |
+| same nonce across live/provider scopes remains isolated | covered |
+| Solar Pro 3/DAACS live call 0 유지 | covered |
+
+Interpretation: this adds verifier/store boundaries and restart-simulation coverage. It is still not production cryptographic signing, not durable disk/DB persistence, and not real Solar Pro 3 or DAACS live execution.

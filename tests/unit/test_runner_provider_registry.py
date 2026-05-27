@@ -16,6 +16,7 @@ from packages.daacs_builder.adapters import (
     planning_to_build_spec,
 )
 from packages.daacs_builder.approval_security import sign_approval_for_tests
+from packages.daacs_builder.approval_security import FakeApprovalVerifier, PersistentReplayStore
 from packages.daacs_builder.live_runner import LIVE_APPROVAL_SCOPE, LiveRunnerProvider
 from packages.daacs_builder.runner_provider import (
     ApprovalRecord,
@@ -27,6 +28,16 @@ from packages.div_planner.adapters import planning_blueprint_from_div_state, pla
 
 
 _live_approval_counter = count(1)
+
+
+class RaisingApprovalVerifier:
+    def verify(self, approval, *, scope, gate_prefix):
+        raise RuntimeError("sig-live-leaked nonce-live-leaked signed_contract_hash C:\\secret\\.env")
+
+
+class RaisingReplayStore(PersistentReplayStore):
+    def claim(self, *, scope: str, nonce: str) -> bool:
+        raise RuntimeError("nonce-live-leaked signed_contract_hash postgres://secret")
 
 
 def _state():
@@ -125,6 +136,15 @@ def _valid_live_policy(**overrides):
     fields = {"workspace_root": "runs/run-provider"}
     fields.update(overrides)
     return RunnerPolicy(**fields)
+
+
+def _live_provider(**overrides):
+    fields = {
+        "approval_verifier": FakeApprovalVerifier(),
+        "replay_store": PersistentReplayStore(),
+    }
+    fields.update(overrides)
+    return LiveRunnerProvider(**fields)
 
 
 def test_default_registry_routes_offline_provider_without_live_execution():
@@ -480,6 +500,57 @@ def test_live_blocks_without_dry_run_plan_even_with_valid_approval():
     assert result.verification_report.metrics["provider_calls"] == 0
 
 
+def test_live_blocks_without_approval_verifier():
+    state, plan = _approved_dry_run_result()
+    result = LiveRunnerProvider(replay_store=PersistentReplayStore()).run(
+        RunnerRequest(
+            run_id="run-provider",
+            mode="live",
+            state=state,
+            approval=_valid_live_approval(),
+            plan=plan,
+            policy=_valid_live_policy(),
+        )
+    )
+    checks = {check["name"]: check["passed"] for check in result.verification_report.checks}
+
+    assert result.status == "blocked"
+    assert checks["live_approval_verifier_present"] is False
+    assert result.verification_report.metrics["approval_verifier_missing_block_count"] == 1
+    assert result.verification_report.metrics["fake_live_runtime_invocations"] == 0
+    assert result.verification_report.metrics["provider_calls"] == 0
+
+
+def test_live_blocks_verifier_exception_without_public_exposure():
+    state, plan = _approved_dry_run_result()
+    result = _live_provider(approval_verifier=RaisingApprovalVerifier()).run(
+        RunnerRequest(
+            run_id="run-provider",
+            mode="live",
+            state=state,
+            approval=_valid_live_approval(),
+            plan=plan,
+            policy=_valid_live_policy(),
+        )
+    )
+    serialized = str(
+        {
+            "report": result.verification_report.to_dict(),
+            "audit_events": result.audit_events,
+        }
+    )
+    checks = {check["name"]: check["passed"] for check in result.verification_report.checks}
+
+    assert result.status == "blocked"
+    assert checks["live_approval_verifier_available"] is False
+    assert result.verification_report.metrics["approval_verifier_missing_block_count"] == 1
+    assert result.verification_report.metrics["fake_live_runtime_invocations"] == 0
+    assert "sig-live-leaked" not in serialized
+    assert "nonce" not in serialized
+    assert "signed_contract_hash" not in serialized
+    assert "C:\\\\" not in serialized
+
+
 def test_live_blocks_unsigned_approval():
     state, plan = _approved_dry_run_result()
     result = default_runner_provider_registry().run(
@@ -535,7 +606,7 @@ def test_live_blocks_tampered_signed_approval_payload():
 
 def test_live_blocks_reused_nonce_after_first_fake_runtime_pass():
     state, plan = _approved_dry_run_result()
-    provider = LiveRunnerProvider()
+    provider = _live_provider()
     request = RunnerRequest(
         run_id="run-provider",
         mode="live",
@@ -580,6 +651,63 @@ def test_live_blocks_reused_nonce_across_fresh_default_registries():
     assert checks["live_approval_replay_fresh"] is False
     assert second.verification_report.metrics["approval_replay_block_count"] == 1
     assert second.verification_report.metrics["fake_live_runtime_invocations"] == 0
+
+
+def test_live_blocks_reused_nonce_after_restart_simulation():
+    state, plan = _approved_dry_run_result()
+    replay_store = PersistentReplayStore()
+    request = RunnerRequest(
+        run_id="run-provider",
+        mode="live",
+        state=state,
+        approval=_valid_live_approval(
+            signature_id="sig-live-restart-simulation",
+            nonce="nonce-live-restart-simulation",
+        ),
+        plan=plan,
+        policy=_valid_live_policy(),
+    )
+
+    first = _live_provider(replay_store=replay_store).run(request)
+    restarted_store = PersistentReplayStore.from_records(replay_store.export_records())
+    second = _live_provider(replay_store=restarted_store).run(request)
+    checks = {check["name"]: check["passed"] for check in second.verification_report.checks}
+
+    assert first.status == "passed"
+    assert second.status == "blocked"
+    assert checks["live_approval_replay_fresh"] is False
+    assert second.verification_report.metrics["approval_replay_store_hit_count"] == 1
+    assert second.verification_report.metrics["fake_live_runtime_invocations"] == 0
+
+
+def test_live_blocks_replay_store_exception_without_consuming_runtime():
+    state, plan = _approved_dry_run_result()
+    result = _live_provider(replay_store=RaisingReplayStore()).run(
+        RunnerRequest(
+            run_id="run-provider",
+            mode="live",
+            state=state,
+            approval=_valid_live_approval(),
+            plan=plan,
+            policy=_valid_live_policy(),
+        )
+    )
+    serialized = str(
+        {
+            "report": result.verification_report.to_dict(),
+            "audit_events": result.audit_events,
+        }
+    )
+    checks = {check["name"]: check["passed"] for check in result.verification_report.checks}
+
+    assert result.status == "blocked"
+    assert checks["live_approval_replay_store_available"] is False
+    assert result.verification_report.metrics["approval_replay_store_hit_count"] == 1
+    assert result.verification_report.metrics["fake_live_runtime_invocations"] == 0
+    assert result.verification_report.metrics["real_daacs_invocations"] == 0
+    assert "nonce" not in serialized
+    assert "signed_contract_hash" not in serialized
+    assert "postgres://secret" not in serialized
 
 
 @pytest.mark.parametrize(

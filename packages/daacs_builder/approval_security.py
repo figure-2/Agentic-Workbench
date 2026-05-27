@@ -6,11 +6,11 @@ secrets, environment values, key files, or external identity providers.
 
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 import hashlib
 import json
 import re
-from typing import Any
+from typing import Any, Protocol
 
 
 APPROVAL_SIGNATURE_ID_PATTERN = re.compile(r"^sig-[A-Za-z0-9_.-]{8,80}$")
@@ -18,24 +18,73 @@ APPROVAL_NONCE_PATTERN = re.compile(r"^nonce-[A-Za-z0-9_.-]{8,80}$")
 CONTRACT_HASH_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 
 
-class ApprovalReplayGuard:
-    """In-memory nonce guard for local skeleton tests."""
+@dataclass(frozen=True, slots=True)
+class ApprovalVerificationResult:
+    """Verifier result with sanitized gate failures and metrics."""
 
-    def __init__(self, used_nonces: set[tuple[str, str]] | None = None) -> None:
-        self._used_nonces: set[tuple[str, str]] = set(used_nonces or set())
+    failures: list[tuple[str, str]]
+    metrics: dict[str, int]
+
+
+class ApprovalVerifier(Protocol):
+    """Minimal approval verifier contract."""
+
+    def verify(self, approval: Any, *, scope: str, gate_prefix: str) -> ApprovalVerificationResult:
+        """Verify an approval envelope without reading secrets or external systems."""
+
+
+class PersistentReplayStore:
+    """Process-local persistent replay store skeleton.
+
+    The store exports hashed replay records so tests can simulate process
+    restart without exposing raw authorization values.
+    """
+
+    def __init__(self, used_records: list[dict[str, str]] | None = None) -> None:
+        self._used_keys: set[tuple[str, str]] = set()
+        for record in used_records or []:
+            scope = str(record.get("scope", ""))
+            nonce_hash = str(record.get("nonce_hash", ""))
+            if scope and CONTRACT_HASH_PATTERN.fullmatch(nonce_hash):
+                self._used_keys.add((scope, nonce_hash))
+
+    @staticmethod
+    def _nonce_hash(*, scope: str, nonce: str) -> str:
+        return approval_contract_hash({"scope": scope, "authorization": nonce})
 
     def is_used(self, *, scope: str, nonce: str) -> bool:
-        return (scope, nonce) in self._used_nonces
+        return (scope, self._nonce_hash(scope=scope, nonce=nonce)) in self._used_keys
 
     def mark_used(self, *, scope: str, nonce: str) -> None:
-        self._used_nonces.add((scope, nonce))
+        self._used_keys.add((scope, self._nonce_hash(scope=scope, nonce=nonce)))
+
+    def claim(self, *, scope: str, nonce: str) -> bool:
+        key = (scope, self._nonce_hash(scope=scope, nonce=nonce))
+        if key in self._used_keys:
+            return False
+        self._used_keys.add(key)
+        return True
+
+    def export_records(self) -> list[dict[str, str]]:
+        return [
+            {"scope": scope, "nonce_hash": nonce_hash}
+            for scope, nonce_hash in sorted(self._used_keys)
+        ]
+
+    @classmethod
+    def from_records(cls, records: list[dict[str, str]]) -> "PersistentReplayStore":
+        return cls(records)
+
+
+class ApprovalReplayGuard(PersistentReplayStore):
+    """Backward-compatible name for the replay store skeleton."""
 
 
 _PROCESS_REPLAY_GUARD = ApprovalReplayGuard()
 
 
-def default_approval_replay_guard() -> ApprovalReplayGuard:
-    """Return the process-local default replay guard."""
+def default_approval_replay_guard() -> PersistentReplayStore:
+    """Return the process-local default replay store."""
     return _PROCESS_REPLAY_GUARD
 
 
@@ -113,6 +162,25 @@ def validate_approval_signature(
     return failures
 
 
+class FakeApprovalVerifier:
+    """Deterministic verifier skeleton that never reads secrets or key files."""
+
+    def verify(self, approval: Any, *, scope: str, gate_prefix: str) -> ApprovalVerificationResult:
+        return ApprovalVerificationResult(
+            failures=validate_approval_signature(
+                approval,
+                scope=scope,
+                gate_prefix=gate_prefix,
+            ),
+            metrics={
+                "approval_verifier_fake_count": 1,
+                "approval_verifier_secret_value_reads": 0,
+                "approval_verifier_key_file_reads": 0,
+                "approval_verifier_network_calls": 0,
+            },
+        )
+
+
 def validate_approval_nonce_fresh(
     approval: Any,
     *,
@@ -122,6 +190,23 @@ def validate_approval_nonce_fresh(
 ) -> list[tuple[str, str]]:
     nonce = getattr(approval, "nonce", "")
     if replay_guard.is_used(scope=scope, nonce=nonce):
+        return [(f"{gate_prefix}_replay_fresh", "approval authorization has already been used.")]
+    return []
+
+
+def claim_approval_replay(
+    approval: Any,
+    *,
+    scope: str,
+    gate_prefix: str,
+    replay_store: PersistentReplayStore,
+) -> list[tuple[str, str]]:
+    nonce = getattr(approval, "nonce", "")
+    try:
+        claimed = replay_store.claim(scope=scope, nonce=nonce)
+    except Exception:
+        return [(f"{gate_prefix}_replay_store_available", "approval replay store is unavailable.")]
+    if not claimed:
         return [(f"{gate_prefix}_replay_fresh", "approval authorization has already been used.")]
     return []
 

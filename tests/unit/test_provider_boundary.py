@@ -21,12 +21,26 @@ from packages.daacs_builder.provider_boundary import (
     ProviderRequest,
     SOLAR_PRO_3_ENV_KEY_NAME,
 )
-from packages.daacs_builder.approval_security import sign_approval_for_tests
+from packages.daacs_builder.approval_security import (
+    FakeApprovalVerifier,
+    PersistentReplayStore,
+    sign_approval_for_tests,
+)
 from packages.daacs_builder.runner_provider import RunnerRequest, default_runner_provider_registry
 from packages.div_planner.adapters import planning_blueprint_from_div_state, planning_to_prd_package
 
 
 _provider_approval_counter = count(1)
+
+
+class RaisingApprovalVerifier:
+    def verify(self, approval, *, scope, gate_prefix):
+        raise RuntimeError("sig-provider-leaked nonce-provider-leaked signed_contract_hash C:\\secret\\.env")
+
+
+class RaisingReplayStore(PersistentReplayStore):
+    def claim(self, *, scope: str, nonce: str) -> bool:
+        raise RuntimeError("nonce-provider-leaked signed_contract_hash postgres://secret")
 
 
 def _prompt_contract_hash():
@@ -79,6 +93,15 @@ def _provider_request(**overrides):
     }
     fields.update(overrides)
     return ProviderRequest(**fields)
+
+
+def _fake_provider(**overrides):
+    fields = {
+        "approval_verifier": FakeApprovalVerifier(),
+        "replay_store": PersistentReplayStore(),
+    }
+    fields.update(overrides)
+    return FakeSolarProProvider(**fields)
 
 
 def _approved_dry_run_request():
@@ -143,8 +166,35 @@ def test_provider_boundary_blocks_malformed_approval():
     assert result.metrics["provider_imports"] == 0
 
 
+def test_provider_boundary_blocks_without_approval_verifier():
+    result = FakeSolarProProvider(replay_store=PersistentReplayStore()).invoke(_provider_request())
+    checks = {check["name"]: check["passed"] for check in result.checks}
+
+    assert result.status == "blocked"
+    assert checks["provider_approval_verifier_present"] is False
+    assert result.metrics["approval_verifier_missing_block_count"] == 1
+    assert result.metrics["fake_provider_invocations"] == 0
+    assert result.metrics["provider_calls"] == 0
+    assert result.metrics["live_api_calls"] == 0
+
+
+def test_provider_boundary_blocks_verifier_exception_without_public_exposure():
+    result = _fake_provider(approval_verifier=RaisingApprovalVerifier()).invoke(_provider_request())
+    serialized = str(result.to_dict())
+    checks = {check["name"]: check["passed"] for check in result.checks}
+
+    assert result.status == "blocked"
+    assert checks["provider_approval_verifier_available"] is False
+    assert result.metrics["approval_verifier_missing_block_count"] == 1
+    assert result.metrics["fake_provider_invocations"] == 0
+    assert "sig-provider-leaked" not in serialized
+    assert "nonce" not in serialized
+    assert "signed_contract_hash" not in serialized
+    assert "C:\\\\" not in serialized
+
+
 def test_provider_boundary_blocks_unsigned_approval():
-    result = FakeSolarProProvider().invoke(
+    result = _fake_provider().invoke(
         _provider_request(approval=_provider_approval(signed=False))
     )
     serialized = str(result.to_dict())
@@ -164,7 +214,7 @@ def test_provider_boundary_blocks_tampered_signed_approval_payload():
     approval = _provider_approval()
     approval.audit_log_id = "provider-audit-run-provider-tampered"
 
-    result = FakeSolarProProvider().invoke(_provider_request(approval=approval))
+    result = _fake_provider().invoke(_provider_request(approval=approval))
     checks = {check["name"]: check["passed"] for check in result.checks}
 
     assert result.status == "blocked"
@@ -174,7 +224,7 @@ def test_provider_boundary_blocks_tampered_signed_approval_payload():
 
 
 def test_provider_boundary_blocks_reused_nonce():
-    provider = FakeSolarProProvider()
+    provider = _fake_provider()
     request = _provider_request()
 
     first = provider.invoke(request)
@@ -190,6 +240,7 @@ def test_provider_boundary_blocks_reused_nonce():
 
 
 def test_provider_boundary_blocks_reused_nonce_across_fresh_provider_instances():
+    replay_store = PersistentReplayStore()
     request = _provider_request(
         approval=_provider_approval(
             signature_id="sig-provider-cross-instance",
@@ -197,8 +248,8 @@ def test_provider_boundary_blocks_reused_nonce_across_fresh_provider_instances()
         )
     )
 
-    first = FakeSolarProProvider().invoke(request)
-    second = FakeSolarProProvider().invoke(request)
+    first = _fake_provider(replay_store=replay_store).invoke(request)
+    second = _fake_provider(replay_store=replay_store).invoke(request)
     checks = {check["name"]: check["passed"] for check in second.checks}
 
     assert first.status == "passed"
@@ -206,6 +257,42 @@ def test_provider_boundary_blocks_reused_nonce_across_fresh_provider_instances()
     assert checks["provider_approval_replay_fresh"] is False
     assert second.metrics["approval_replay_block_count"] == 1
     assert second.metrics["fake_provider_invocations"] == 0
+
+
+def test_provider_boundary_blocks_reused_nonce_after_restart_simulation():
+    replay_store = PersistentReplayStore()
+    request = _provider_request(
+        approval=_provider_approval(
+            signature_id="sig-provider-restart-simulation",
+            nonce="nonce-provider-restart-simulation",
+        )
+    )
+
+    first = _fake_provider(replay_store=replay_store).invoke(request)
+    restarted_store = PersistentReplayStore.from_records(replay_store.export_records())
+    second = _fake_provider(replay_store=restarted_store).invoke(request)
+    checks = {check["name"]: check["passed"] for check in second.checks}
+
+    assert first.status == "passed"
+    assert second.status == "blocked"
+    assert checks["provider_approval_replay_fresh"] is False
+    assert second.metrics["approval_replay_store_hit_count"] == 1
+    assert second.metrics["fake_provider_invocations"] == 0
+
+
+def test_provider_boundary_blocks_replay_store_exception_without_consuming_runtime():
+    result = _fake_provider(replay_store=RaisingReplayStore()).invoke(_provider_request())
+    serialized = str(result.to_dict())
+    checks = {check["name"]: check["passed"] for check in result.checks}
+
+    assert result.status == "blocked"
+    assert checks["provider_approval_replay_store_available"] is False
+    assert result.metrics["approval_replay_store_hit_count"] == 1
+    assert result.metrics["fake_provider_invocations"] == 0
+    assert result.metrics["provider_calls"] == 0
+    assert "nonce" not in serialized
+    assert "signed_contract_hash" not in serialized
+    assert "postgres://secret" not in serialized
 
 
 @pytest.mark.parametrize(
@@ -233,7 +320,7 @@ def test_provider_boundary_blocks_reused_nonce_across_fresh_provider_instances()
 )
 def test_provider_boundary_blocks_malformed_signature_envelope(approval_overrides):
     approval = _provider_approval(**approval_overrides)
-    result = FakeSolarProProvider().invoke(_provider_request(approval=approval))
+    result = _fake_provider().invoke(_provider_request(approval=approval))
     serialized = str(result.to_dict())
     checks = {check["name"]: check["passed"] for check in result.checks}
 
@@ -281,7 +368,7 @@ def test_provider_boundary_blocks_invalid_contracts(
     approval = _provider_approval(**approval_overrides)
     request = _provider_request(approval=approval, **request_overrides)
 
-    result = FakeSolarProProvider().invoke(request)
+    result = _fake_provider().invoke(request)
     checks = {check["name"]: check["passed"] for check in result.checks}
 
     assert result.status == "blocked"
@@ -293,7 +380,7 @@ def test_provider_boundary_blocks_invalid_contracts(
 
 def test_provider_boundary_blocks_unsafe_run_id_without_public_exposure():
     unsafe_run_id = "owner@example.com/demo"
-    result = FakeSolarProProvider().invoke(
+    result = _fake_provider().invoke(
         _provider_request(
             run_id=unsafe_run_id,
             approval=_provider_approval(run_id=unsafe_run_id),
@@ -322,7 +409,7 @@ def test_fake_solar_provider_passes_without_reading_env_secret_or_calling_live_p
     monkeypatch.setattr(os, "getenv", fail_if_env_value_read)
     monkeypatch.setattr(os.environ, "get", fail_if_env_value_read)
 
-    result = FakeSolarProProvider().invoke(_provider_request())
+    result = _fake_provider().invoke(_provider_request())
     serialized = str(result.to_dict())
 
     assert result.status == "passed"
@@ -335,9 +422,12 @@ def test_fake_solar_provider_passes_without_reading_env_secret_or_calling_live_p
     assert result.metrics["live_api_calls"] == 0
     assert result.metrics["live_llm_calls"] == 0
     assert result.metrics["network_calls"] == 0
+    assert result.metrics["approval_verifier_fake_count"] == 1
+    assert result.metrics["approval_verifier_secret_value_reads"] == 0
+    assert result.metrics["approval_verifier_key_file_reads"] == 0
 
 
-def test_fake_solar_provider_does_not_read_dotenv_or_call_network(monkeypatch):
+def test_fake_solar_provider_and_verifier_do_not_read_dotenv_or_call_network(monkeypatch):
     def fail_if_called(*args, **kwargs):
         raise AssertionError("provider boundary attempted a blocked side effect")
 
@@ -346,11 +436,13 @@ def test_fake_solar_provider_does_not_read_dotenv_or_call_network(monkeypatch):
     monkeypatch.setattr(socket, "create_connection", fail_if_called)
     monkeypatch.setattr(urllib.request, "urlopen", fail_if_called)
 
-    result = FakeSolarProProvider().invoke(_provider_request())
+    result = _fake_provider().invoke(_provider_request())
 
     assert result.status == "passed"
     assert result.metrics["network_calls"] == 0
     assert result.metrics["provider_secret_value_reads"] == 0
+    assert result.metrics["approval_verifier_secret_value_reads"] == 0
+    assert result.metrics["approval_verifier_key_file_reads"] == 0
 
 
 def test_fake_solar_provider_does_not_import_upstage_or_provider_runtime(monkeypatch):
@@ -370,7 +462,7 @@ def test_fake_solar_provider_does_not_import_upstage_or_provider_runtime(monkeyp
         return real_import(name, *args, **kwargs)
 
     monkeypatch.setattr(builtins, "__import__", fail_blocked_import)
-    result = FakeSolarProProvider().invoke(_provider_request())
+    result = _fake_provider().invoke(_provider_request())
 
     assert result.status == "passed"
     assert result.metrics["provider_imports"] == 0
@@ -378,7 +470,7 @@ def test_fake_solar_provider_does_not_import_upstage_or_provider_runtime(monkeyp
 
 def test_provider_boundary_public_payload_contains_env_key_name_only():
     approval = _provider_approval(approved_by="local-user@example.com")
-    result = FakeSolarProProvider().invoke(_provider_request(approval=approval))
+    result = _fake_provider().invoke(_provider_request(approval=approval))
     serialized = str(result.to_dict())
 
     assert result.status == "passed"

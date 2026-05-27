@@ -304,11 +304,17 @@ class RunnerProviderRegistry:
 
 def default_runner_provider_registry() -> RunnerProviderRegistry:
     """Create the default registry with fail-closed mode providers."""
+    from .approval_security import FakeApprovalVerifier, default_approval_replay_guard
     from .dry_run_runner import DryRunRunnerProvider
     from .live_runner import LiveRunnerProvider
 
     registry = RunnerProviderRegistry()
     registry.register(OfflineRunnerProvider())
     registry.register(DryRunRunnerProvider())
-    registry.register(LiveRunnerProvider())
+    registry.register(
+        LiveRunnerProvider(
+            approval_verifier=FakeApprovalVerifier(),
+            replay_store=default_approval_replay_guard(),
+        )
+    )
     return registry

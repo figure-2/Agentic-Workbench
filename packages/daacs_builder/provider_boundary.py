@@ -16,11 +16,10 @@ from packages.core.exposure import sanitize_public_payload
 from packages.core.schemas import JsonDict, stable_contract_hash
 
 from .approval_security import (
-    ApprovalReplayGuard,
+    ApprovalVerifier,
+    PersistentReplayStore,
+    claim_approval_replay,
     default_approval_replay_guard,
-    mark_approval_nonce_used,
-    validate_approval_nonce_fresh,
-    validate_approval_signature,
 )
 from .runner_provider import is_safe_run_id, safe_public_run_id
 
@@ -109,6 +108,14 @@ def zero_provider_side_effect_metrics() -> dict[str, int]:
         "approval_signature_valid_count": 0,
         "approval_replay_mark_count": 0,
         "approval_replay_block_count": 0,
+        "approval_replay_store_claim_count": 0,
+        "approval_replay_store_hit_count": 0,
+        "approval_replay_store_persisted_record_count": 0,
+        "approval_verifier_missing_block_count": 0,
+        "approval_verifier_fake_count": 0,
+        "approval_verifier_secret_value_reads": 0,
+        "approval_verifier_key_file_reads": 0,
+        "approval_verifier_network_calls": 0,
     }
 
 
@@ -212,13 +219,6 @@ def validate_provider_request(request: ProviderRequest) -> list[tuple[str, str]]
 
     if not isinstance(approval.audit_log_id, str) or not approval.audit_log_id.strip():
         failures.append(("provider_audit_configured", "audit_log_id is required."))
-    failures.extend(
-        validate_approval_signature(
-            approval,
-            scope=PROVIDER_APPROVAL_SCOPE,
-            gate_prefix="provider_approval",
-        )
-    )
     return failures
 
 
@@ -256,23 +256,58 @@ class FakeSolarProProvider:
 
     provider_name = SOLAR_PRO_3_PROVIDER
 
-    def __init__(self, replay_guard: ApprovalReplayGuard | None = None) -> None:
-        self.replay_guard = replay_guard or default_approval_replay_guard()
+    def __init__(
+        self,
+        *,
+        approval_verifier: ApprovalVerifier | None = None,
+        replay_store: PersistentReplayStore | None = None,
+        replay_guard: PersistentReplayStore | None = None,
+    ) -> None:
+        self.approval_verifier = approval_verifier
+        self.replay_store = replay_store or replay_guard or default_approval_replay_guard()
 
     def invoke(self, request: ProviderRequest) -> ProviderResult:
         failures = validate_provider_request(request)
         if failures:
             return _blocked_result(request, failures)
 
-        nonce_failures = validate_approval_nonce_fresh(
+        if self.approval_verifier is None:
+            result = _blocked_result(
+                request,
+                [("provider_approval_verifier_present", "approval verifier is required.")],
+            )
+            result.metrics["approval_verifier_missing_block_count"] = 1
+            return result
+
+        try:
+            verification = self.approval_verifier.verify(
+                request.approval,
+                scope=PROVIDER_APPROVAL_SCOPE,
+                gate_prefix="provider_approval",
+            )
+        except Exception:
+            result = _blocked_result(
+                request,
+                [("provider_approval_verifier_available", "approval verifier is unavailable.")],
+            )
+            result.metrics["approval_verifier_missing_block_count"] = 1
+            return result
+        if verification.failures:
+            result = _blocked_result(request, verification.failures)
+            result.metrics.update(verification.metrics)
+            return result
+
+        replay_failures = claim_approval_replay(
             request.approval,
             scope=PROVIDER_APPROVAL_SCOPE,
             gate_prefix="provider_approval",
-            replay_guard=self.replay_guard,
+            replay_store=self.replay_store,
         )
-        if nonce_failures:
-            result = _blocked_result(request, nonce_failures)
+        if replay_failures:
+            result = _blocked_result(request, replay_failures)
+            result.metrics.update(verification.metrics)
             result.metrics["approval_replay_block_count"] = 1
+            result.metrics["approval_replay_store_hit_count"] = 1
             return result
 
         approval_payload = asdict(request.approval)
@@ -315,6 +350,11 @@ class FakeSolarProProvider:
                     "env_key_name_reference_count": 1,
                     "approval_signature_valid_count": 1,
                     "approval_replay_mark_count": 1,
+                    "approval_replay_store_claim_count": 1,
+                    "approval_replay_store_persisted_record_count": len(
+                        self.replay_store.export_records()
+                    ),
+                    **verification.metrics,
                 }
             ),
             audit_events=[
@@ -328,10 +368,5 @@ class FakeSolarProProvider:
                     "env_key_name": request.env_key_name,
                 }
             ],
-        )
-        mark_approval_nonce_used(
-            request.approval,
-            scope=PROVIDER_APPROVAL_SCOPE,
-            replay_guard=self.replay_guard,
         )
         return result

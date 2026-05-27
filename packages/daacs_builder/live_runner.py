@@ -15,11 +15,10 @@ from packages.core.pathing import PathBoundaryError, normalize_public_relative_p
 from packages.core.schemas import VerificationReport, stable_contract_hash
 
 from .approval_security import (
-    ApprovalReplayGuard,
+    ApprovalVerifier,
+    PersistentReplayStore,
+    claim_approval_replay,
     default_approval_replay_guard,
-    mark_approval_nonce_used,
-    validate_approval_nonce_fresh,
-    validate_approval_signature,
 )
 from .offline_runner import DAACSOfflineRunner
 from .runner_provider import (
@@ -74,6 +73,14 @@ ZERO_FAKE_LIVE_RUNTIME_METRICS: dict[str, int] = {
     "approval_signature_valid_count": 0,
     "approval_replay_mark_count": 0,
     "approval_replay_block_count": 0,
+    "approval_replay_store_claim_count": 0,
+    "approval_replay_store_hit_count": 0,
+    "approval_replay_store_persisted_record_count": 0,
+    "approval_verifier_missing_block_count": 0,
+    "approval_verifier_fake_count": 0,
+    "approval_verifier_secret_value_reads": 0,
+    "approval_verifier_key_file_reads": 0,
+    "approval_verifier_network_calls": 0,
 }
 
 
@@ -188,13 +195,6 @@ def _validate_approval(
     if not isinstance(approval.audit_log_id, str) or not approval.audit_log_id.strip():
         failures.append(("live_audit_configured", "audit_log_id is required."))
 
-    failures.extend(
-        validate_approval_signature(
-            approval,
-            scope=LIVE_APPROVAL_SCOPE,
-            gate_prefix="live_approval",
-        )
-    )
     _validate_workspace(approval, request, failures)
 
 
@@ -315,11 +315,14 @@ class LiveRunnerProvider:
         *,
         runtime: FakeLiveRuntime | None = None,
         offline_runner: DAACSOfflineRunner | None = None,
-        replay_guard: ApprovalReplayGuard | None = None,
+        approval_verifier: ApprovalVerifier | None = None,
+        replay_store: PersistentReplayStore | None = None,
+        replay_guard: PersistentReplayStore | None = None,
     ) -> None:
         self.runtime = runtime or FakeLiveRuntime()
         self.offline_runner = offline_runner or DAACSOfflineRunner()
-        self.replay_guard = replay_guard or default_approval_replay_guard()
+        self.approval_verifier = approval_verifier
+        self.replay_store = replay_store or replay_guard or default_approval_replay_guard()
 
     def run(self, request: RunnerRequest) -> RunnerResult:
         failures = validate_fake_live_request(request)
@@ -328,6 +331,41 @@ class LiveRunnerProvider:
                 request=request,
                 failures=failures,
                 extra_metrics={"approval_bypass_count": 1},
+            )
+
+        if self.approval_verifier is None:
+            return _blocked_result(
+                request=request,
+                failures=[("live_approval_verifier_present", "approval verifier is required.")],
+                extra_metrics={
+                    "approval_bypass_count": 1,
+                    "approval_verifier_missing_block_count": 1,
+                },
+            )
+
+        try:
+            verification = self.approval_verifier.verify(
+                request.approval,
+                scope=LIVE_APPROVAL_SCOPE,
+                gate_prefix="live_approval",
+            )
+        except Exception:
+            return _blocked_result(
+                request=request,
+                failures=[("live_approval_verifier_available", "approval verifier is unavailable.")],
+                extra_metrics={
+                    "approval_bypass_count": 1,
+                    "approval_verifier_missing_block_count": 1,
+                },
+            )
+        if verification.failures:
+            return _blocked_result(
+                request=request,
+                failures=verification.failures,
+                extra_metrics={
+                    "approval_bypass_count": 1,
+                    **verification.metrics,
+                },
             )
 
         offline_report = self.offline_runner.run(request.state)
@@ -346,19 +384,21 @@ class LiveRunnerProvider:
                 },
             )
 
-        nonce_failures = validate_approval_nonce_fresh(
+        replay_failures = claim_approval_replay(
             request.approval,
             scope=LIVE_APPROVAL_SCOPE,
             gate_prefix="live_approval",
-            replay_guard=self.replay_guard,
+            replay_store=self.replay_store,
         )
-        if nonce_failures:
+        if replay_failures:
             return _blocked_result(
                 request=request,
-                failures=nonce_failures,
+                failures=replay_failures,
                 extra_metrics={
                     "approval_bypass_count": 1,
                     "approval_replay_block_count": 1,
+                    "approval_replay_store_hit_count": 1,
+                    **verification.metrics,
                 },
             )
 
@@ -387,15 +427,15 @@ class LiveRunnerProvider:
                 "fake_runtime_evidence_count": 1,
                 "approval_signature_valid_count": 1,
                 "approval_replay_mark_count": 1,
+                "approval_replay_store_claim_count": 1,
+                "approval_replay_store_persisted_record_count": len(
+                    self.replay_store.export_records()
+                ),
                 "planned_action_count": len(request.plan.planned_actions)
                 if request.plan is not None
                 else 0,
+                **verification.metrics,
             }
-        )
-        mark_approval_nonce_used(
-            request.approval,
-            scope=LIVE_APPROVAL_SCOPE,
-            replay_guard=self.replay_guard,
         )
         report = VerificationReport(
             run_id=request.run_id,
