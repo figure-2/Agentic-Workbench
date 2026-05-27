@@ -22,6 +22,8 @@ from packages.daacs_builder.provider_boundary import (
     SOLAR_PRO_3_ENV_KEY_NAME,
 )
 from packages.daacs_builder.approval_security import (
+    ApprovalVerificationResult,
+    ApprovalVerifierPolicy,
     FakeApprovalVerifier,
     PersistentReplayStore,
     sign_approval_for_tests,
@@ -36,6 +38,11 @@ _provider_approval_counter = count(1)
 class RaisingApprovalVerifier:
     def verify(self, approval, *, scope, gate_prefix):
         raise RuntimeError("sig-provider-leaked nonce-provider-leaked signed_contract_hash C:\\secret\\.env")
+
+
+class PermissiveApprovalVerifier:
+    def verify(self, approval, *, scope, gate_prefix):
+        return ApprovalVerificationResult(failures=[], metrics={})
 
 
 class RaisingReplayStore(PersistentReplayStore):
@@ -193,6 +200,146 @@ def test_provider_boundary_blocks_verifier_exception_without_public_exposure():
     assert "C:\\\\" not in serialized
 
 
+@pytest.mark.parametrize(
+    ("approval_overrides", "verifier_policy", "expected_gate", "expected_metric"),
+    [
+        (
+            {"verifier_id": "verifier-unknown-local"},
+            ApprovalVerifierPolicy(),
+            "provider_approval_verifier_trusted",
+            "approval_verifier_identity_block_count",
+        ),
+        (
+            {},
+            ApprovalVerifierPolicy(revoked_verifier_ids=("verifier-local-fake",)),
+            "provider_approval_verifier_trusted",
+            "approval_verifier_identity_block_count",
+        ),
+        (
+            {"key_id": "key-unknown-local"},
+            ApprovalVerifierPolicy(),
+            "provider_approval_key_trusted",
+            "approval_verifier_key_block_count",
+        ),
+        (
+            {},
+            ApprovalVerifierPolicy(revoked_key_ids=("key-local-fake",)),
+            "provider_approval_key_trusted",
+            "approval_verifier_key_block_count",
+        ),
+        (
+            {"key_id": "-----BEGIN PRIVATE KEY-----"},
+            ApprovalVerifierPolicy(),
+            "provider_approval_key_trusted",
+            "approval_verifier_key_block_count",
+        ),
+        (
+            {"verifier_scope": "live_runner"},
+            ApprovalVerifierPolicy(),
+            "provider_approval_scope_matches",
+            "approval_verifier_scope_block_count",
+        ),
+        (
+            {"approved_at": "2099-01-01T00:00:00Z", "expires_at": "2099-01-02T00:00:00Z"},
+            ApprovalVerifierPolicy(),
+            "provider_approval_approved_at_skew_valid",
+            "approval_verifier_skew_block_count",
+        ),
+    ],
+)
+def test_provider_boundary_blocks_untrusted_verifier_policy(
+    approval_overrides,
+    verifier_policy,
+    expected_gate,
+    expected_metric,
+):
+    approval = _provider_approval(**approval_overrides)
+    result = _fake_provider(approval_verifier=FakeApprovalVerifier(verifier_policy)).invoke(
+        _provider_request(approval=approval)
+    )
+    serialized = str(result.to_dict())
+    checks = {check["name"]: check["passed"] for check in result.checks}
+
+    assert result.status == "blocked"
+    assert checks[expected_gate] is False
+    assert result.metrics[expected_metric] == 1
+    assert result.metrics["approval_verifier_policy_block_count"] == 1
+    assert result.metrics["fake_provider_invocations"] == 0
+    assert result.metrics["provider_calls"] == 0
+    assert result.metrics["live_api_calls"] == 0
+    assert result.metrics["live_llm_calls"] == 0
+    assert result.metrics["network_calls"] == 0
+    assert str(approval.verifier_id) not in serialized
+    assert str(approval.key_id) not in serialized
+    assert approval.signature_id not in serialized
+    assert approval.nonce not in serialized
+    assert approval.signed_contract_hash not in serialized
+
+
+@pytest.mark.parametrize(
+    ("approval_overrides", "verifier_policy", "expected_gate", "expected_metric"),
+    [
+        (
+            {"verifier_id": "verifier-unknown-local"},
+            ApprovalVerifierPolicy(),
+            "provider_approval_verifier_trusted",
+            "approval_verifier_identity_block_count",
+        ),
+        (
+            {},
+            ApprovalVerifierPolicy(revoked_verifier_ids=("verifier-local-fake",)),
+            "provider_approval_verifier_trusted",
+            "approval_verifier_identity_block_count",
+        ),
+        (
+            {"key_id": "key-unknown-local"},
+            ApprovalVerifierPolicy(),
+            "provider_approval_key_trusted",
+            "approval_verifier_key_block_count",
+        ),
+        (
+            {},
+            ApprovalVerifierPolicy(revoked_key_ids=("key-local-fake",)),
+            "provider_approval_key_trusted",
+            "approval_verifier_key_block_count",
+        ),
+        (
+            {"verifier_scope": "live_runner"},
+            ApprovalVerifierPolicy(),
+            "provider_approval_scope_matches",
+            "approval_verifier_scope_block_count",
+        ),
+        (
+            {"approved_at": "2099-01-01T00:00:00Z", "expires_at": "2099-01-02T00:00:00Z"},
+            ApprovalVerifierPolicy(),
+            "provider_approval_approved_at_skew_valid",
+            "approval_verifier_skew_block_count",
+        ),
+    ],
+)
+def test_provider_boundary_enforces_policy_contract_after_custom_verifier(
+    approval_overrides,
+    verifier_policy,
+    expected_gate,
+    expected_metric,
+):
+    approval = _provider_approval(**approval_overrides)
+    result = _fake_provider(
+        approval_verifier=PermissiveApprovalVerifier(),
+        approval_verifier_policy=verifier_policy,
+    ).invoke(_provider_request(approval=approval))
+    checks = {check["name"]: check["passed"] for check in result.checks}
+
+    assert result.status == "blocked"
+    assert checks[expected_gate] is False
+    assert result.metrics[expected_metric] == 1
+    assert result.metrics["fake_provider_invocations"] == 0
+    assert result.metrics["provider_calls"] == 0
+    assert result.metrics["live_api_calls"] == 0
+    assert result.metrics["live_llm_calls"] == 0
+    assert result.metrics["network_calls"] == 0
+
+
 def test_provider_boundary_blocks_unsigned_approval():
     result = _fake_provider().invoke(
         _provider_request(approval=_provider_approval(signed=False))
@@ -221,6 +368,27 @@ def test_provider_boundary_blocks_tampered_signed_approval_payload():
     assert checks["provider_approval_signature_valid"] is False
     assert result.metrics["fake_provider_invocations"] == 0
     assert result.metrics["provider_calls"] == 0
+
+
+def test_provider_boundary_blocks_live_scope_signed_approval_reuse():
+    approval = _provider_approval(signed=False)
+    sign_approval_for_tests(
+        approval,
+        scope="live_runner",
+        signature_id="sig-provider-cross-scope",
+        nonce="nonce-provider-cross-scope",
+    )
+
+    result = _fake_provider().invoke(_provider_request(approval=approval))
+    checks = {check["name"]: check["passed"] for check in result.checks}
+
+    assert result.status == "blocked"
+    assert checks["provider_approval_signature_valid"] is False
+    assert result.metrics["fake_provider_invocations"] == 0
+    assert result.metrics["provider_calls"] == 0
+    assert result.metrics["live_api_calls"] == 0
+    assert result.metrics["live_llm_calls"] == 0
+    assert result.metrics["network_calls"] == 0
 
 
 def test_provider_boundary_blocks_reused_nonce():
@@ -423,6 +591,8 @@ def test_fake_solar_provider_passes_without_reading_env_secret_or_calling_live_p
     assert result.metrics["live_llm_calls"] == 0
     assert result.metrics["network_calls"] == 0
     assert result.metrics["approval_verifier_fake_count"] == 1
+    assert result.metrics["approval_verifier_policy_check_count"] == 1
+    assert result.metrics["approval_verifier_policy_valid_count"] == 1
     assert result.metrics["approval_verifier_secret_value_reads"] == 0
     assert result.metrics["approval_verifier_key_file_reads"] == 0
 
@@ -482,6 +652,8 @@ def test_provider_boundary_public_payload_contains_env_key_name_only():
     assert approval.signature_id not in serialized
     assert approval.nonce not in serialized
     assert approval.signed_contract_hash not in serialized
+    assert approval.verifier_id not in serialized
+    assert approval.key_id not in serialized
     assert "signed_contract_hash" not in serialized
 
 

@@ -16,9 +16,12 @@ from packages.core.schemas import VerificationReport, stable_contract_hash
 
 from .approval_security import (
     ApprovalVerifier,
+    ApprovalVerifierPolicy,
     PersistentReplayStore,
     claim_approval_replay,
     default_approval_replay_guard,
+    enforce_approval_contract_policy,
+    merge_verifier_metrics,
 )
 from .offline_runner import DAACSOfflineRunner
 from .runner_provider import (
@@ -81,6 +84,13 @@ ZERO_FAKE_LIVE_RUNTIME_METRICS: dict[str, int] = {
     "approval_verifier_secret_value_reads": 0,
     "approval_verifier_key_file_reads": 0,
     "approval_verifier_network_calls": 0,
+    "approval_verifier_policy_check_count": 0,
+    "approval_verifier_policy_valid_count": 0,
+    "approval_verifier_policy_block_count": 0,
+    "approval_verifier_identity_block_count": 0,
+    "approval_verifier_key_block_count": 0,
+    "approval_verifier_scope_block_count": 0,
+    "approval_verifier_skew_block_count": 0,
 }
 
 
@@ -316,12 +326,14 @@ class LiveRunnerProvider:
         runtime: FakeLiveRuntime | None = None,
         offline_runner: DAACSOfflineRunner | None = None,
         approval_verifier: ApprovalVerifier | None = None,
+        approval_verifier_policy: ApprovalVerifierPolicy | None = None,
         replay_store: PersistentReplayStore | None = None,
         replay_guard: PersistentReplayStore | None = None,
     ) -> None:
         self.runtime = runtime or FakeLiveRuntime()
         self.offline_runner = offline_runner or DAACSOfflineRunner()
         self.approval_verifier = approval_verifier
+        self.approval_verifier_policy = approval_verifier_policy or ApprovalVerifierPolicy()
         self.replay_store = replay_store or replay_guard or default_approval_replay_guard()
 
     def run(self, request: RunnerRequest) -> RunnerResult:
@@ -368,6 +380,26 @@ class LiveRunnerProvider:
                 },
             )
 
+        policy_verification = enforce_approval_contract_policy(
+            request.approval,
+            scope=LIVE_APPROVAL_SCOPE,
+            gate_prefix="live_approval",
+            policy=self.approval_verifier_policy,
+        )
+        verification_metrics = merge_verifier_metrics(
+            verification.metrics,
+            policy_verification.metrics,
+        )
+        if policy_verification.failures:
+            return _blocked_result(
+                request=request,
+                failures=policy_verification.failures,
+                extra_metrics={
+                    "approval_bypass_count": 1,
+                    **verification_metrics,
+                },
+            )
+
         offline_report = self.offline_runner.run(request.state)
         if not offline_report.passed:
             return _blocked_result(
@@ -398,7 +430,7 @@ class LiveRunnerProvider:
                     "approval_bypass_count": 1,
                     "approval_replay_block_count": 1,
                     "approval_replay_store_hit_count": 1,
-                    **verification.metrics,
+                    **verification_metrics,
                 },
             )
 
@@ -434,7 +466,7 @@ class LiveRunnerProvider:
                 "planned_action_count": len(request.plan.planned_actions)
                 if request.plan is not None
                 else 0,
-                **verification.metrics,
+                **verification_metrics,
             }
         )
         report = VerificationReport(

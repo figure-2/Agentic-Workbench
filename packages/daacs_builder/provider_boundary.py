@@ -17,9 +17,12 @@ from packages.core.schemas import JsonDict, stable_contract_hash
 
 from .approval_security import (
     ApprovalVerifier,
+    ApprovalVerifierPolicy,
     PersistentReplayStore,
     claim_approval_replay,
     default_approval_replay_guard,
+    enforce_approval_contract_policy,
+    merge_verifier_metrics,
 )
 from .runner_provider import is_safe_run_id, safe_public_run_id
 
@@ -51,6 +54,9 @@ class ProviderApprovalRecord:
     signature_id: str = ""
     signed_contract_hash: str = ""
     nonce: str = ""
+    verifier_id: str = ""
+    key_id: str = ""
+    verifier_scope: str = ""
 
 
 @dataclass(slots=True)
@@ -116,6 +122,13 @@ def zero_provider_side_effect_metrics() -> dict[str, int]:
         "approval_verifier_secret_value_reads": 0,
         "approval_verifier_key_file_reads": 0,
         "approval_verifier_network_calls": 0,
+        "approval_verifier_policy_check_count": 0,
+        "approval_verifier_policy_valid_count": 0,
+        "approval_verifier_policy_block_count": 0,
+        "approval_verifier_identity_block_count": 0,
+        "approval_verifier_key_block_count": 0,
+        "approval_verifier_scope_block_count": 0,
+        "approval_verifier_skew_block_count": 0,
     }
 
 
@@ -260,10 +273,12 @@ class FakeSolarProProvider:
         self,
         *,
         approval_verifier: ApprovalVerifier | None = None,
+        approval_verifier_policy: ApprovalVerifierPolicy | None = None,
         replay_store: PersistentReplayStore | None = None,
         replay_guard: PersistentReplayStore | None = None,
     ) -> None:
         self.approval_verifier = approval_verifier
+        self.approval_verifier_policy = approval_verifier_policy or ApprovalVerifierPolicy()
         self.replay_store = replay_store or replay_guard or default_approval_replay_guard()
 
     def invoke(self, request: ProviderRequest) -> ProviderResult:
@@ -297,6 +312,21 @@ class FakeSolarProProvider:
             result.metrics.update(verification.metrics)
             return result
 
+        policy_verification = enforce_approval_contract_policy(
+            request.approval,
+            scope=PROVIDER_APPROVAL_SCOPE,
+            gate_prefix="provider_approval",
+            policy=self.approval_verifier_policy,
+        )
+        verification_metrics = merge_verifier_metrics(
+            verification.metrics,
+            policy_verification.metrics,
+        )
+        if policy_verification.failures:
+            result = _blocked_result(request, policy_verification.failures)
+            result.metrics.update(verification_metrics)
+            return result
+
         replay_failures = claim_approval_replay(
             request.approval,
             scope=PROVIDER_APPROVAL_SCOPE,
@@ -305,7 +335,7 @@ class FakeSolarProProvider:
         )
         if replay_failures:
             result = _blocked_result(request, replay_failures)
-            result.metrics.update(verification.metrics)
+            result.metrics.update(verification_metrics)
             result.metrics["approval_replay_block_count"] = 1
             result.metrics["approval_replay_store_hit_count"] = 1
             return result
@@ -354,7 +384,7 @@ class FakeSolarProProvider:
                     "approval_replay_store_persisted_record_count": len(
                         self.replay_store.export_records()
                     ),
-                    **verification.metrics,
+                    **verification_metrics,
                 }
             ),
             audit_events=[

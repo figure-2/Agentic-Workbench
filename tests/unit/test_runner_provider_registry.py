@@ -15,8 +15,13 @@ from packages.daacs_builder.adapters import (
     implementation_brief_from_prd_package,
     planning_to_build_spec,
 )
-from packages.daacs_builder.approval_security import sign_approval_for_tests
-from packages.daacs_builder.approval_security import FakeApprovalVerifier, PersistentReplayStore
+from packages.daacs_builder.approval_security import (
+    ApprovalVerificationResult,
+    ApprovalVerifierPolicy,
+    FakeApprovalVerifier,
+    PersistentReplayStore,
+    sign_approval_for_tests,
+)
 from packages.daacs_builder.live_runner import LIVE_APPROVAL_SCOPE, LiveRunnerProvider
 from packages.daacs_builder.runner_provider import (
     ApprovalRecord,
@@ -33,6 +38,11 @@ _live_approval_counter = count(1)
 class RaisingApprovalVerifier:
     def verify(self, approval, *, scope, gate_prefix):
         raise RuntimeError("sig-live-leaked nonce-live-leaked signed_contract_hash C:\\secret\\.env")
+
+
+class PermissiveApprovalVerifier:
+    def verify(self, approval, *, scope, gate_prefix):
+        return ApprovalVerificationResult(failures=[], metrics={})
 
 
 class RaisingReplayStore(PersistentReplayStore):
@@ -551,6 +561,169 @@ def test_live_blocks_verifier_exception_without_public_exposure():
     assert "C:\\\\" not in serialized
 
 
+@pytest.mark.parametrize(
+    ("approval_overrides", "verifier_policy", "expected_gate", "expected_metric"),
+    [
+        (
+            {"verifier_id": "verifier-unknown-local"},
+            ApprovalVerifierPolicy(),
+            "live_approval_verifier_trusted",
+            "approval_verifier_identity_block_count",
+        ),
+        (
+            {},
+            ApprovalVerifierPolicy(revoked_verifier_ids=("verifier-local-fake",)),
+            "live_approval_verifier_trusted",
+            "approval_verifier_identity_block_count",
+        ),
+        (
+            {"key_id": "key-unknown-local"},
+            ApprovalVerifierPolicy(),
+            "live_approval_key_trusted",
+            "approval_verifier_key_block_count",
+        ),
+        (
+            {},
+            ApprovalVerifierPolicy(revoked_key_ids=("key-local-fake",)),
+            "live_approval_key_trusted",
+            "approval_verifier_key_block_count",
+        ),
+        (
+            {"key_id": "-----BEGIN PRIVATE KEY-----"},
+            ApprovalVerifierPolicy(),
+            "live_approval_key_trusted",
+            "approval_verifier_key_block_count",
+        ),
+        (
+            {"verifier_scope": "provider_boundary"},
+            ApprovalVerifierPolicy(),
+            "live_approval_scope_matches",
+            "approval_verifier_scope_block_count",
+        ),
+        (
+            {"approved_at": "2099-01-01T00:00:00Z", "expires_at": "2099-01-02T00:00:00Z"},
+            ApprovalVerifierPolicy(),
+            "live_approval_approved_at_skew_valid",
+            "approval_verifier_skew_block_count",
+        ),
+    ],
+)
+def test_live_blocks_untrusted_verifier_policy(
+    approval_overrides,
+    verifier_policy,
+    expected_gate,
+    expected_metric,
+):
+    state, plan = _approved_dry_run_result()
+    approval = _valid_live_approval(**approval_overrides)
+    result = _live_provider(approval_verifier=FakeApprovalVerifier(verifier_policy)).run(
+        RunnerRequest(
+            run_id="run-provider",
+            mode="live",
+            state=state,
+            approval=approval,
+            plan=plan,
+            policy=_valid_live_policy(),
+        )
+    )
+    serialized = str(
+        {
+            "report": result.verification_report.to_dict(),
+            "audit_events": result.audit_events,
+        }
+    )
+    checks = {check["name"]: check["passed"] for check in result.verification_report.checks}
+
+    assert result.status == "blocked"
+    assert checks[expected_gate] is False
+    assert result.verification_report.metrics[expected_metric] == 1
+    assert result.verification_report.metrics["approval_verifier_policy_block_count"] == 1
+    assert result.verification_report.metrics["fake_live_runtime_invocations"] == 0
+    assert result.verification_report.metrics["provider_calls"] == 0
+    assert result.verification_report.metrics["solar_provider_calls"] == 0
+    assert result.verification_report.metrics["real_daacs_invocations"] == 0
+    assert result.verification_report.metrics["network_calls"] == 0
+    assert str(approval.verifier_id) not in serialized
+    assert str(approval.key_id) not in serialized
+    assert approval.signature_id not in serialized
+    assert approval.nonce not in serialized
+    assert approval.signed_contract_hash not in serialized
+
+
+@pytest.mark.parametrize(
+    ("approval_overrides", "verifier_policy", "expected_gate", "expected_metric"),
+    [
+        (
+            {"verifier_id": "verifier-unknown-local"},
+            ApprovalVerifierPolicy(),
+            "live_approval_verifier_trusted",
+            "approval_verifier_identity_block_count",
+        ),
+        (
+            {},
+            ApprovalVerifierPolicy(revoked_verifier_ids=("verifier-local-fake",)),
+            "live_approval_verifier_trusted",
+            "approval_verifier_identity_block_count",
+        ),
+        (
+            {"key_id": "key-unknown-local"},
+            ApprovalVerifierPolicy(),
+            "live_approval_key_trusted",
+            "approval_verifier_key_block_count",
+        ),
+        (
+            {},
+            ApprovalVerifierPolicy(revoked_key_ids=("key-local-fake",)),
+            "live_approval_key_trusted",
+            "approval_verifier_key_block_count",
+        ),
+        (
+            {"verifier_scope": "provider_boundary"},
+            ApprovalVerifierPolicy(),
+            "live_approval_scope_matches",
+            "approval_verifier_scope_block_count",
+        ),
+        (
+            {"approved_at": "2099-01-01T00:00:00Z", "expires_at": "2099-01-02T00:00:00Z"},
+            ApprovalVerifierPolicy(),
+            "live_approval_approved_at_skew_valid",
+            "approval_verifier_skew_block_count",
+        ),
+    ],
+)
+def test_live_enforces_policy_contract_after_custom_verifier(
+    approval_overrides,
+    verifier_policy,
+    expected_gate,
+    expected_metric,
+):
+    state, plan = _approved_dry_run_result()
+    approval = _valid_live_approval(**approval_overrides)
+    result = _live_provider(
+        approval_verifier=PermissiveApprovalVerifier(),
+        approval_verifier_policy=verifier_policy,
+    ).run(
+        RunnerRequest(
+            run_id="run-provider",
+            mode="live",
+            state=state,
+            approval=approval,
+            plan=plan,
+            policy=_valid_live_policy(),
+        )
+    )
+    checks = {check["name"]: check["passed"] for check in result.verification_report.checks}
+
+    assert result.status == "blocked"
+    assert checks[expected_gate] is False
+    assert result.verification_report.metrics[expected_metric] == 1
+    assert result.verification_report.metrics["fake_live_runtime_invocations"] == 0
+    assert result.verification_report.metrics["provider_calls"] == 0
+    assert result.verification_report.metrics["solar_provider_calls"] == 0
+    assert result.verification_report.metrics["real_daacs_invocations"] == 0
+    assert result.verification_report.metrics["network_calls"] == 0
+
+
 def test_live_blocks_unsigned_approval():
     state, plan = _approved_dry_run_result()
     result = default_runner_provider_registry().run(
@@ -602,6 +775,37 @@ def test_live_blocks_tampered_signed_approval_payload():
     assert checks["live_approval_signature_valid"] is False
     assert result.verification_report.metrics["fake_live_runtime_invocations"] == 0
     assert result.verification_report.metrics["real_daacs_invocations"] == 0
+
+
+def test_live_blocks_provider_scope_signed_approval_reuse():
+    state, plan = _approved_dry_run_result()
+    approval = _valid_live_approval(signed=False)
+    sign_approval_for_tests(
+        approval,
+        scope="provider_boundary",
+        signature_id="sig-live-cross-scope",
+        nonce="nonce-live-cross-scope",
+    )
+
+    result = _live_provider().run(
+        RunnerRequest(
+            run_id="run-provider",
+            mode="live",
+            state=state,
+            approval=approval,
+            plan=plan,
+            policy=_valid_live_policy(),
+        )
+    )
+    checks = {check["name"]: check["passed"] for check in result.verification_report.checks}
+
+    assert result.status == "blocked"
+    assert checks["live_approval_signature_valid"] is False
+    assert result.verification_report.metrics["fake_live_runtime_invocations"] == 0
+    assert result.verification_report.metrics["provider_calls"] == 0
+    assert result.verification_report.metrics["solar_provider_calls"] == 0
+    assert result.verification_report.metrics["real_daacs_invocations"] == 0
+    assert result.verification_report.metrics["network_calls"] == 0
 
 
 def test_live_blocks_reused_nonce_after_first_fake_runtime_pass():
@@ -874,12 +1078,13 @@ def test_live_blocks_tampered_dry_run_plan_reference():
 
 def test_live_fake_runtime_passes_with_zero_side_effects_after_dry_run_plan():
     state, plan = _approved_dry_run_result()
+    approval = _valid_live_approval()
     result = default_runner_provider_registry().run(
         RunnerRequest(
             run_id="run-provider",
             mode="live",
             state=state,
-            approval=_valid_live_approval(),
+            approval=approval,
             plan=plan,
             policy=_valid_live_policy(),
         )
@@ -904,6 +1109,9 @@ def test_live_fake_runtime_passes_with_zero_side_effects_after_dry_run_plan():
     assert metrics["filesystem_writes"] == 0
     assert metrics["network_calls"] == 0
     assert metrics["approval_bypass_count"] == 0
+    assert metrics["approval_verifier_fake_count"] == 1
+    assert metrics["approval_verifier_policy_check_count"] == 1
+    assert metrics["approval_verifier_policy_valid_count"] == 1
 
 
 def test_live_fake_runtime_does_not_call_host_commands(monkeypatch):
@@ -1024,4 +1232,6 @@ def test_live_fake_runtime_public_payloads_are_sanitized():
     assert approval.signature_id not in serialized
     assert approval.nonce not in serialized
     assert approval.signed_contract_hash not in serialized
+    assert approval.verifier_id not in serialized
+    assert approval.key_id not in serialized
     assert "signed_contract_hash" not in serialized

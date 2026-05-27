@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-NEXT-11` persistent replay store and approval verifier skeleton.
+Current snapshot after `AW-NEXT-12` verifier policy and key identity skeleton.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache | 66 |
-| Counted code/doc files, excluding cache | 66 |
-| Project lines, excluding cache | 7,786 |
+| Project files, excluding cache | 67 |
+| Counted code/doc files, excluding cache | 67 |
+| Project lines, excluding cache | 8,548 |
 | Python files | 38 |
-| Markdown files | 24 |
+| Markdown files | 25 |
 | Test files | 11 |
 | Unit test files | 9 |
 | Smoke test files | 2 |
 | Integration test files | 0 |
-| Pytest collected cases | 172 |
-| Pytest passed cases | 172 |
+| Pytest collected cases | 201 |
+| Pytest passed cases | 201 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -491,3 +491,57 @@ Measured after `PersistentReplayStore`, `ApprovalVerifier`, and `FakeApprovalVer
 | Solar Pro 3/DAACS live call 0 유지 | covered |
 
 Interpretation: this adds verifier/store boundaries and restart-simulation coverage. It is still not production cryptographic signing, not durable disk/DB persistence, and not real Solar Pro 3 or DAACS live execution.
+
+## AW-NEXT-12 ApprovalVerifier Policy / Key Identity Metrics
+
+Measured after static verifier trust policy, key identity references, scope binding, and future approval timestamp skew gates were added to provider/live approval verification.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 201 |
+| Pytest passed cases | 201 |
+| Regression delta vs AW-NEXT-11 baseline | +29 |
+| Approval security unit tests | 3 |
+| Provider boundary test cases | 52 |
+| Runner provider registry tests | 67 |
+| New verifier policy/key identity test cases | 29 |
+| Provider policy block fixtures | 7 |
+| Live policy block fixtures | 7 |
+| Custom verifier contract fixtures | 12 |
+| Cross-boundary signature reuse fixtures | 2 |
+| Direct verifier metric regression tests | 1 |
+| Unknown verifier fixtures | 2 |
+| Revoked verifier fixtures | 2 |
+| Unknown key fixtures | 2 |
+| Revoked key fixtures | 2 |
+| Scope mismatch fixtures | 2 |
+| Future `approved_at` skew fixtures | 2 |
+| Approval identity fields added | 3 |
+| Live LLM calls during eval | 0 |
+| Live API calls during eval | 0 |
+| Provider calls during eval | 0 |
+| Provider imports during eval | 0 |
+| Network calls during eval | 0 |
+| Verifier secret value reads | 0 |
+| Verifier key file reads | 0 |
+| Verifier policy public secret exposure | 0 |
+| Solar Pro 3/DAACS live calls | 0 |
+
+| Gate | Result |
+|---|---|
+| provider unknown verifier blocked | covered |
+| provider revoked verifier blocked | covered |
+| provider unknown key blocked | covered |
+| provider revoked key blocked | covered |
+| provider scope mismatch blocked | covered |
+| provider future `approved_at` skew blocked | covered |
+| live unknown verifier blocked | covered |
+| live revoked verifier blocked | covered |
+| live unknown key blocked | covered |
+| live revoked key blocked | covered |
+| live scope mismatch blocked | covered |
+| live future `approved_at` skew blocked | covered |
+| public output excludes verifier/key/signature/nonce/hash values | covered |
+| Solar Pro 3/DAACS live call 0 유지 | covered |
+
+Interpretation: this is a static policy/key identity skeleton for local boundary tests. It is not a production trust root, not key rotation, not external identity verification, and not real provider/runtime admission.

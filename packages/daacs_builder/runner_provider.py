@@ -46,6 +46,9 @@ class ApprovalRecord:
     signature_id: str = ""
     signed_contract_hash: str = ""
     nonce: str = ""
+    verifier_id: str = ""
+    key_id: str = ""
+    verifier_scope: str = ""
 
 
 @dataclass(slots=True)

@@ -7,6 +7,7 @@ secrets, environment values, key files, or external identity providers.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import re
@@ -15,7 +16,12 @@ from typing import Any, Protocol
 
 APPROVAL_SIGNATURE_ID_PATTERN = re.compile(r"^sig-[A-Za-z0-9_.-]{8,80}$")
 APPROVAL_NONCE_PATTERN = re.compile(r"^nonce-[A-Za-z0-9_.-]{8,80}$")
+APPROVAL_VERIFIER_ID_PATTERN = re.compile(r"^verifier-[A-Za-z0-9_.-]{4,80}$")
+APPROVAL_KEY_ID_PATTERN = re.compile(r"^key-[A-Za-z0-9_.-]{4,80}$")
+APPROVAL_SCOPE_PATTERN = re.compile(r"^[A-Za-z0-9_.-]{4,80}$")
 CONTRACT_HASH_PATTERN = re.compile(r"^[a-f0-9]{64}$")
+DEFAULT_VERIFIER_ID = "verifier-local-fake"
+DEFAULT_KEY_ID = "key-local-fake"
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,11 +32,33 @@ class ApprovalVerificationResult:
     metrics: dict[str, int]
 
 
+@dataclass(frozen=True, slots=True)
+class ApprovalVerifierPolicy:
+    """Static verifier/key policy for local skeleton tests."""
+
+    trusted_verifier_ids: tuple[str, ...] = (DEFAULT_VERIFIER_ID,)
+    trusted_key_ids: tuple[str, ...] = (DEFAULT_KEY_ID,)
+    revoked_verifier_ids: tuple[str, ...] = ()
+    revoked_key_ids: tuple[str, ...] = ()
+    allowed_scopes: tuple[str, ...] = ("live_runner", "provider_boundary")
+    max_future_skew_seconds: int = 300
+
+
 class ApprovalVerifier(Protocol):
     """Minimal approval verifier contract."""
 
     def verify(self, approval: Any, *, scope: str, gate_prefix: str) -> ApprovalVerificationResult:
         """Verify an approval envelope without reading secrets or external systems."""
+
+
+def merge_verifier_metrics(*metric_sets: dict[str, int]) -> dict[str, int]:
+    """Merge verifier metrics without letting zero defaults erase evidence."""
+    merged: dict[str, int] = {}
+    for metrics in metric_sets:
+        for key, value in metrics.items():
+            if key not in merged or value:
+                merged[key] = value
+    return merged
 
 
 class PersistentReplayStore:
@@ -114,10 +142,18 @@ def sign_approval_for_tests(
     scope: str,
     signature_id: str,
     nonce: str,
+    verifier_id: str = DEFAULT_VERIFIER_ID,
+    key_id: str = DEFAULT_KEY_ID,
 ) -> Any:
     """Populate deterministic signature fields for fixture approvals."""
     approval.signature_id = signature_id
     approval.nonce = nonce
+    if not getattr(approval, "verifier_id", ""):
+        approval.verifier_id = verifier_id
+    if not getattr(approval, "key_id", ""):
+        approval.key_id = key_id
+    if not getattr(approval, "verifier_scope", ""):
+        approval.verifier_scope = scope
     approval.signed_contract_hash = expected_signed_contract_hash(approval, scope=scope)
     return approval
 
@@ -165,20 +201,151 @@ def validate_approval_signature(
 class FakeApprovalVerifier:
     """Deterministic verifier skeleton that never reads secrets or key files."""
 
+    def __init__(self, policy: ApprovalVerifierPolicy | None = None) -> None:
+        self.policy = policy or ApprovalVerifierPolicy()
+
     def verify(self, approval: Any, *, scope: str, gate_prefix: str) -> ApprovalVerificationResult:
-        return ApprovalVerificationResult(
-            failures=validate_approval_signature(
-                approval,
-                scope=scope,
-                gate_prefix=gate_prefix,
-            ),
-            metrics={
-                "approval_verifier_fake_count": 1,
-                "approval_verifier_secret_value_reads": 0,
-                "approval_verifier_key_file_reads": 0,
-                "approval_verifier_network_calls": 0,
-            },
+        metrics = _zero_verifier_metrics()
+        metrics["approval_verifier_fake_count"] = 1
+        metrics["approval_verifier_policy_check_count"] = 1
+
+        failures = validate_approval_signature(
+            approval,
+            scope=scope,
+            gate_prefix=gate_prefix,
         )
+        if failures:
+            metrics["approval_verifier_policy_block_count"] = 1
+            return ApprovalVerificationResult(failures=failures, metrics=metrics)
+
+        policy_failures, policy_metrics = validate_approval_verifier_policy(
+            approval,
+            scope=scope,
+            gate_prefix=gate_prefix,
+            policy=self.policy,
+        )
+        metrics = merge_verifier_metrics(metrics, policy_metrics)
+        if policy_failures:
+            metrics["approval_verifier_policy_block_count"] = 1
+        else:
+            metrics["approval_verifier_policy_valid_count"] = 1
+        return ApprovalVerificationResult(
+            failures=policy_failures,
+            metrics=metrics,
+        )
+
+
+def _zero_verifier_metrics() -> dict[str, int]:
+    return {
+        "approval_verifier_fake_count": 0,
+        "approval_verifier_secret_value_reads": 0,
+        "approval_verifier_key_file_reads": 0,
+        "approval_verifier_network_calls": 0,
+        "approval_verifier_policy_check_count": 0,
+        "approval_verifier_policy_valid_count": 0,
+        "approval_verifier_policy_block_count": 0,
+        "approval_verifier_identity_block_count": 0,
+        "approval_verifier_key_block_count": 0,
+        "approval_verifier_scope_block_count": 0,
+        "approval_verifier_skew_block_count": 0,
+    }
+
+
+def _parse_approval_timestamp(value: Any) -> datetime | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return None
+    return parsed.astimezone(timezone.utc)
+
+
+def validate_approval_verifier_policy(
+    approval: Any,
+    *,
+    scope: str,
+    gate_prefix: str,
+    policy: ApprovalVerifierPolicy,
+) -> tuple[list[tuple[str, str]], dict[str, int]]:
+    failures: list[tuple[str, str]] = []
+    metrics = _zero_verifier_metrics()
+    verifier_id = getattr(approval, "verifier_id", "")
+    key_id = getattr(approval, "key_id", "")
+    verifier_scope = getattr(approval, "verifier_scope", "")
+
+    if (
+        not isinstance(verifier_id, str)
+        or APPROVAL_VERIFIER_ID_PATTERN.fullmatch(verifier_id) is None
+        or verifier_id not in policy.trusted_verifier_ids
+        or verifier_id in policy.revoked_verifier_ids
+    ):
+        failures.append((f"{gate_prefix}_verifier_trusted", "approval verifier is not trusted."))
+        metrics["approval_verifier_identity_block_count"] = 1
+
+    if (
+        not isinstance(key_id, str)
+        or APPROVAL_KEY_ID_PATTERN.fullmatch(key_id) is None
+        or key_id not in policy.trusted_key_ids
+        or key_id in policy.revoked_key_ids
+    ):
+        failures.append((f"{gate_prefix}_key_trusted", "approval signing key is not trusted."))
+        metrics["approval_verifier_key_block_count"] = 1
+
+    if (
+        not isinstance(verifier_scope, str)
+        or APPROVAL_SCOPE_PATTERN.fullmatch(verifier_scope) is None
+        or verifier_scope != scope
+        or scope not in policy.allowed_scopes
+    ):
+        failures.append((f"{gate_prefix}_scope_matches", "approval verifier scope is not allowed."))
+        metrics["approval_verifier_scope_block_count"] = 1
+
+    approved_at = _parse_approval_timestamp(getattr(approval, "approved_at", ""))
+    max_skew = max(0, int(policy.max_future_skew_seconds))
+    if approved_at is not None and approved_at > datetime.now(timezone.utc) + timedelta(
+        seconds=max_skew
+    ):
+        failures.append((f"{gate_prefix}_approved_at_skew_valid", "approval timestamp is not valid."))
+        metrics["approval_verifier_skew_block_count"] = 1
+
+    return failures, metrics
+
+
+def enforce_approval_contract_policy(
+    approval: Any,
+    *,
+    scope: str,
+    gate_prefix: str,
+    policy: ApprovalVerifierPolicy,
+) -> ApprovalVerificationResult:
+    """Run the local minimum approval contract after an injected verifier returns."""
+    metrics = _zero_verifier_metrics()
+    metrics["approval_verifier_policy_check_count"] = 1
+
+    failures = validate_approval_signature(
+        approval,
+        scope=scope,
+        gate_prefix=gate_prefix,
+    )
+    if failures:
+        metrics["approval_verifier_policy_block_count"] = 1
+        return ApprovalVerificationResult(failures=failures, metrics=metrics)
+
+    policy_failures, policy_metrics = validate_approval_verifier_policy(
+        approval,
+        scope=scope,
+        gate_prefix=gate_prefix,
+        policy=policy,
+    )
+    metrics = merge_verifier_metrics(metrics, policy_metrics)
+    if policy_failures:
+        metrics["approval_verifier_policy_block_count"] = 1
+    else:
+        metrics["approval_verifier_policy_valid_count"] = 1
+    return ApprovalVerificationResult(failures=policy_failures, metrics=metrics)
 
 
 def validate_approval_nonce_fresh(
