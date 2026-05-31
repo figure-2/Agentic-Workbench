@@ -64,6 +64,7 @@ Current implementation:
 - Public API projection for sanitized fixture responses with fixture/synthetic markers
 - Test-only DIV/DAACS source identity fixtures for parity reference
 - Fixture-based source identity smoke path from planning artifact to dry-run report
+- Source-to-target trace and portfolio-safe claim projection for parity evidence
 - Sanitizers for secrets, PII-like values, unsafe paths, raw payload fields, and public artifact exposure
 - Local unit/smoke/eval documentation for regression tracking
 
@@ -102,7 +103,7 @@ Latest documented local baseline:
 
 ```text
 Measurement date: 2026-05-31
-Pytest: 261 / 261 passed
+Pytest: 264 / 264 passed
 Live LLM calls in offline/dry-run/fake paths: 0
 Live API calls in offline/dry-run/fake paths: 0
 Provider calls/imports in the latest documented eval: 0
@@ -134,6 +135,6 @@ Do not interpret current results as:
 
 ## Status
 
-Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection and source identity golden path smoke coverage.
+Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection, source identity golden path smoke coverage, and claim-safe trace projection.
 
-Next implementation track: source-to-target trace documentation closure, then runner plan / verification report / audit event repository boundaries.
+Next implementation track: runner plan / verification report / audit event repository boundaries.

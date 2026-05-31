@@ -2,7 +2,7 @@
 
 ## Conclusion
 
-Agentic Workbench is a local/dev AI agent workflow harness prototype. It may claim contract, approval, dry-run, fake-boundary, and sanitizer work. It must not claim real external-provider success, real source-runtime execution, hosted success, or production-grade security.
+Agentic Workbench is a local/dev AI agent workflow harness prototype. It may claim contract, approval, dry-run, fake-boundary, and sanitizer work. It must not claim external-provider outcome, source-runtime outcome, hosted success, or production-grade security.
 
 ## Public Allowed
 
@@ -30,9 +30,9 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
 - fully autonomous development guarantee
 - production readiness
 - security completion or certification
-- live provider success
+- external provider outcome as a current capability
 - live runtime success
-- generated app production
+- generated app as a production output
 - hosted deployment success
 - code-generation success-rate guarantee
 - productivity multiplier proof

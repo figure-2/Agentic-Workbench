@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-PARITY-01B` source identity golden path smoke coverage.
+Current snapshot after `AW-PARITY-01C` source identity trace and claim projection.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache | 104 |
-| Counted code/doc files, excluding cache | 102 |
-| Project lines, excluding cache | 15,135 |
-| Python files | 46 |
-| Markdown files | 51 |
-| Test files | 17 |
-| Unit test files | 13 |
+| Project files, excluding cache | 106 |
+| Counted code/doc files, excluding cache | 104 |
+| Project lines, excluding cache | 15,309 |
+| Python files | 47 |
+| Markdown files | 52 |
+| Test files | 18 |
+| Unit test files | 14 |
 | Smoke test files | 3 |
 | Integration test files | 1 |
-| Pytest collected cases | 261 |
-| Pytest passed cases | 261 |
+| Pytest collected cases | 264 |
+| Pytest passed cases | 264 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -360,7 +360,7 @@ Measured after `LiveRunnerProvider` and `FakeLiveRuntime` implementation.
 | process/file/network/import tripwire | covered |
 | public payload sanitization | covered |
 
-Interpretation: this measures fake live admission gate coverage only. It does not implement real DAACS execution, Solar Pro 3 provider calls, generated-code quality, install/build success, hosted success, or production readiness.
+Interpretation: this measures fake live admission gate coverage only. It does not implement DAACS source-runtime outcome, Solar Pro 3 provider calls, generated-code quality, install/build success, hosted success, or production readiness.
 
 ## AW-NEXT-09 Solar Pro 3 Provider Boundary Metrics
 
@@ -404,7 +404,7 @@ Measured after `ProviderRequest`, `ProviderApprovalRecord`, `ProviderResult`, an
 | offline/dry-run provider import regression | covered |
 | public payload keeps env key name only | covered |
 
-Interpretation: this measures provider boundary contract coverage only. It does not implement Solar Pro 3 API calls, Upstage SDK imports, real token usage, response quality, DAACS live execution, or production readiness.
+Interpretation: this measures provider boundary contract coverage only. It does not implement Solar Pro 3 API calls, Upstage SDK imports, real token usage, response quality, DAACS source-runtime outcome, or production readiness.
 
 ## AW-NEXT-10 ProviderApproval Signature / Nonce Gate Metrics
 
@@ -490,7 +490,7 @@ Measured after `PersistentReplayStore`, `ApprovalVerifier`, and `FakeApprovalVer
 | same nonce across live/provider scopes remains isolated | covered |
 | Solar Pro 3/DAACS live call 0 유지 | covered |
 
-Interpretation: this adds verifier/store boundaries and restart-simulation coverage. It is still not production cryptographic signing, not durable disk/DB persistence, and not real Solar Pro 3 or DAACS live execution.
+Interpretation: this adds verifier/store boundaries and restart-simulation coverage. It is still not production cryptographic signing, not durable disk/DB persistence, and not Solar Pro 3 or DAACS source-runtime outcome.
 
 ## AW-NEXT-12 ApprovalVerifier Policy / Key Identity Metrics
 
@@ -666,7 +666,7 @@ Measured after `ApprovalRepository`, `ReplayNonceRepository`, and file-backed re
 | atomic write failure preserves existing tombstone | covered |
 | provider/live file-backed replay reuse blocked before fake runtime/provider invocation | covered |
 
-Interpretation: this is a hash-only repository boundary skeleton with a local file-backed replay fixture. It is not production DB persistence, production cryptographic signing, multi-host replay prevention, real DAACS execution, or Solar Pro 3 live provider integration.
+Interpretation: this is a hash-only repository boundary skeleton with a local file-backed replay fixture. It is not production DB persistence, production cryptographic signing, multi-host replay prevention, DAACS source-runtime outcome, or Solar Pro 3 live provider integration.
 
 ## AW-PARITY-00 Public API / Fixture Boundary Metrics
 
@@ -702,8 +702,8 @@ expansion, and claim scanner expansion were added.
 | public correlation IDs remain visible after redaction | covered |
 
 Interpretation: this closes the fixture API exposure boundary before source
-identity parity fixtures are added. It does not claim live provider success,
-real DAACS execution, source-runtime reproduction, generated-app production, or
+identity parity fixtures are added. It does not claim external provider outcome,
+DAACS source-runtime outcome, source-runtime reproduction, generated-app production, or
 production API security.
 
 ## AW-PARITY-01A Source Identity Fixture Metrics
@@ -780,3 +780,35 @@ chain through the dry-run runner.
 Interpretation: this proves fixture-based source identity preservation through
 the local artifact chain. It does not run source runtimes, generate an app, call
 providers, or prove production readiness.
+
+## AW-PARITY-01C Trace And Claim Projection Metrics
+
+Measured after mapping AW-PARITY-01B smoke evidence to source-to-target trace
+rows and scanner-safe public wording.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 264 |
+| Pytest passed cases | 264 |
+| Regression delta vs AW-PARITY-01B baseline | +3 |
+| Trace rows linked to 01B smoke evidence | 8 |
+| DIV trace rows linked | 4 |
+| DAACS trace rows linked | 4 |
+| Public claim docs scanned | 7 |
+| Public claim doc forbidden findings | 0 |
+| Public-safe portfolio wording blocks | 1 |
+| Public-safe block forbidden key findings | 0 |
+| README forbidden claim findings | 0 |
+| Metrics/eval public forbidden claim findings | 0 |
+| Solar Pro 3/DAACS live calls | 0 |
+
+| Gate | Result |
+|---|---|
+| source-to-target trace rows linked to 01B smoke evidence | covered |
+| README/portfolio wording separates fixture, dry-run, and target-only runtime surfaces | covered |
+| DIV/DAACS identity preservation evidence linked to test names | covered |
+| public claim projection remains scanner-safe | covered |
+
+Interpretation: this closes the documentation and claim boundary for the
+fixture-based parity evidence. It does not add runtime execution, provider
+calls, generated files, hosted status, or production readiness.

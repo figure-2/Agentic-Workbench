@@ -23,9 +23,9 @@ This is not a live DAACS, Solar Pro 3, or source-runtime integration step.
   `PlanningBlueprint.problem`.
 - Public denylist now includes raw prompt, raw log, file body, provider payload,
   request/response payload, and approval authorization material field names.
-- Public claim scanner now blocks live provider success, real DAACS execution,
-  Solar Pro 3 live success, source-runtime direct integration, and generated app
-  production success claim patterns.
+- Public claim scanner now blocks unsupported external-provider,
+  DAACS source-runtime, Solar live-outcome, direct source-runtime, and generated
+  app production-outcome claim patterns.
 
 ## Acceptance Results
 
@@ -37,8 +37,8 @@ This is not a live DAACS, Solar Pro 3, or source-runtime integration step.
 | `WorkflowSession.to_dict()` direct public API return | blocked by API projection test |
 | fixture/synthetic mode marker in API response | covered |
 | fixture planner raw prompt propagation | blocked |
-| live provider success claim scan | covered |
-| real DAACS/source-runtime success claim scan | covered |
+| external provider outcome claim scan | covered |
+| DAACS/source-runtime outcome claim scan | covered |
 | Solar Pro 3 live call | 0 |
 | DAACS live call | 0 |
 
@@ -53,7 +53,7 @@ python -m pytest tests -q
 ## Non-Current Claims
 
 - Public API projection does not prove live provider integration.
-- Public API projection does not prove real DAACS execution.
+- Public API projection does not prove DAACS source-runtime outcome.
 - Fixture approval is not durable user approval.
 - Sanitized artifact metadata is not generated source delivery.
 - This is not production API hardening or a security certification.
