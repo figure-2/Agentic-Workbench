@@ -7,16 +7,18 @@ provider responses, or generated file bodies.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, is_dataclass
 import hashlib
 import json
 from pathlib import Path
+import re
 from typing import Protocol
 from uuid import uuid4
 
+from .claims import find_forbidden_claims
 from .exposure import find_forbidden_public_keys, sanitize_public_payload
 from .pathing import normalize_public_relative_path, resolve_within_root
-from .schemas import Artifact, WorkflowSession, stable_contract_hash, utc_now
+from .schemas import Artifact, VerificationReport, WorkflowSession, stable_contract_hash, utc_now
 from .security import redact_secrets
 
 
@@ -25,6 +27,8 @@ REPLAY_APPROVAL_TYPES = {"live_runner_approval", "provider_approval"}
 LIFECYCLE_CLASSES = {"fixture", "synthetic", "durable"}
 CONTRACT_HASH_LENGTH = 64
 SAFE_REPLAY_RUN_ID_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-")
+SAFE_LABEL_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,80}$")
+UNSAFE_LABEL_TERMS = ("raw", "secret", "token", "body", "payload", "prompt", "content", "log")
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,6 +132,86 @@ class ReplayNonceRecord:
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
+class RunnerPlanRecord:
+    """Sanitized durable projection of a dry-run runner plan."""
+
+    plan_id: str
+    run_id: str
+    mode: str
+    plan_hash: str
+    implementation_brief_hash: str
+    build_spec_hash: str
+    source_artifact_id: str
+    planned_action_count: int
+    action_role_counts: dict[str, int]
+    artifact_manifest_count: int
+    required_approval_count: int
+    side_effect_count: int
+    side_effects_zero: bool
+    payload_hash: str
+    payload_field_count: int
+    visible_field_counts: dict[str, int]
+    summary: str
+    created_at: str
+
+    def to_dict(self) -> dict[str, object]:
+        return sanitize_public_payload(asdict(self))
+
+
+@dataclass(frozen=True, slots=True)
+class VerificationReportRecord:
+    """Sanitized durable projection of a verification report."""
+
+    report_id: str
+    run_id: str
+    mode: str
+    source_artifact_id: str
+    runner_plan_hash: str
+    report_hash: str
+    passed: bool
+    check_count: int
+    failed_check_count: int
+    error_count: int
+    generated_file_count: int
+    metric_count: int
+    metric_keys: tuple[str, ...]
+    checks_hash: str
+    errors_hash: str
+    metrics_hash: str
+    generated_files_hash: str
+    visible_field_counts: dict[str, int]
+    summary: str
+    created_at: str
+
+    def to_dict(self) -> dict[str, object]:
+        return sanitize_public_payload(asdict(self))
+
+
+@dataclass(frozen=True, slots=True)
+class AuditEventRecord:
+    """Sanitized durable projection of an audit event."""
+
+    audit_event_id: str
+    run_id: str
+    event_type: str
+    source: str
+    stage: str
+    level: str
+    source_artifact_id: str
+    linked_plan_hash: str
+    linked_report_hash: str
+    message_hash: str
+    payload_hash: str
+    payload_field_count: int
+    visible_field_counts: dict[str, int]
+    summary: str
+    created_at: str
+
+    def to_dict(self) -> dict[str, object]:
+        return sanitize_public_payload(asdict(self))
 
 
 class ReplayNonceReplayError(ValueError):
@@ -241,6 +325,55 @@ class ReplayNonceRepository(Protocol):
         ...
 
 
+class RunnerPlanRepository(Protocol):
+    """Repository contract for sanitized runner-plan records."""
+
+    def save(self, plan: object, *, source_artifact_id: str = "") -> RunnerPlanRecord:
+        ...
+
+    def get(self, plan_hash: str) -> RunnerPlanRecord | None:
+        ...
+
+    def list_for_run(self, run_id: str) -> list[RunnerPlanRecord]:
+        ...
+
+
+class VerificationReportRepository(Protocol):
+    """Repository contract for sanitized verification report records."""
+
+    def save(
+        self,
+        report: VerificationReport,
+        *,
+        source_artifact_id: str = "",
+        runner_plan_hash: str = "",
+    ) -> VerificationReportRecord:
+        ...
+
+    def get(self, report_hash: str) -> VerificationReportRecord | None:
+        ...
+
+    def list_for_run(self, run_id: str) -> list[VerificationReportRecord]:
+        ...
+
+
+class AuditEventRepository(Protocol):
+    """Repository contract for sanitized audit-event records."""
+
+    def save(
+        self,
+        event: object,
+        *,
+        source_artifact_id: str = "",
+        linked_plan_hash: str = "",
+        linked_report_hash: str = "",
+    ) -> AuditEventRecord:
+        ...
+
+    def list_for_run(self, run_id: str) -> list[AuditEventRecord]:
+        ...
+
+
 def idea_summary_for_storage(session: WorkflowSession) -> str:
     """Return a non-prompt summary safe enough for a read model."""
     idea = session.idea
@@ -299,6 +432,248 @@ def artifact_record_from_artifact(artifact: Artifact) -> ArtifactRecord:
         payload_field_count=payload_field_count,
         summary=f"{kind}:{name}; payload_fields={payload_field_count}",
         created_at=str(public_artifact["created_at"]),
+    )
+
+
+def _payload_from_object(value: object) -> dict[str, object]:
+    if isinstance(value, dict):
+        return dict(value)
+    if is_dataclass(value):
+        payload = asdict(value)
+        return payload if isinstance(payload, dict) else {}
+    if hasattr(value, "to_dict"):
+        payload = value.to_dict()
+        return payload if isinstance(payload, dict) else {}
+    if hasattr(value, "model_dump"):
+        payload = value.model_dump()
+        return payload if isinstance(payload, dict) else {}
+    if hasattr(value, "dict"):
+        payload = value.dict()
+        return payload if isinstance(payload, dict) else {}
+    return {}
+
+
+def _public_dict(payload: dict[str, object], *, label: str) -> dict[str, object]:
+    sanitized = sanitize_public_payload(payload)
+    if not isinstance(sanitized, dict):
+        raise ValueError(f"{label} payload must be a mapping")
+    return sanitized
+
+
+def _visible_projection_counts(raw_payload: dict[str, object], public_payload: dict[str, object]) -> dict[str, int]:
+    return {
+        "raw_top_level_fields": len(raw_payload),
+        "public_top_level_fields": len(public_payload),
+        "forbidden_public_key_count": len(find_forbidden_public_keys(raw_payload)),
+    }
+
+
+def _role_counts(actions: object) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    if not isinstance(actions, list):
+        return counts
+    for action in actions:
+        if not isinstance(action, dict):
+            continue
+        role = _safe_label(action.get("role"), fallback="task")
+        counts[role] = counts.get(role, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def _safe_label(value: object, *, fallback: str) -> str:
+    text = str(redact_secrets(value or "")).strip()
+    if not text:
+        return fallback
+    if find_forbidden_claims(text):
+        return fallback
+    lowered = text.lower()
+    if any(term in lowered for term in UNSAFE_LABEL_TERMS):
+        return fallback
+    if not SAFE_LABEL_PATTERN.fullmatch(text):
+        return fallback
+    return text
+
+
+def _safe_reference(value: object) -> str:
+    return _safe_label(value, fallback="")
+
+
+def _safe_contract_hash_reference(value: object, *, label: str) -> str:
+    text = str(redact_secrets(value or "")).strip()
+    if not text:
+        return ""
+    if _is_contract_hash(text):
+        return text
+    raise ValueError(f"{label} must be a contract hash")
+
+
+def _required_contract_hash_reference(value: object, *, label: str) -> str:
+    text = _safe_contract_hash_reference(value, label=label)
+    if not text:
+        raise ValueError(f"{label} is required")
+    return text
+
+
+def runner_plan_record_from_plan(
+    plan: object,
+    *,
+    source_artifact_id: str = "",
+) -> RunnerPlanRecord:
+    """Project a RunnerPlan into counts and hashes only."""
+    if hasattr(plan, "validate"):
+        plan.validate()
+    raw_payload = _payload_from_object(plan)
+    public_payload = _public_dict(plan.to_dict() if hasattr(plan, "to_dict") else raw_payload, label="runner plan")
+    plan_hash = (
+        _safe_contract_hash_reference(public_payload.get("plan_hash"), label="plan_hash")
+        or stable_contract_hash(public_payload)
+    )
+    planned_actions = public_payload.get("planned_actions") if isinstance(public_payload.get("planned_actions"), list) else []
+    artifact_manifest = (
+        public_payload.get("artifact_manifest") if isinstance(public_payload.get("artifact_manifest"), list) else []
+    )
+    required_approvals = (
+        public_payload.get("required_approvals") if isinstance(public_payload.get("required_approvals"), list) else []
+    )
+    side_effects = public_payload.get("side_effects") if isinstance(public_payload.get("side_effects"), dict) else {}
+    side_effect_count = len(side_effects)
+    side_effects_zero = all(value == 0 for value in side_effects.values())
+    if not side_effects_zero:
+        raise ValueError("runner plan repository only accepts zero-side-effect dry-run plans")
+    run_id = str(public_payload.get("run_id") or "")
+    if not run_id:
+        raise ValueError("runner plan run_id is required")
+    mode = _safe_label(public_payload.get("mode"), fallback="unknown")
+    summary = (
+        f"runner_plan:{mode}; "
+        f"actions={len(planned_actions)}; artifacts={len(artifact_manifest)}; "
+        f"approvals={len(required_approvals)}"
+    )
+    return RunnerPlanRecord(
+        plan_id=f"plan-{plan_hash[:12]}",
+        run_id=run_id,
+        mode=mode,
+        plan_hash=plan_hash,
+        implementation_brief_hash=_required_contract_hash_reference(
+            public_payload.get("implementation_brief_hash"),
+            label="implementation_brief_hash",
+        ),
+        build_spec_hash=_required_contract_hash_reference(
+            public_payload.get("build_spec_hash"),
+            label="build_spec_hash",
+        ),
+        source_artifact_id=_safe_reference(source_artifact_id),
+        planned_action_count=len(planned_actions),
+        action_role_counts=_role_counts(planned_actions),
+        artifact_manifest_count=len(artifact_manifest),
+        required_approval_count=len(required_approvals),
+        side_effect_count=side_effect_count,
+        side_effects_zero=side_effects_zero,
+        payload_hash=stable_contract_hash(public_payload),
+        payload_field_count=_payload_field_count(public_payload),
+        visible_field_counts=_visible_projection_counts(raw_payload, public_payload),
+        summary=summary,
+        created_at=str(public_payload.get("created_at") or utc_now()),
+    )
+
+
+def verification_report_record_from_report(
+    report: VerificationReport,
+    *,
+    source_artifact_id: str = "",
+    runner_plan_hash: str = "",
+) -> VerificationReportRecord:
+    """Project a VerificationReport into counts and hashes only."""
+    raw_payload = _payload_from_object(report)
+    public_payload = _public_dict(report.to_dict(), label="verification report")
+    report_hash = stable_contract_hash(public_payload)
+    run_id = str(public_payload.get("run_id") or "")
+    if not run_id:
+        raise ValueError("verification report run_id is required")
+    checks = public_payload.get("checks") if isinstance(public_payload.get("checks"), list) else []
+    errors = public_payload.get("errors") if isinstance(public_payload.get("errors"), list) else []
+    generated_files = (
+        public_payload.get("generated_files") if isinstance(public_payload.get("generated_files"), list) else []
+    )
+    metrics = public_payload.get("metrics") if isinstance(public_payload.get("metrics"), dict) else {}
+    failed_check_count = sum(
+        1
+        for check in checks
+        if isinstance(check, dict) and check.get("passed") is False
+    )
+    mode = _safe_label(metrics.get("boundary_mode") if isinstance(metrics, dict) else "", fallback="unknown")
+    metric_keys = tuple(
+        _safe_label(key, fallback="metric")
+        for key in sorted(str(key) for key in metrics.keys())
+    )
+    summary = (
+        f"verification_report:{'passed' if bool(public_payload.get('passed')) else 'failed'}; "
+        f"checks={len(checks)}; errors={len(errors)}; generated_files={len(generated_files)}"
+    )
+    return VerificationReportRecord(
+        report_id=f"report-{report_hash[:12]}",
+        run_id=run_id,
+        mode=mode,
+        source_artifact_id=_safe_reference(source_artifact_id),
+        runner_plan_hash=_safe_contract_hash_reference(runner_plan_hash, label="runner_plan_hash"),
+        report_hash=report_hash,
+        passed=bool(public_payload.get("passed")),
+        check_count=len(checks),
+        failed_check_count=failed_check_count,
+        error_count=len(errors),
+        generated_file_count=len(generated_files),
+        metric_count=len(metrics),
+        metric_keys=metric_keys,
+        checks_hash=stable_contract_hash(checks),
+        errors_hash=stable_contract_hash(errors),
+        metrics_hash=stable_contract_hash(metrics),
+        generated_files_hash=stable_contract_hash(generated_files),
+        visible_field_counts=_visible_projection_counts(raw_payload, public_payload),
+        summary=summary,
+        created_at=str(public_payload.get("created_at") or utc_now()),
+    )
+
+
+def audit_event_record_from_event(
+    event: object,
+    *,
+    source_artifact_id: str = "",
+    linked_plan_hash: str = "",
+    linked_report_hash: str = "",
+) -> AuditEventRecord:
+    """Project an audit event into metadata, counts, and hashes only."""
+    raw_payload = _payload_from_object(event)
+    public_payload = _public_dict(event.to_dict() if hasattr(event, "to_dict") else raw_payload, label="audit event")
+    run_id = str(public_payload.get("run_id") or "")
+    if not run_id:
+        raise ValueError("audit event run_id is required")
+    payload_body = public_payload.get("payload") if isinstance(public_payload.get("payload"), dict) else {}
+    message = str(public_payload.get("message") or "")
+    event_type = _safe_label(public_payload.get("event"), fallback="audit_event")
+    source = _safe_label(public_payload.get("source"), fallback="event_source")
+    stage = _safe_label(public_payload.get("stage"), fallback="unknown_stage")
+    level = _safe_label(public_payload.get("level"), fallback="info")
+    projection = {
+        "run_id": run_id,
+        "event_type": event_type,
+        "source": source,
+        "stage": stage,
+        "level": level,
+        "source_artifact_id": _safe_reference(source_artifact_id),
+        "linked_plan_hash": _safe_contract_hash_reference(linked_plan_hash, label="linked_plan_hash"),
+        "linked_report_hash": _safe_contract_hash_reference(linked_report_hash, label="linked_report_hash"),
+        "message_hash": stable_contract_hash({"message": message}),
+        "payload_hash": stable_contract_hash(payload_body),
+        "payload_field_count": _payload_field_count(payload_body),
+        "visible_field_counts": _visible_projection_counts(raw_payload, public_payload),
+        "created_at": str(public_payload.get("created_at") or utc_now()),
+    }
+    event_hash = stable_contract_hash(projection)
+    summary = f"audit_event:{event_type}; payload_fields={projection['payload_field_count']}"
+    return AuditEventRecord(
+        audit_event_id=f"audit-{event_hash[:12]}",
+        summary=summary,
+        **projection,
     )
 
 
@@ -559,6 +934,67 @@ def reconstruct_workflow_session_read_model(
     )
 
 
+def validate_runner_report_audit_linkage(
+    *,
+    run_id: str,
+    runner_plans: list[RunnerPlanRecord],
+    verification_reports: list[VerificationReportRecord],
+    audit_events: list[AuditEventRecord],
+    artifacts: list[ArtifactRecord] | None = None,
+) -> dict[str, int]:
+    """Validate that runner/report/audit repository rows belong to one run."""
+    if not run_id.strip():
+        raise ValueError("run_id is required")
+    artifact_ids: set[str] | None = None
+    if artifacts is not None:
+        artifact_ids = {record.artifact_id for record in artifacts}
+        for record in artifacts:
+            if record.run_id != run_id:
+                raise ValueError("artifact run_id does not match")
+    plan_hashes = {record.plan_hash for record in runner_plans}
+    report_hashes = {record.report_hash for record in verification_reports}
+    source_artifact_references: list[str] = []
+    for record in runner_plans:
+        if record.run_id != run_id:
+            raise ValueError("runner plan run_id does not match")
+        if record.source_artifact_id:
+            source_artifact_references.append(record.source_artifact_id)
+    for record in verification_reports:
+        if record.run_id != run_id:
+            raise ValueError("verification report run_id does not match")
+        if record.runner_plan_hash and record.runner_plan_hash not in plan_hashes:
+            raise ValueError("verification report runner_plan_hash does not match")
+        if record.source_artifact_id:
+            source_artifact_references.append(record.source_artifact_id)
+    for record in audit_events:
+        if record.run_id != run_id:
+            raise ValueError("audit event run_id does not match")
+        if record.linked_plan_hash and record.linked_plan_hash not in plan_hashes:
+            raise ValueError("audit event linked_plan_hash does not match")
+        if record.linked_report_hash and record.linked_report_hash not in report_hashes:
+            raise ValueError("audit event linked_report_hash does not match")
+        if record.source_artifact_id:
+            source_artifact_references.append(record.source_artifact_id)
+    if artifact_ids is not None:
+        missing_artifact_ids = sorted(
+            artifact_id
+            for artifact_id in source_artifact_references
+            if artifact_id not in artifact_ids
+        )
+        if missing_artifact_ids:
+            raise ValueError("source_artifact_id does not match artifact repository")
+    result = {
+        "run_id_linked": 1,
+        "runner_plan_count": len(runner_plans),
+        "verification_report_count": len(verification_reports),
+        "audit_event_count": len(audit_events),
+    }
+    if artifact_ids is not None:
+        result["source_artifact_reference_count"] = len(source_artifact_references)
+        result["artifact_linkage_count"] = len(source_artifact_references)
+    return result
+
+
 @dataclass(slots=True)
 class InMemoryRunSessionRepository:
     """In-memory implementation used until a DB-backed adapter exists."""
@@ -588,6 +1024,82 @@ class InMemoryArtifactRepository:
     def list_for_run(self, run_id: str) -> list[ArtifactRecord]:
         artifacts = [record for record in self.records.values() if record.run_id == run_id]
         return sorted(artifacts, key=lambda item: item.created_at)
+
+
+@dataclass(slots=True)
+class InMemoryRunnerPlanRepository:
+    """In-memory repository that stores runner-plan projections only."""
+
+    records: dict[str, RunnerPlanRecord] = field(default_factory=dict)
+
+    def save(self, plan: object, *, source_artifact_id: str = "") -> RunnerPlanRecord:
+        record = runner_plan_record_from_plan(plan, source_artifact_id=source_artifact_id)
+        self.records[record.plan_hash] = record
+        return record
+
+    def get(self, plan_hash: str) -> RunnerPlanRecord | None:
+        return self.records.get(plan_hash)
+
+    def list_for_run(self, run_id: str) -> list[RunnerPlanRecord]:
+        records = [record for record in self.records.values() if record.run_id == run_id]
+        return sorted(records, key=lambda item: item.created_at)
+
+
+@dataclass(slots=True)
+class InMemoryVerificationReportRepository:
+    """In-memory repository that stores verification report projections only."""
+
+    records: dict[str, VerificationReportRecord] = field(default_factory=dict)
+
+    def save(
+        self,
+        report: VerificationReport,
+        *,
+        source_artifact_id: str = "",
+        runner_plan_hash: str = "",
+    ) -> VerificationReportRecord:
+        record = verification_report_record_from_report(
+            report,
+            source_artifact_id=source_artifact_id,
+            runner_plan_hash=runner_plan_hash,
+        )
+        self.records[record.report_hash] = record
+        return record
+
+    def get(self, report_hash: str) -> VerificationReportRecord | None:
+        return self.records.get(report_hash)
+
+    def list_for_run(self, run_id: str) -> list[VerificationReportRecord]:
+        records = [record for record in self.records.values() if record.run_id == run_id]
+        return sorted(records, key=lambda item: item.created_at)
+
+
+@dataclass(slots=True)
+class InMemoryAuditEventRepository:
+    """In-memory repository that stores audit-event projections only."""
+
+    records: dict[str, AuditEventRecord] = field(default_factory=dict)
+
+    def save(
+        self,
+        event: object,
+        *,
+        source_artifact_id: str = "",
+        linked_plan_hash: str = "",
+        linked_report_hash: str = "",
+    ) -> AuditEventRecord:
+        record = audit_event_record_from_event(
+            event,
+            source_artifact_id=source_artifact_id,
+            linked_plan_hash=linked_plan_hash,
+            linked_report_hash=linked_report_hash,
+        )
+        self.records[record.audit_event_id] = record
+        return record
+
+    def list_for_run(self, run_id: str) -> list[AuditEventRecord]:
+        records = [record for record in self.records.values() if record.run_id == run_id]
+        return sorted(records, key=lambda item: item.created_at)
 
 
 @dataclass(slots=True)

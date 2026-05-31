@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-PARITY-01C` source identity trace and claim projection.
+Current snapshot after `AW-PERSIST-03` runner/report/audit repository boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache | 106 |
-| Counted code/doc files, excluding cache | 104 |
-| Project lines, excluding cache | 15,309 |
-| Python files | 47 |
-| Markdown files | 52 |
-| Test files | 18 |
-| Unit test files | 14 |
+| Project files, excluding cache | 108 |
+| Counted code/doc files, excluding cache | 106 |
+| Project lines, excluding cache | 16,257 |
+| Python files | 48 |
+| Markdown files | 53 |
+| Test files | 19 |
+| Unit test files | 15 |
 | Smoke test files | 3 |
 | Integration test files | 1 |
-| Pytest collected cases | 264 |
-| Pytest passed cases | 264 |
+| Pytest collected cases | 280 |
+| Pytest passed cases | 280 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -812,3 +812,40 @@ rows and scanner-safe public wording.
 Interpretation: this closes the documentation and claim boundary for the
 fixture-based parity evidence. It does not add runtime execution, provider
 calls, generated files, hosted status, or production readiness.
+
+## AW-PERSIST-03 Runner / Report / Audit Repository Metrics
+
+Measured after adding sanitized projection repositories for runner plans,
+verification reports, and audit events.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 280 |
+| Pytest passed cases | 280 |
+| Regression delta vs AW-PARITY-01C baseline | +16 |
+| Runner/report/audit repository tests | 16 |
+| New repository protocols | 3 |
+| New in-memory repository implementations | 3 |
+| New projection record types | 3 |
+| New linkage validation helper | 1 |
+| Extended forbidden public key classes | 9 |
+| Focused repository regression result | 127 / 127 passed |
+| RunnerPlan raw planned payload/body findings in record | 0 |
+| VerificationReport raw log/file body findings in record | 0 |
+| AuditEvent provider/runtime payload findings in record | 0 |
+| Repository projection forbidden key findings | 0 |
+| Repository projection forbidden claim findings | 0 |
+| Solar Pro 3/DAACS live calls | 0 |
+
+| Gate | Result |
+|---|---|
+| RunnerPlan stores hash/count/role projection only | covered |
+| VerificationReport stores counts and hashes, not raw errors/logs/files | covered |
+| AuditEvent stores metadata and hashes, not provider/runtime payloads | covered |
+| run/report/audit linkage rejects cross-run rows | covered |
+| source artifact references resolve to artifact repository rows | covered |
+| public repository projection remains scanner-safe | covered |
+
+Interpretation: this adds repository skeletons for sanitized runner/report/audit
+evidence. It does not add DB-backed persistence, generated app delivery, live
+runtime execution, external provider outcome, or production readiness.

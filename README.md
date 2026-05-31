@@ -61,6 +61,7 @@ Current implementation:
 - Fail-closed runner provider registry for offline, dry-run, and gated fake paths
 - Fake-only admission gates for future live/provider boundaries
 - In-memory repository boundaries for sanitized run and artifact read models
+- In-memory repository boundaries for sanitized runner plan, verification report, and audit event read models
 - Public API projection for sanitized fixture responses with fixture/synthetic markers
 - Test-only DIV/DAACS source identity fixtures for parity reference
 - Fixture-based source identity smoke path from planning artifact to dry-run report
@@ -103,7 +104,7 @@ Latest documented local baseline:
 
 ```text
 Measurement date: 2026-05-31
-Pytest: 264 / 264 passed
+Pytest: 280 / 280 passed
 Live LLM calls in offline/dry-run/fake paths: 0
 Live API calls in offline/dry-run/fake paths: 0
 Provider calls/imports in the latest documented eval: 0
@@ -135,6 +136,6 @@ Do not interpret current results as:
 
 ## Status
 
-Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection, source identity golden path smoke coverage, and claim-safe trace projection.
+Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection, source identity golden path smoke coverage, claim-safe trace projection, and hash/count repository boundaries for runner/report/audit evidence.
 
-Next implementation track: runner plan / verification report / audit event repository boundaries.
+Next implementation track: DB-backed adapter design for sanitized persistence rows.
