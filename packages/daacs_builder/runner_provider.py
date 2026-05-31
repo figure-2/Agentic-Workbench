@@ -311,6 +311,8 @@ def default_runner_provider_registry(
     *,
     replay_store=None,
     approval_replay_repositories=None,
+    approval_persistence_service=None,
+    require_approval_persistence: bool | None = None,
 ) -> RunnerProviderRegistry:
     """Create the default registry with fail-closed mode providers."""
     from .approval_security import (
@@ -320,6 +322,7 @@ def default_runner_provider_registry(
         default_approval_replay_guard,
         replay_store_from_approval_replay_repositories,
     )
+    from .approval_persistence import CanonicalApprovalPersistenceService
     from .dry_run_runner import DryRunRunnerProvider
     from .live_runner import LiveRunnerProvider
 
@@ -330,8 +333,17 @@ def default_runner_provider_registry(
         selected_replay_store = replay_store_from_approval_replay_repositories(
             approval_replay_repositories
         )
+        if approval_persistence_service is None:
+            approval_persistence_service = CanonicalApprovalPersistenceService(
+                approval_replay_repositories.approval_repository
+            )
     if selected_replay_store is None:
         selected_replay_store = default_approval_replay_guard()
+    selected_require_persistence = (
+        approval_persistence_service is not None
+        if require_approval_persistence is None
+        else require_approval_persistence
+    )
 
     registry = RunnerProviderRegistry()
     registry.register(OfflineRunnerProvider())
@@ -342,6 +354,8 @@ def default_runner_provider_registry(
             approval_policy_resolver=ApprovalPolicyResolver(),
             key_identity_registry=KeyIdentityRegistry(),
             replay_store=selected_replay_store,
+            approval_persistence_service=approval_persistence_service,
+            require_approval_persistence=selected_require_persistence,
         )
     )
     return registry

@@ -456,6 +456,8 @@ class LiveRunnerProvider:
         key_identity_registry: KeyIdentityRegistry | None = None,
         replay_store: PersistentReplayStore | None = None,
         replay_guard: PersistentReplayStore | None = None,
+        approval_persistence_service: Any | None = None,
+        require_approval_persistence: bool = False,
     ) -> None:
         self.runtime = runtime or FakeLiveRuntime()
         self.offline_runner = offline_runner or DAACSOfflineRunner()
@@ -469,6 +471,8 @@ class LiveRunnerProvider:
             self.approval_policy_resolver = None
         self.key_identity_registry = key_identity_registry
         self.replay_store = replay_store or replay_guard or default_approval_replay_guard()
+        self.approval_persistence_service = approval_persistence_service
+        self.require_approval_persistence = require_approval_persistence
 
     def run(self, request: RunnerRequest) -> RunnerResult:
         failures = validate_fake_live_request(request)
@@ -580,6 +584,60 @@ class LiveRunnerProvider:
             )
 
         state_hash, plan_hash = live_hashes_for_request(request)
+        persistence_metrics: dict[str, int] = {}
+        if self.approval_persistence_service is not None:
+            try:
+                persistence_result = self.approval_persistence_service.persist_live_approval(
+                    request
+                )
+            except Exception:
+                return _blocked_result(
+                    request=request,
+                    failures=[
+                        (
+                            "live_approval_persistence_available",
+                            "approval persistence service is unavailable.",
+                        )
+                    ],
+                    extra_metrics={
+                        "approval_bypass_count": 1,
+                        "approval_persistence_block_count": 1,
+                        **verification_metrics,
+                    },
+                )
+            persistence_metrics = dict(getattr(persistence_result, "metrics", {}))
+            if getattr(persistence_result, "approval_hash", "") != approval_hash:
+                return _blocked_result(
+                    request=request,
+                    failures=[
+                        (
+                            "live_approval_persistence_hash_match",
+                            "persisted approval hash does not match the canonical live approval.",
+                        )
+                    ],
+                    extra_metrics={
+                        "approval_bypass_count": 1,
+                        "approval_persistence_block_count": 1,
+                        **persistence_metrics,
+                        **verification_metrics,
+                    },
+                )
+        elif self.require_approval_persistence:
+            return _blocked_result(
+                request=request,
+                failures=[
+                    (
+                        "live_approval_persistence_service_present",
+                        "approval persistence service is required.",
+                    )
+                ],
+                extra_metrics={
+                    "approval_bypass_count": 1,
+                    "approval_persistence_missing_block_count": 1,
+                    **verification_metrics,
+                },
+            )
+
         replay_failures = claim_approval_replay(
             request.approval,
             scope=replay_scope,
@@ -598,6 +656,7 @@ class LiveRunnerProvider:
                     "approval_bypass_count": 1,
                     "approval_replay_block_count": 1,
                     "approval_replay_store_hit_count": 1,
+                    **persistence_metrics,
                     **verification_metrics,
                 },
             )
@@ -624,6 +683,7 @@ class LiveRunnerProvider:
                 "planned_action_count": len(request.plan.planned_actions)
                 if request.plan is not None
                 else 0,
+                **persistence_metrics,
                 **verification_metrics,
             }
         )

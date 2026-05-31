@@ -18,6 +18,7 @@ PERSIST_04_PATH = ROOT / "docs" / "evals" / "aw-persist-04-sqlite-runner-report-
 PERSIST_02_PATH = ROOT / "docs" / "evals" / "aw-persist-02-approval-replay-repositories.md"
 PERSIST_05_PATH = ROOT / "docs" / "evals" / "aw-persist-05-sqlite-approval-replay.md"
 PERSIST_06_PATH = ROOT / "docs" / "evals" / "aw-persist-06-approval-replay-wiring.md"
+PERSIST_07_PATH = ROOT / "docs" / "evals" / "aw-persist-07-canonical-approval-persistence.md"
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -33,6 +34,7 @@ PUBLIC_CLAIM_DOCS = [
     PERSIST_04_PATH,
     PERSIST_05_PATH,
     PERSIST_06_PATH,
+    PERSIST_07_PATH,
 ]
 
 

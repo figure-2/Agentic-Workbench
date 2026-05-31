@@ -9,6 +9,11 @@ from .adapters import (
 )
 from .offline_runner import DAACSOfflineRunner, find_blocked_operation_attempts
 from .dry_run_runner import DAACSDryRunRunner, DryRunRunnerProvider
+from .approval_persistence import (
+    CanonicalApprovalPersistenceError,
+    CanonicalApprovalPersistenceResult,
+    CanonicalApprovalPersistenceService,
+)
 from .live_runner import FakeLiveRuntime, LiveRunnerProvider
 from .runner_provider import (
     ApprovalRecord,
@@ -23,6 +28,9 @@ from .runner_provider import (
 
 __all__ = [
     "ApprovalRecord",
+    "CanonicalApprovalPersistenceError",
+    "CanonicalApprovalPersistenceResult",
+    "CanonicalApprovalPersistenceService",
     "DAACSDryRunRunner",
     "DAACSOfflineRunner",
     "DryRunRunnerProvider",

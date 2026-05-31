@@ -126,6 +126,7 @@ Allowed public summary:
 - Side-effect-free dry-run plan generation
 - Fake-only admission gates with external calls kept at 0 in current paths
 - Optional SQLite-backed replay wiring for fake admission gates
+- Canonical approval persistence service before durable replay claim
 - Public output designed around sanitized summaries and correlation hashes
 
 Do not interpret current results as:
@@ -139,6 +140,6 @@ Do not interpret current results as:
 
 ## Status
 
-Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection, source identity golden path smoke coverage, claim-safe trace projection, hash/count repository boundaries, and SQLite adapter skeletons for runner/report/audit plus approval/replay evidence.
+Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection, source identity golden path smoke coverage, claim-safe trace projection, hash/count repository boundaries, SQLite adapter skeletons for runner/report/audit plus approval/replay evidence, and canonical approval persistence service wiring before replay claim.
 
-Next implementation track: explicit API wiring behind sanitized repository boundaries, or boundary integration from approval/replay adapters into gated admission paths.
+Next implementation track: sanitized API wiring that reuses the canonical approval persistence and replay boundaries, or a local end-to-end demo that remains fake-only for live/provider execution.

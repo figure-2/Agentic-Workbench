@@ -32,8 +32,10 @@ from packages.daacs_builder.approval_security import (
     KeyIdentityRegistry,
     PersistentReplayStore,
     UnavailableReplayRecordAdapter,
+    replay_store_from_approval_replay_repositories,
     sign_approval_for_tests,
 )
+from packages.daacs_builder.approval_persistence import CanonicalApprovalPersistenceService
 from packages.daacs_builder.live_runner import (
     LIVE_APPROVAL_SCOPE,
     LiveRunnerProvider,
@@ -1265,8 +1267,10 @@ def test_live_default_registry_uses_sqlite_replay_repository_and_blocks_reused_n
     )
 
     assert first.status == "passed"
+    assert first.verification_report.metrics["approval_persistence_duplicate_count"] == 1
     assert second.status == "blocked"
     assert checks["live_approval_replay_fresh"] is False
+    assert second.verification_report.metrics["approval_persistence_duplicate_count"] == 1
     assert second.verification_report.metrics["approval_replay_store_hit_count"] == 1
     assert second.verification_report.metrics["fake_live_runtime_invocations"] == 0
     assert second.verification_report.metrics["real_daacs_invocations"] == 0
@@ -1291,21 +1295,72 @@ def test_live_default_registry_uses_sqlite_replay_repository_and_blocks_reused_n
     assert "signed_contract_hash" not in sqlite_rows
 
 
-def test_live_default_registry_blocks_sqlite_replay_without_persisted_canonical_approval(tmp_path):
+def test_live_default_registry_persists_canonical_approval_before_sqlite_replay_claim(tmp_path):
     state, plan = _approved_dry_run_result()
     repositories = build_approval_replay_repositories(
         ApprovalReplayRepositoryConfig(backend="sqlite", root=tmp_path)
     )
+    request = RunnerRequest(
+        run_id="run-provider",
+        mode="live",
+        state=state,
+        approval=_valid_live_approval(
+            signature_id="sig-live-persist-service",
+            nonce="nonce-live-persist-service",
+        ),
+        plan=plan,
+        policy=_valid_live_policy(),
+    )
     result = default_runner_provider_registry(
         approval_replay_repositories=repositories
+    ).run(request)
+    replay_scope = live_replay_scope_for_request(request)
+    expected_approval = live_approval_decision_record_for_request(
+        request,
+        scope_canonical=replay_scope,
+    )
+    saved_approval = repositories.approval_repository.get_approval(expected_approval.approval_id)
+    assert saved_approval is not None
+    serialized_rows = str(
+        {
+            "approval": saved_approval.to_dict(),
+            "replay": [
+                record.to_dict()
+                for record in repositories.replay_nonce_repository.list_records()
+            ],
+        }
+    )
+
+    assert result.status == "passed"
+    assert saved_approval.approval_hash == expected_approval.approval_hash
+    assert saved_approval.approval_hash == live_approval_decision_hash(
+        request,
+        scope_canonical=replay_scope,
+    )
+    assert result.verification_report.metrics["approval_persistence_persist_count"] == 1
+    assert result.verification_report.metrics["fake_live_runtime_invocations"] == 1
+    assert request.approval.nonce not in serialized_rows
+    assert request.approval.signature_id not in serialized_rows
+    assert request.approval.signed_contract_hash not in serialized_rows
+    assert "signed_contract_hash" not in serialized_rows
+
+
+def test_live_provider_blocks_missing_approval_persistence_service_before_fake_runtime(tmp_path):
+    state, plan = _approved_dry_run_result()
+    repositories = build_approval_replay_repositories(
+        ApprovalReplayRepositoryConfig(backend="sqlite", root=tmp_path)
+    )
+    result = _live_provider(
+        replay_store=replay_store_from_approval_replay_repositories(repositories),
+        require_approval_persistence=True,
     ).run(
         RunnerRequest(
             run_id="run-provider",
             mode="live",
             state=state,
             approval=_valid_live_approval(
-                signature_id="sig-live-sqlite-no-approval",
-                nonce="nonce-live-sqlite-no-approval",
+                signature_id="sig-live-missing-persist-service",
+                nonce="nonce-live-missing-persist-service",
             ),
             plan=plan,
             policy=_valid_live_policy(),
@@ -1314,7 +1369,8 @@ def test_live_default_registry_blocks_sqlite_replay_without_persisted_canonical_
     checks = {check["name"]: check["passed"] for check in result.verification_report.checks}
 
     assert result.status == "blocked"
-    assert checks["live_approval_replay_store_available"] is False
+    assert checks["live_approval_persistence_service_present"] is False
+    assert result.verification_report.metrics["approval_persistence_missing_block_count"] == 1
     assert result.verification_report.metrics["fake_live_runtime_invocations"] == 0
     assert result.verification_report.metrics["real_daacs_invocations"] == 0
 
@@ -1343,7 +1399,7 @@ def test_live_default_registry_blocks_corrupted_sqlite_replay_repository_before_
     checks = {check["name"]: check["passed"] for check in result.verification_report.checks}
 
     assert result.status == "blocked"
-    assert checks["live_approval_replay_store_available"] is False
+    assert checks["live_approval_persistence_available"] is False
     assert result.verification_report.metrics["fake_live_runtime_invocations"] == 0
     assert result.verification_report.metrics["real_daacs_invocations"] == 0
     assert result.verification_report.metrics["solar_provider_calls"] == 0

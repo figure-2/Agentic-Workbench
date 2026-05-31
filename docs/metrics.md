@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-PERSIST-06` approval/replay factory wiring boundary.
+Current snapshot after `AW-PERSIST-07` canonical approval persistence service boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache | 116 |
-| Counted code/doc files, excluding cache | 114 |
-| Project lines, excluding cache | 23,375 |
-| Python files | 53 |
-| Markdown files | 56 |
+| Project files, excluding cache | 118 |
+| Counted code/doc files, excluding cache | 116 |
+| Project lines, excluding cache | 20,502 |
+| Python files | 54 |
+| Markdown files | 57 |
 | Test files | 22 |
 | Unit test files | 18 |
 | Smoke test files | 3 |
 | Integration test files | 1 |
-| Pytest collected cases | 323 |
-| Pytest passed cases | 323 |
+| Pytest collected cases | 326 |
+| Pytest passed cases | 326 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -977,3 +977,38 @@ replay wiring for fake provider/live admission gates.
 Interpretation: this is optional local wiring for fake admission gates. It does
 not add production persistence, external provider outcome, target runtime
 outcome, generated app delivery, hosted status, or production approval trust.
+
+## AW-PERSIST-07 Canonical Approval Persistence Service Metrics
+
+Measured after adding the service boundary that persists canonical provider/live
+approval rows before durable replay claim.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 326 |
+| Pytest passed cases | 326 |
+| Regression delta vs AW-PERSIST-06 baseline | +3 |
+| Provider approval persistence service tests | 2 |
+| Live approval persistence service tests | 2 |
+| Canonical approval service implementation files | 1 |
+| Provider/live fake admission paths using service | 2 |
+| Missing persistence service block fixtures | 2 |
+| Duplicate canonical approval handling | idempotent |
+| Raw nonce/signature/signed contract hash findings in persisted rows | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| provider canonical approval row persisted before replay claim | covered |
+| live canonical approval row persisted before replay claim | covered |
+| persisted approval hash equals canonical helper hash | covered |
+| missing service fails closed before fake provider/runtime invocation | covered |
+| duplicate canonical approval row is idempotent | covered |
+| corrupted SQLite approval store fails closed before fake runtime | covered |
+| public architecture/eval claim docs remain scanner-safe | covered |
+
+Interpretation: this is a local service boundary for canonical approval
+persistence before fake admission replay claim. It is not production
+persistence, external provider outcome, target runtime outcome, generated app
+delivery, hosted status, or production approval trust.

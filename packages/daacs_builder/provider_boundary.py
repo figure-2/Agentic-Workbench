@@ -396,6 +396,8 @@ class FakeSolarProProvider:
         key_identity_registry: KeyIdentityRegistry | None = None,
         replay_store: PersistentReplayStore | None = None,
         replay_guard: PersistentReplayStore | None = None,
+        approval_persistence_service: Any | None = None,
+        require_approval_persistence: bool = False,
     ) -> None:
         self.approval_verifier = approval_verifier
         self.approval_verifier_policy = approval_verifier_policy
@@ -407,6 +409,8 @@ class FakeSolarProProvider:
             self.approval_policy_resolver = None
         self.key_identity_registry = key_identity_registry
         self.replay_store = replay_store or replay_guard or default_approval_replay_guard()
+        self.approval_persistence_service = approval_persistence_service
+        self.require_approval_persistence = require_approval_persistence
 
     def invoke(self, request: ProviderRequest) -> ProviderResult:
         failures = validate_provider_request(request)
@@ -479,6 +483,54 @@ class FakeSolarProProvider:
             result.metrics.update(verification_metrics)
             return result
 
+        persistence_metrics: dict[str, int] = {}
+        if self.approval_persistence_service is not None:
+            try:
+                persistence_result = self.approval_persistence_service.persist_provider_approval(
+                    request
+                )
+            except Exception:
+                result = _blocked_result(
+                    request,
+                    [
+                        (
+                            "provider_approval_persistence_available",
+                            "approval persistence service is unavailable.",
+                        )
+                    ],
+                )
+                result.metrics.update(verification_metrics)
+                result.metrics["approval_persistence_block_count"] = 1
+                return result
+            persistence_metrics = dict(getattr(persistence_result, "metrics", {}))
+            if getattr(persistence_result, "approval_hash", "") != approval_hash:
+                result = _blocked_result(
+                    request,
+                    [
+                        (
+                            "provider_approval_persistence_hash_match",
+                            "persisted approval hash does not match the canonical provider approval.",
+                        )
+                    ],
+                )
+                result.metrics.update(verification_metrics)
+                result.metrics.update(persistence_metrics)
+                result.metrics["approval_persistence_block_count"] = 1
+                return result
+        elif self.require_approval_persistence:
+            result = _blocked_result(
+                request,
+                [
+                    (
+                        "provider_approval_persistence_service_present",
+                        "approval persistence service is required.",
+                    )
+                ],
+            )
+            result.metrics.update(verification_metrics)
+            result.metrics["approval_persistence_missing_block_count"] = 1
+            return result
+
         replay_failures = claim_approval_replay(
             request.approval,
             scope=replay_scope,
@@ -492,6 +544,7 @@ class FakeSolarProProvider:
         if replay_failures:
             result = _blocked_result(request, replay_failures)
             result.metrics.update(verification_metrics)
+            result.metrics.update(persistence_metrics)
             result.metrics["approval_replay_block_count"] = 1
             result.metrics["approval_replay_store_hit_count"] = 1
             return result
@@ -538,6 +591,7 @@ class FakeSolarProProvider:
                     "approval_replay_store_persisted_record_count": len(
                         self.replay_store.export_records()
                     ),
+                    **persistence_metrics,
                     **verification_metrics,
                 }
             ),

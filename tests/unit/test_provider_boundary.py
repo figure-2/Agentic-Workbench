@@ -31,6 +31,7 @@ from packages.daacs_builder.provider_boundary import (
     provider_approval_subject_snapshot_for_request,
     provider_replay_scope_for_request,
 )
+from packages.daacs_builder.approval_persistence import CanonicalApprovalPersistenceService
 from packages.daacs_builder.approval_security import (
     ApprovalPolicyResolver,
     ApprovalVerificationResult,
@@ -769,6 +770,95 @@ def test_provider_boundary_uses_sqlite_replay_repository_and_blocks_reused_nonce
     assert request.approval.signature_id not in sqlite_rows
     assert request.approval.signed_contract_hash not in sqlite_rows
     assert "signed_contract_hash" not in sqlite_rows
+
+
+def test_provider_boundary_persists_canonical_approval_before_sqlite_replay_claim(tmp_path):
+    request = _provider_request(
+        approval=_provider_approval(
+            signature_id="sig-provider-persist-service",
+            nonce="nonce-provider-persist-service",
+        )
+    )
+    first_repositories = build_approval_replay_repositories(
+        ApprovalReplayRepositoryConfig(backend="sqlite", root=tmp_path)
+    )
+    second_repositories = build_approval_replay_repositories(
+        ApprovalReplayRepositoryConfig(backend="sqlite", root=tmp_path)
+    )
+    service = CanonicalApprovalPersistenceService(first_repositories.approval_repository)
+    replay_store = replay_store_from_approval_replay_repositories(first_repositories)
+
+    first = _fake_provider(
+        replay_store=replay_store,
+        approval_persistence_service=service,
+        require_approval_persistence=True,
+    ).invoke(request)
+    replay_scope = provider_replay_scope_for_request(request)
+    expected_approval = provider_approval_decision_record_for_request(
+        request,
+        scope_canonical=replay_scope,
+    )
+    saved_approval = first_repositories.approval_repository.get_approval(
+        expected_approval.approval_id
+    )
+    assert saved_approval is not None
+    second = _fake_provider(
+        replay_store=replay_store_from_approval_replay_repositories(second_repositories),
+        approval_persistence_service=CanonicalApprovalPersistenceService(
+            second_repositories.approval_repository
+        ),
+        require_approval_persistence=True,
+    ).invoke(request)
+    checks = {check["name"]: check["passed"] for check in second.checks}
+    serialized_rows = str(
+        {
+            "approval": saved_approval.to_dict(),
+            "replay": [
+                record.to_dict()
+                for record in first_repositories.replay_nonce_repository.list_records()
+            ],
+        }
+    )
+
+    assert first.status == "passed"
+    assert saved_approval.approval_hash == expected_approval.approval_hash
+    assert saved_approval.approval_hash == provider_approval_decision_hash(
+        request,
+        scope_canonical=replay_scope,
+    )
+    assert first.metrics["approval_persistence_persist_count"] == 1
+    assert first.metrics["fake_provider_invocations"] == 1
+    assert second.status == "blocked"
+    assert checks["provider_approval_replay_fresh"] is False
+    assert second.metrics["approval_persistence_duplicate_count"] == 1
+    assert second.metrics["fake_provider_invocations"] == 0
+    assert request.approval.nonce not in serialized_rows
+    assert request.approval.signature_id not in serialized_rows
+    assert request.approval.signed_contract_hash not in serialized_rows
+    assert "signed_contract_hash" not in serialized_rows
+
+
+def test_provider_boundary_blocks_missing_approval_persistence_service_before_fake_invocation(tmp_path):
+    repositories = build_approval_replay_repositories(
+        ApprovalReplayRepositoryConfig(backend="sqlite", root=tmp_path)
+    )
+    request = _provider_request(
+        approval=_provider_approval(
+            signature_id="sig-provider-missing-persist-service",
+            nonce="nonce-provider-missing-persist-service",
+        )
+    )
+    result = _fake_provider(
+        replay_store=replay_store_from_approval_replay_repositories(repositories),
+        require_approval_persistence=True,
+    ).invoke(request)
+    checks = {check["name"]: check["passed"] for check in result.checks}
+
+    assert result.status == "blocked"
+    assert checks["provider_approval_persistence_service_present"] is False
+    assert result.metrics["approval_persistence_missing_block_count"] == 1
+    assert result.metrics["fake_provider_invocations"] == 0
+    assert result.metrics["provider_calls"] == 0
 
 
 def test_provider_boundary_blocks_sqlite_replay_without_persisted_canonical_approval(tmp_path):

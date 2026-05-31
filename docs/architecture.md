@@ -81,11 +81,13 @@ boundary. These adapters are not a production database layer, trust root,
 hosted service, or external runtime result.
 
 `AW-PERSIST-06` adds an explicit approval/replay repository factory and optional
-SQLite-backed replay wiring for fake admission gates. This keeps the default
-public API separate from DB selection while allowing provider/live fake
-boundaries to fail closed against the same approval/replay store contract. The
-SQLite replay path expects canonical approval rows to be stored first; fake
-admission does not synthesize durable approval rows.
+SQLite-backed replay wiring for fake admission gates. `AW-PERSIST-07` adds a
+canonical approval persistence service so provider/live admission can store the
+approved subject snapshot and decision row before replay claim. This keeps the
+default public API separate from DB selection while allowing future API/demo
+paths to reuse the same approval persistence and replay contract. The service
+stores canonical hash-bound rows only; fake admission still does not store raw
+authorization material or call external provider/runtime surfaces.
 
 ## Target-Only Runtime
 
@@ -104,5 +106,6 @@ complete. Those surfaces are intentionally outside the current executable path.
 - SQLite writes use constraints and transactions for sanitized projection rows.
 - SQLite approval/replay rows keep immutable subject/decision hashes and
   replay nonce hashes only; raw authorization material is rejected.
-- fake admission wiring may choose SQLite replay storage, but external calls
-  and target runtime calls remain at 0 in current paths.
+- fake admission wiring may choose SQLite replay storage through the canonical
+  approval persistence service, but external calls and target runtime calls
+  remain at 0 in current paths.

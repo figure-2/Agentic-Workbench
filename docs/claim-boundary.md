@@ -12,6 +12,7 @@ Agentic Workbench is a local/dev AI agent workflow harness prototype. It may cla
 - Side-effect-free dry-run planning
 - Fake-only admission gates with external calls kept at 0 in current paths
 - Optional SQLite-backed replay wiring for fake admission gates
+- Canonical approval persistence before durable replay claim
 - Sanitized public summaries and correlation hashes
 - Fixture-based smoke tests and local regression tests
 

@@ -19,9 +19,9 @@ fake provider/runtime invocation.
 - canonical provider/live approval record helpers used by SQLite wiring tests
 
 The SQLite replay repository remains foreign-key bound to canonical approval
-rows. Fake admission gates therefore require a pre-persisted approval subject
-snapshot and approval decision row before replay claim. Admission does not
-synthesize durable approval rows.
+rows. In AW-PERSIST-06 tests those rows were pre-persisted by the test setup.
+AW-PERSIST-07 replaces that setup path with an explicit canonical approval
+persistence service before replay claim.
 
 ## Acceptance Results
 
