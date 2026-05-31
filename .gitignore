@@ -11,3 +11,8 @@ venv/
 dist/
 build/
 *.egg-info/
+
+# Internal source-of-truth documents.
+# Do not publish source project analysis, clone/reimplementation strategy,
+# internal claim review, or private implementation decisions.
+docs/sot/
