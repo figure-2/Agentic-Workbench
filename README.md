@@ -62,6 +62,7 @@ Current implementation:
 - Fake-only admission gates for future live/provider boundaries
 - In-memory repository boundaries for sanitized run and artifact read models
 - Public API projection for sanitized fixture responses with fixture/synthetic markers
+- Test-only DIV/DAACS source identity fixtures for parity reference
 - Sanitizers for secrets, PII-like values, unsafe paths, raw payload fields, and public artifact exposure
 - Local unit/smoke/eval documentation for regression tracking
 
@@ -100,7 +101,7 @@ Latest documented local baseline:
 
 ```text
 Measurement date: 2026-05-31
-Pytest: 255 / 255 passed
+Pytest: 260 / 260 passed
 Live LLM calls in offline/dry-run/fake paths: 0
 Live API calls in offline/dry-run/fake paths: 0
 Provider calls/imports in the latest documented eval: 0
@@ -134,4 +135,4 @@ Do not interpret current results as:
 
 Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection.
 
-Next implementation track: source identity golden path fixtures for DIV/DAACS parity, without live provider calls or direct original runtime execution.
+Next implementation track: source identity golden path smoke/parity test, without live provider calls or direct original runtime execution.

@@ -37,13 +37,13 @@ Current snapshot after `AW-PARITY-00` public API fixture boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache | 99 |
-| Counted code/doc files, excluding cache | 97 |
-| Project lines, excluding cache | 14,293 |
-| Python files | 44 |
-| Markdown files | 49 |
-| Test files | 15 |
-| Unit test files | 12 |
+| Project files, excluding cache | 102 |
+| Counted code/doc files, excluding cache | 100 |
+| Project lines, excluding cache | 14,632 |
+| Python files | 45 |
+| Markdown files | 50 |
+| Test files | 16 |
+| Unit test files | 13 |
 | Smoke test files | 2 |
 | Integration test files | 1 |
 | Pytest collected cases | 255 |
@@ -705,3 +705,37 @@ Interpretation: this closes the fixture API exposure boundary before source
 identity parity fixtures are added. It does not claim live provider success,
 real DAACS execution, source-runtime reproduction, generated-app production, or
 production API security.
+
+## AW-PARITY-01A Source Identity Fixture Metrics
+
+Measured after DIV and DAACS test-only source identity fixtures were added.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 260 |
+| Pytest passed cases | 260 |
+| Regression delta vs AW-PARITY-00 baseline | +5 |
+| Source identity fixture files | 1 |
+| Source identity unit tests | 5 |
+| Source fixtures | 4 |
+| DIV fixture trace rows | 4 |
+| DAACS fixture trace rows | 4 |
+| Required trace-row parity coverage | 8 / 8 |
+| Public fixture forbidden key findings | 0 |
+| Public fixture forbidden claim findings | 0 |
+| Live LLM calls during eval | 0 |
+| Live API calls during eval | 0 |
+| Provider calls during eval | 0 |
+| Network calls during eval | 0 |
+| Solar Pro 3/DAACS live calls | 0 |
+
+| Gate | Result |
+|---|---|
+| DIV planning/PRD/evidence/visual identity signals fixed as fixture | covered |
+| DAACS backend/frontend/API/state/verifier/runner identity signals fixed as fixture | covered |
+| fixture avoids raw source body, system prompt, provider payload, and file body | covered |
+| fixture hash is deterministic | covered |
+
+Interpretation: this creates the parity reference set only. It does not run
+source runtimes, generate an app, execute CLI tools, call providers, or prove
+source-runtime reproduction.

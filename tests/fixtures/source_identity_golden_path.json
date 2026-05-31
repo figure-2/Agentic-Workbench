@@ -1,0 +1,284 @@
+{
+  "fixture_id": "source-identity-golden-path-v1",
+  "fixture_version": 1,
+  "mode": "test_fixture",
+  "purpose": "Preserve DIV and DAACS source identities as Workbench artifact-chain expectations without opening provider, CLI, file-write, server, or original-runtime surfaces.",
+  "claim_boundary": {
+    "public_summary_allowed": true,
+    "requires_fixture_qualifier": true,
+    "direct_original_runtime_called": false,
+    "live_provider_called": false,
+    "generated_app_success_claim_allowed": false,
+    "source_runtime_reproduction_claim_allowed": false
+  },
+  "target_artifact_chain": [
+    "IdeaBrief",
+    "PlanningBlueprint",
+    "PRDPackage",
+    "ImplementationBrief",
+    "SpecApproval",
+    "RunnerPlan",
+    "VerificationReport"
+  ],
+  "fixtures": [
+    {
+      "fixture_id": "div-blueprint-identity-v1",
+      "source": "DIV",
+      "source_evidence_grade": "E2",
+      "source_evidence_refs": [
+        "pro-nlp-finalproject-nlp-04/README.md",
+        "pro-nlp-finalproject-nlp-04/sample_blueprint.json"
+      ],
+      "covered_trace_ids": [
+        "TR-DIV-01",
+        "TR-DIV-02"
+      ],
+      "source_identity": {
+        "summary": "Vague service idea becomes a structured business planning blueprint with rationale, ordered sections, seed content, and missing-information prompts.",
+        "planning_style": "Business",
+        "idea_summary": "University-student marketplace service with campus trust, school communities, and business-model planning needs.",
+        "toc_count": 7,
+        "section_titles": [
+          "서비스 개요",
+          "시장 분석 및 타겟층 정의",
+          "비즈니스 모델 및 수익 구조",
+          "경쟁사 분석 및 차별화 전략",
+          "운영 계획 및 기술 인프라",
+          "마케팅 전략 및 고객 유치 방안",
+          "재무 계획 및 성장 전략"
+        ],
+        "seed_content_section_count": 1,
+        "required_information_count": 6,
+        "required_information_titles": [
+          "시장 분석 및 타겟층 정의",
+          "비즈니스 모델 및 수익 구조",
+          "경쟁사 분석 및 차별화 전략",
+          "운영 계획 및 기술 인프라",
+          "마케팅 전략 및 고객 유치 방안",
+          "재무 계획 및 성장 전략"
+        ]
+      },
+      "workbench_mapping": {
+        "preserve_as": [
+          "PlanningBlueprint.features",
+          "PlanningBlueprint.user_flows",
+          "PlanningBlueprint.assumptions",
+          "PRDPackage.feature_requirements"
+        ],
+        "improve_with": [
+          "public projection hides input text",
+          "required information becomes reviewable planning gaps",
+          "source prompt policy is represented as tags, not copied text"
+        ],
+        "defer_or_reject": [
+          "Streamlit shell migration",
+          "source supervisor runtime import",
+          "literal source blueprint object as current public output"
+        ]
+      },
+      "acceptance_signals": {
+        "planning_blueprint_identity": true,
+        "required_user_information_identity": true,
+        "public_projection_required": true
+      }
+    },
+    {
+      "fixture_id": "div-markdown-visual-identity-v1",
+      "source": "DIV",
+      "source_evidence_grade": "E2",
+      "source_evidence_refs": [
+        "pro-nlp-finalproject-nlp-04/README.md",
+        "pro-nlp-finalproject-nlp-04/sample_markdown.md"
+      ],
+      "covered_trace_ids": [
+        "TR-DIV-02",
+        "TR-DIV-03",
+        "TR-DIV-04"
+      ],
+      "source_identity": {
+        "summary": "Sectioned long-form markdown carries TOC, rationale, visual purpose notes, comparison tables, and evidence-style summaries.",
+        "document_quality_signals": {
+          "has_rationale": true,
+          "has_toc": true,
+          "has_sectioned_markdown": true,
+          "has_visual_purpose_notes": true,
+          "visual_artifact_types": [
+            "mermaid_flowchart",
+            "comparison_table",
+            "business_metric_table"
+          ],
+          "evidence_policy": "summary_or_source_note_only"
+        }
+      },
+      "workbench_mapping": {
+        "preserve_as": [
+          "PlanningBlueprint.markdown",
+          "PlanningBlueprint.visual_artifacts",
+          "PRDPackage.prd_markdown",
+          "PRDPackage.visual_requirements",
+          "PRDPackage.evidence_summary"
+        ],
+        "improve_with": [
+          "evidence is sanitized before public output",
+          "visual generation is represented as metadata before live media work",
+          "document quality is checked by structure and intent, not literal equality"
+        ],
+        "defer_or_reject": [
+          "provider-backed research call",
+          "long markdown body copy as current parity proof",
+          "image search or generation success claim"
+        ]
+      },
+      "acceptance_signals": {
+        "prd_document_identity": true,
+        "research_evidence_identity": true,
+        "visual_intent_identity": true,
+        "public_projection_required": true
+      }
+    },
+    {
+      "fixture_id": "daacs-todo-fullstack-runner-v1",
+      "source": "DAACS",
+      "source_evidence_grade": "E2",
+      "source_evidence_refs": [
+        "ai01-2nd-S_P_-DAACS/README.md",
+        "ai01-2nd-S_P_-DAACS/transformers7-project-feature-backend2/README.md",
+        "ai01-2nd-S_P_-DAACS/transformers7-project-feature-backend2/daacs_config.yaml"
+      ],
+      "covered_trace_ids": [
+        "TR-DAACS-01",
+        "TR-DAACS-03",
+        "TR-DAACS-04",
+        "TR-DAACS-07"
+      ],
+      "source_identity": {
+        "summary": "Natural-language app goal becomes backend/frontend/API work decomposition, stateful runner configuration, verifier feedback, and replanning identity.",
+        "goal_summary": "TODO app with FastAPI backend and React frontend",
+        "role_split": [
+          "orchestrator",
+          "backend",
+          "frontend",
+          "verifier"
+        ],
+        "backend_frontend_split": {
+          "backend_target": "FastAPI API surface and data behavior",
+          "frontend_target": "React or Vite UI consuming API calls",
+          "api_contract_required": true
+        },
+        "runner_config_signals": {
+          "cli_assistant_type": "claude_code",
+          "max_iterations": 10,
+          "max_subgraph_iterations": 2,
+          "max_failures": 5,
+          "parallel_execution_source_value": true,
+          "current_workbench_claim": "planned_split_only"
+        },
+        "verification_signals": {
+          "has_coder_verifier_loop_identity": true,
+          "has_orchestrator_judgment_identity": true,
+          "has_replanning_identity": true,
+          "current_workbench_artifact": "VerificationReport"
+        }
+      },
+      "workbench_mapping": {
+        "preserve_as": [
+          "BuildSpec.api_spec",
+          "BuildSpec.frontend_spec",
+          "ImplementationBrief.daacs_tasks",
+          "DAACS-compatible state contract",
+          "RunnerPlan.planned_actions",
+          "VerificationReport.checks"
+        ],
+        "improve_with": [
+          "SpecApproval before DAACS handoff",
+          "offline and dry-run runner boundaries before side effects",
+          "provider registry blocks unknown or unapproved modes",
+          "public projection exposes metadata and hashes only"
+        ],
+        "defer_or_reject": [
+          "CLI subprocess execution",
+          "package install or server start",
+          "generated source file body exposure",
+          "direct original runtime execution as a current capability"
+        ]
+      },
+      "acceptance_signals": {
+        "backend_frontend_api_decomposition_identity": true,
+        "state_bridge_identity": true,
+        "verifier_replanning_identity": true,
+        "runner_provider_config_identity": true,
+        "public_projection_required": true
+      }
+    },
+    {
+      "fixture_id": "composite-source-identity-golden-v1",
+      "source": "COMPOSITE",
+      "source_evidence_grade": "E1+E2",
+      "source_evidence_refs": [
+        "docs/sot/18-source-to-target-traceability.md",
+        "docs/sot/19-source-product-parity-baseline.md",
+        "tests/fixtures/source_identity_golden_path.json"
+      ],
+      "covered_trace_ids": [
+        "TR-DIV-01",
+        "TR-DIV-02",
+        "TR-DIV-03",
+        "TR-DIV-04",
+        "TR-DAACS-01",
+        "TR-DAACS-03",
+        "TR-DAACS-04",
+        "TR-DAACS-07"
+      ],
+      "identity_invariants": [
+        "DIV ordered planning sections become reviewable planning and PRD artifacts.",
+        "DIV visual intent remains metadata before media generation is opened.",
+        "DAACS backend/frontend/API split remains planned action identity before runtime execution is opened.",
+        "DAACS verifier and replanning identity is represented as report and next-action contract, not automated repair success.",
+        "All public parity evidence passes through sanitized projection or fixture-safe summaries."
+      ],
+      "workbench_mapping": {
+        "preserve_as": [
+          "PlanningBlueprint",
+          "PRDPackage",
+          "BuildSpec",
+          "ImplementationBrief",
+          "RunnerPlan",
+          "VerificationReport"
+        ],
+        "improve_with": [
+          "human approval gate",
+          "runner/provider boundary",
+          "claim scanner",
+          "public projection"
+        ],
+        "defer_or_reject": [
+          "source runtime reproduction",
+          "live provider outcome claim",
+          "generated app outcome as current claim"
+        ]
+      },
+      "acceptance_signals": {
+        "target_artifact_chain_identity": true,
+        "trace_row_coverage_identity": true,
+        "public_claim_boundary_identity": true
+      }
+    }
+  ],
+  "coverage_expectations": {
+    "fixture_count_min": 4,
+    "required_trace_ids": [
+      "TR-DIV-01",
+      "TR-DIV-02",
+      "TR-DIV-03",
+      "TR-DIV-04",
+      "TR-DAACS-01",
+      "TR-DAACS-03",
+      "TR-DAACS-04",
+      "TR-DAACS-07"
+    ],
+    "public_raw_field_leakage_allowed": false,
+    "side_effect_counters_expected_zero": true,
+    "live_provider_call_allowed": false,
+    "direct_original_runtime_call_allowed": false
+  }
+}
