@@ -8,12 +8,23 @@ provider responses, or generated file bodies.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
+import hashlib
+import json
+from pathlib import Path
 from typing import Protocol
+from uuid import uuid4
 
-from .exposure import sanitize_public_payload
-from .pathing import normalize_public_relative_path
-from .schemas import Artifact, WorkflowSession, stable_contract_hash
+from .exposure import find_forbidden_public_keys, sanitize_public_payload
+from .pathing import normalize_public_relative_path, resolve_within_root
+from .schemas import Artifact, WorkflowSession, stable_contract_hash, utc_now
 from .security import redact_secrets
+
+
+APPROVAL_TYPES = {"spec_approval", "live_runner_approval", "provider_approval"}
+REPLAY_APPROVAL_TYPES = {"live_runner_approval", "provider_approval"}
+LIFECYCLE_CLASSES = {"fixture", "synthetic", "durable"}
+CONTRACT_HASH_LENGTH = 64
+SAFE_REPLAY_RUN_ID_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-")
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,6 +59,83 @@ class ArtifactRecord:
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
+class ApprovalSubjectSnapshotRecord:
+    """Immutable sanitized projection of the subject a user approved."""
+
+    subject_snapshot_id: str
+    approval_type: str
+    snapshot_schema_version: str
+    subject_schema_version: str
+    lifecycle_class: str
+    run_id: str
+    subject_kind: str
+    source_artifact_ids: tuple[str, ...]
+    subject_hash: str
+    subject_hashes: dict[str, str]
+    scope_canonical: str
+    sanitized_summary: str
+    visible_field_counts: dict[str, int]
+    snapshot_hash: str
+    created_at: str
+
+    def to_dict(self) -> dict[str, object]:
+        return sanitize_public_payload(asdict(self))
+
+
+@dataclass(frozen=True, slots=True)
+class ApprovalDecisionRecord:
+    """Immutable approval decision row linked to a subject snapshot."""
+
+    approval_id: str
+    approval_type: str
+    snapshot_schema_version: str
+    subject_schema_version: str
+    lifecycle_class: str
+    run_id: str
+    subject_snapshot_id: str
+    subject_hash: str
+    scope_canonical: str
+    decision: str
+    approval_hash: str
+    approved_by_ref: str
+    approver_role: str
+    approved_at: str
+    expires_at: str
+    policy_id_ref: str
+    key_identity_ref: str
+    audit_log_id: str
+    created_at: str
+
+    def to_dict(self) -> dict[str, object]:
+        return sanitize_public_payload(asdict(self))
+
+
+@dataclass(frozen=True, slots=True)
+class ReplayNonceRecord:
+    """Hash-only replay claim tombstone."""
+
+    scope_canonical: str
+    nonce_hash: str
+    approval_hash: str
+    run_id: str
+    approval_type: str
+    claimed_at: str
+    expires_at: str
+    status: str = "claimed"
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)
+
+
+class ReplayNonceReplayError(ValueError):
+    """Raised when a replay nonce has already been claimed."""
+
+
+class ReplayStoreUnavailableError(RuntimeError):
+    """Raised when the replay store cannot be trusted."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,6 +174,70 @@ class ArtifactRepository(Protocol):
         ...
 
     def list_for_run(self, run_id: str) -> list[ArtifactRecord]:
+        ...
+
+
+class ApprovalRepository(Protocol):
+    """Repository contract for sanitized approval subject and decision rows."""
+
+    def save_subject_snapshot(
+        self,
+        *,
+        approval_type: str,
+        run_id: str,
+        subject_kind: str,
+        subject: dict[str, object],
+        subject_schema_version: str,
+        source_artifact_ids: list[str] | tuple[str, ...] = (),
+        lifecycle_class: str = "durable",
+        scope_canonical: str = "",
+        sanitized_summary: str = "",
+        created_at: str | None = None,
+    ) -> ApprovalSubjectSnapshotRecord:
+        ...
+
+    def save_approval(
+        self,
+        *,
+        approval_id: str,
+        snapshot: ApprovalSubjectSnapshotRecord,
+        decision: str,
+        approved_by_ref: str,
+        approver_role: str,
+        approved_at: str,
+        expires_at: str = "",
+        policy_id_ref: str = "",
+        key_identity_ref: str = "",
+        audit_log_id: str = "",
+        lifecycle_class: str | None = None,
+        created_at: str | None = None,
+    ) -> ApprovalDecisionRecord:
+        ...
+
+    def get_snapshot(self, subject_snapshot_id: str) -> ApprovalSubjectSnapshotRecord | None:
+        ...
+
+    def get_approval(self, approval_id: str) -> ApprovalDecisionRecord | None:
+        ...
+
+
+class ReplayNonceRepository(Protocol):
+    """Repository contract for hash-only replay nonce tombstones."""
+
+    def claim(
+        self,
+        *,
+        scope_canonical: str,
+        nonce: str,
+        approval_hash: str,
+        run_id: str,
+        approval_type: str,
+        expires_at: str,
+        claimed_at: str | None = None,
+    ) -> ReplayNonceRecord:
+        ...
+
+    def list_records(self) -> list[ReplayNonceRecord]:
         ...
 
 
@@ -150,6 +302,243 @@ def artifact_record_from_artifact(artifact: Artifact) -> ArtifactRecord:
     )
 
 
+def _is_contract_hash(value: str) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == CONTRACT_HASH_LENGTH
+        and all(char in "0123456789abcdef" for char in value)
+    )
+
+
+def _validate_approval_type(approval_type: str) -> None:
+    if approval_type not in APPROVAL_TYPES:
+        raise ValueError("approval_type is not supported")
+
+
+def _validate_lifecycle_class(lifecycle_class: str) -> None:
+    if lifecycle_class not in LIFECYCLE_CLASSES:
+        raise ValueError("lifecycle_class is not supported")
+
+
+def _is_safe_replay_run_id(run_id: str) -> bool:
+    return (
+        isinstance(run_id, str)
+        and 1 <= len(run_id) <= 81
+        and run_id[0].isalnum()
+        and all(char in SAFE_REPLAY_RUN_ID_CHARS for char in run_id)
+    )
+
+
+def canonical_replay_scope(*, approval_type: str, run_id: str, subject_hash: str) -> str:
+    """Return the AW-SOT-10 canonical replay scope."""
+    if approval_type not in REPLAY_APPROVAL_TYPES:
+        raise ValueError("approval_type is not replay-consuming")
+    if not _is_safe_replay_run_id(run_id):
+        raise ValueError("run_id cannot be used in a replay scope")
+    if not _is_contract_hash(subject_hash):
+        raise ValueError("subject_hash must be a contract hash")
+    return f"aw.approval.v1/{approval_type}/{run_id}/{subject_hash}"
+
+
+def parse_replay_scope(scope_canonical: str) -> dict[str, str]:
+    """Parse and validate the AW-SOT-10 replay scope."""
+    parts = scope_canonical.split("/")
+    if len(parts) != 4 or parts[0] != "aw.approval.v1":
+        raise ValueError("scope_canonical is not canonical")
+    approval_type, run_id, subject_hash = parts[1], parts[2], parts[3]
+    if approval_type not in REPLAY_APPROVAL_TYPES:
+        raise ValueError("scope_canonical approval type is not supported")
+    if not _is_safe_replay_run_id(run_id):
+        raise ValueError("scope_canonical run_id is not valid")
+    if not _is_contract_hash(subject_hash):
+        raise ValueError("scope_canonical subject_hash is not valid")
+    return {
+        "approval_type": approval_type,
+        "run_id": run_id,
+        "subject_hash": subject_hash,
+    }
+
+
+def replay_nonce_hash(*, scope_canonical: str, nonce: str) -> str:
+    """Return a hash-only replay nonce claim key."""
+    parse_replay_scope(scope_canonical)
+    if not isinstance(nonce, str) or not nonce.strip():
+        raise ValueError("nonce is required")
+    serialized = json.dumps(
+        {"v": 1, "scope": scope_canonical, "nonce": nonce},
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def _visible_field_counts(subject: dict[str, object], source_artifact_ids: tuple[str, ...]) -> dict[str, int]:
+    return {
+        "subject_top_level_fields": len(subject),
+        "source_artifact_ids": len(source_artifact_ids),
+        "forbidden_public_key_count": len(find_forbidden_public_keys(subject)),
+    }
+
+
+def approval_subject_snapshot_record(
+    *,
+    approval_type: str,
+    run_id: str,
+    subject_kind: str,
+    subject: dict[str, object],
+    subject_schema_version: str,
+    source_artifact_ids: list[str] | tuple[str, ...] = (),
+    lifecycle_class: str = "durable",
+    scope_canonical: str = "",
+    sanitized_summary: str = "",
+    created_at: str | None = None,
+) -> ApprovalSubjectSnapshotRecord:
+    """Project an approval subject into an immutable hash-bound snapshot."""
+    _validate_approval_type(approval_type)
+    _validate_lifecycle_class(lifecycle_class)
+    if not run_id.strip():
+        raise ValueError("run_id is required")
+    if not subject_kind.strip():
+        raise ValueError("subject_kind is required")
+    if not subject_schema_version.strip():
+        raise ValueError("subject_schema_version is required")
+
+    public_subject = sanitize_public_payload(subject)
+    if not isinstance(public_subject, dict):
+        raise ValueError("subject must be a mapping")
+
+    subject_hash = stable_contract_hash(public_subject)
+    if approval_type in REPLAY_APPROVAL_TYPES and not scope_canonical:
+        scope_canonical = canonical_replay_scope(
+            approval_type=approval_type,
+            run_id=run_id,
+            subject_hash=subject_hash,
+        )
+    elif approval_type in REPLAY_APPROVAL_TYPES:
+        expected_scope = canonical_replay_scope(
+            approval_type=approval_type,
+            run_id=run_id,
+            subject_hash=subject_hash,
+        )
+        if scope_canonical != expected_scope:
+            raise ValueError("scope_canonical does not match approval subject")
+    if approval_type not in REPLAY_APPROVAL_TYPES:
+        scope_canonical = ""
+
+    artifact_ids = tuple(str(item) for item in source_artifact_ids)
+    visible_counts = _visible_field_counts(subject, artifact_ids)
+    safe_summary = str(redact_secrets(sanitized_summary)) if sanitized_summary else (
+        f"{approval_type}:{subject_kind}; fields={len(public_subject)}"
+    )
+    projection = {
+        "approval_type": approval_type,
+        "snapshot_schema_version": "approval-subject-snapshot-v1",
+        "subject_schema_version": subject_schema_version,
+        "lifecycle_class": lifecycle_class,
+        "run_id": run_id,
+        "subject_kind": subject_kind,
+        "source_artifact_ids": artifact_ids,
+        "subject_hash": subject_hash,
+        "subject_hashes": {"subject": subject_hash},
+        "scope_canonical": scope_canonical,
+        "sanitized_summary": safe_summary,
+        "visible_field_counts": visible_counts,
+        "created_at": created_at or utc_now(),
+    }
+    snapshot_hash = stable_contract_hash(projection)
+    return ApprovalSubjectSnapshotRecord(
+        subject_snapshot_id=f"snapshot-{snapshot_hash[:12]}",
+        snapshot_hash=snapshot_hash,
+        **projection,
+    )
+
+
+def approval_decision_record(
+    *,
+    approval_id: str,
+    snapshot: ApprovalSubjectSnapshotRecord,
+    decision: str,
+    approved_by_ref: str,
+    approver_role: str,
+    approved_at: str,
+    expires_at: str = "",
+    policy_id_ref: str = "",
+    key_identity_ref: str = "",
+    audit_log_id: str = "",
+    lifecycle_class: str | None = None,
+    created_at: str | None = None,
+) -> ApprovalDecisionRecord:
+    """Project an approval decision into an immutable hash-only row."""
+    if not approval_id.strip():
+        raise ValueError("approval_id is required")
+    if decision not in {"approved", "changes_requested", "rejected"}:
+        raise ValueError("decision is not supported")
+
+    row_lifecycle = lifecycle_class or snapshot.lifecycle_class
+    _validate_lifecycle_class(row_lifecycle)
+    if row_lifecycle != snapshot.lifecycle_class:
+        raise ValueError("approval lifecycle must match subject snapshot lifecycle")
+    if snapshot.approval_type in REPLAY_APPROVAL_TYPES and row_lifecycle != "durable":
+        raise ValueError("fixture/synthetic live/provider approvals cannot be persisted as durable approval rows")
+
+    projection = {
+        "approval_id": approval_id,
+        "approval_type": snapshot.approval_type,
+        "snapshot_schema_version": snapshot.snapshot_schema_version,
+        "subject_schema_version": snapshot.subject_schema_version,
+        "lifecycle_class": row_lifecycle,
+        "run_id": snapshot.run_id,
+        "subject_snapshot_id": snapshot.subject_snapshot_id,
+        "subject_hash": snapshot.subject_hash,
+        "scope_canonical": snapshot.scope_canonical,
+        "decision": decision,
+        "approved_by_ref": str(redact_secrets(approved_by_ref)),
+        "approver_role": str(redact_secrets(approver_role)),
+        "approved_at": approved_at,
+        "expires_at": expires_at,
+        "policy_id_ref": str(redact_secrets(policy_id_ref)),
+        "key_identity_ref": str(redact_secrets(key_identity_ref)),
+        "audit_log_id": str(redact_secrets(audit_log_id)),
+        "created_at": created_at or utc_now(),
+    }
+    approval_hash = stable_contract_hash(projection)
+    return ApprovalDecisionRecord(approval_hash=approval_hash, **projection)
+
+
+def replay_nonce_record(
+    *,
+    scope_canonical: str,
+    nonce: str,
+    approval_hash: str,
+    run_id: str,
+    approval_type: str,
+    expires_at: str,
+    claimed_at: str | None = None,
+    status: str = "claimed",
+) -> ReplayNonceRecord:
+    """Project a raw nonce into a hash-only replay tombstone."""
+    if approval_type not in REPLAY_APPROVAL_TYPES:
+        raise ValueError("approval_type is not replay-consuming")
+    parsed_scope = parse_replay_scope(scope_canonical)
+    if parsed_scope["approval_type"] != approval_type:
+        raise ValueError("scope_canonical approval_type does not match row")
+    if parsed_scope["run_id"] != run_id:
+        raise ValueError("scope_canonical run_id does not match row")
+    if not _is_contract_hash(approval_hash):
+        raise ValueError("approval_hash must be a contract hash")
+    return ReplayNonceRecord(
+        scope_canonical=scope_canonical,
+        nonce_hash=replay_nonce_hash(scope_canonical=scope_canonical, nonce=nonce),
+        approval_hash=approval_hash,
+        run_id=run_id,
+        approval_type=approval_type,
+        claimed_at=claimed_at or utc_now(),
+        expires_at=expires_at,
+        status=status,
+    )
+
+
 def reconstruct_workflow_session_read_model(
     run_record: RunSessionRecord,
     artifact_records: list[ArtifactRecord],
@@ -200,3 +589,248 @@ class InMemoryArtifactRepository:
         artifacts = [record for record in self.records.values() if record.run_id == run_id]
         return sorted(artifacts, key=lambda item: item.created_at)
 
+
+@dataclass(slots=True)
+class InMemoryApprovalRepository:
+    """In-memory approval repository for hash-only approval persistence tests."""
+
+    snapshots: dict[str, ApprovalSubjectSnapshotRecord] = field(default_factory=dict)
+    approvals: dict[str, ApprovalDecisionRecord] = field(default_factory=dict)
+
+    def save_subject_snapshot(
+        self,
+        *,
+        approval_type: str,
+        run_id: str,
+        subject_kind: str,
+        subject: dict[str, object],
+        subject_schema_version: str,
+        source_artifact_ids: list[str] | tuple[str, ...] = (),
+        lifecycle_class: str = "durable",
+        scope_canonical: str = "",
+        sanitized_summary: str = "",
+        created_at: str | None = None,
+    ) -> ApprovalSubjectSnapshotRecord:
+        record = approval_subject_snapshot_record(
+            approval_type=approval_type,
+            run_id=run_id,
+            subject_kind=subject_kind,
+            subject=subject,
+            subject_schema_version=subject_schema_version,
+            source_artifact_ids=source_artifact_ids,
+            lifecycle_class=lifecycle_class,
+            scope_canonical=scope_canonical,
+            sanitized_summary=sanitized_summary,
+            created_at=created_at,
+        )
+        self.snapshots[record.subject_snapshot_id] = record
+        return record
+
+    def save_approval(
+        self,
+        *,
+        approval_id: str,
+        snapshot: ApprovalSubjectSnapshotRecord,
+        decision: str,
+        approved_by_ref: str,
+        approver_role: str,
+        approved_at: str,
+        expires_at: str = "",
+        policy_id_ref: str = "",
+        key_identity_ref: str = "",
+        audit_log_id: str = "",
+        lifecycle_class: str | None = None,
+        created_at: str | None = None,
+    ) -> ApprovalDecisionRecord:
+        if snapshot.subject_snapshot_id not in self.snapshots:
+            self.snapshots[snapshot.subject_snapshot_id] = snapshot
+        record = approval_decision_record(
+            approval_id=approval_id,
+            snapshot=snapshot,
+            decision=decision,
+            approved_by_ref=approved_by_ref,
+            approver_role=approver_role,
+            approved_at=approved_at,
+            expires_at=expires_at,
+            policy_id_ref=policy_id_ref,
+            key_identity_ref=key_identity_ref,
+            audit_log_id=audit_log_id,
+            lifecycle_class=lifecycle_class,
+            created_at=created_at,
+        )
+        self.approvals[record.approval_id] = record
+        return record
+
+    def get_snapshot(self, subject_snapshot_id: str) -> ApprovalSubjectSnapshotRecord | None:
+        return self.snapshots.get(subject_snapshot_id)
+
+    def get_approval(self, approval_id: str) -> ApprovalDecisionRecord | None:
+        return self.approvals.get(approval_id)
+
+
+@dataclass(slots=True)
+class InMemoryReplayNonceRepository:
+    """Hash-only replay nonce repository with process-restart simulation support."""
+
+    records: dict[tuple[str, str], ReplayNonceRecord] = field(default_factory=dict)
+
+    @classmethod
+    def from_records(cls, records: list[ReplayNonceRecord]) -> "InMemoryReplayNonceRepository":
+        repository = cls()
+        for record in records:
+            repository.records[(record.scope_canonical, record.nonce_hash)] = record
+        return repository
+
+    def claim(
+        self,
+        *,
+        scope_canonical: str,
+        nonce: str,
+        approval_hash: str,
+        run_id: str,
+        approval_type: str,
+        expires_at: str,
+        claimed_at: str | None = None,
+    ) -> ReplayNonceRecord:
+        record = replay_nonce_record(
+            scope_canonical=scope_canonical,
+            nonce=nonce,
+            approval_hash=approval_hash,
+            run_id=run_id,
+            approval_type=approval_type,
+            expires_at=expires_at,
+            claimed_at=claimed_at,
+        )
+        key = (record.scope_canonical, record.nonce_hash)
+        if key in self.records:
+            raise ReplayNonceReplayError("replay nonce has already been claimed")
+        self.records[key] = record
+        return record
+
+    def list_records(self) -> list[ReplayNonceRecord]:
+        return sorted(self.records.values(), key=lambda item: (item.scope_canonical, item.nonce_hash))
+
+
+class FileBackedReplayNonceRepository:
+    """File-backed replay nonce repository with atomic replace writes."""
+
+    def __init__(self, *, root: str | Path, relative_path: str | Path = "replay_nonces.json") -> None:
+        self.root = Path(root)
+        self.path = resolve_within_root(self.root, relative_path)
+
+    def _load_rows(self) -> list[dict[str, object]]:
+        if not self.path.exists():
+            return []
+        try:
+            payload = json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ReplayStoreUnavailableError("replay store is unavailable") from exc
+        if not isinstance(payload, list):
+            raise ReplayStoreUnavailableError("replay store is unavailable")
+        rows: list[dict[str, object]] = []
+        for item in payload:
+            if not isinstance(item, dict):
+                raise ReplayStoreUnavailableError("replay store is unavailable")
+            rows.append(item)
+        return rows
+
+    def _records_from_rows(self, rows: list[dict[str, object]]) -> list[ReplayNonceRecord]:
+        records: list[ReplayNonceRecord] = []
+        for row in rows:
+            scope_canonical = str(row.get("scope_canonical") or "")
+            nonce_hash = str(row.get("nonce_hash") or "")
+            approval_hash = str(row.get("approval_hash") or "")
+            run_id = str(row.get("run_id") or "")
+            approval_type = str(row.get("approval_type") or "")
+            claimed_at = str(row.get("claimed_at") or "")
+            expires_at = str(row.get("expires_at") or "")
+            status = str(row.get("status") or "")
+            try:
+                parsed_scope = parse_replay_scope(scope_canonical)
+            except ValueError as exc:
+                raise ReplayStoreUnavailableError("replay store is unavailable") from exc
+            if not _is_contract_hash(nonce_hash):
+                raise ReplayStoreUnavailableError("replay store is unavailable")
+            if not _is_contract_hash(approval_hash):
+                raise ReplayStoreUnavailableError("replay store is unavailable")
+            if approval_type not in REPLAY_APPROVAL_TYPES or approval_type != parsed_scope["approval_type"]:
+                raise ReplayStoreUnavailableError("replay store is unavailable")
+            if not run_id or run_id != parsed_scope["run_id"]:
+                raise ReplayStoreUnavailableError("replay store is unavailable")
+            if not claimed_at or not expires_at or status != "claimed":
+                raise ReplayStoreUnavailableError("replay store is unavailable")
+            records.append(
+                ReplayNonceRecord(
+                    scope_canonical=scope_canonical,
+                    nonce_hash=nonce_hash,
+                    approval_hash=approval_hash,
+                    run_id=run_id,
+                    approval_type=approval_type,
+                    claimed_at=claimed_at,
+                    expires_at=expires_at,
+                    status=status,
+                )
+            )
+        return records
+
+    def _write_records(self, records: list[ReplayNonceRecord]) -> None:
+        rows = [record.to_dict() for record in records]
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = self.path.with_name(f".{self.path.name}.{uuid4().hex}.tmp")
+        try:
+            temp_path.write_text(
+                json.dumps(rows, ensure_ascii=True, sort_keys=True, indent=2),
+                encoding="utf-8",
+            )
+            temp_path.replace(self.path)
+        except OSError as exc:
+            try:
+                if temp_path.exists():
+                    temp_path.unlink()
+            except OSError:
+                pass
+            raise ReplayStoreUnavailableError("replay store is unavailable") from exc
+
+    def claim(
+        self,
+        *,
+        scope_canonical: str,
+        nonce: str,
+        approval_hash: str,
+        run_id: str,
+        approval_type: str,
+        expires_at: str,
+        claimed_at: str | None = None,
+    ) -> ReplayNonceRecord:
+        records = self._records_from_rows(self._load_rows())
+        key_set = {(record.scope_canonical, record.nonce_hash) for record in records}
+        record = replay_nonce_record(
+            scope_canonical=scope_canonical,
+            nonce=nonce,
+            approval_hash=approval_hash,
+            run_id=run_id,
+            approval_type=approval_type,
+            expires_at=expires_at,
+            claimed_at=claimed_at,
+        )
+        if (record.scope_canonical, record.nonce_hash) in key_set:
+            raise ReplayNonceReplayError("replay nonce has already been claimed")
+        records.append(record)
+        self._write_records(records)
+        return record
+
+    def list_records(self) -> list[ReplayNonceRecord]:
+        return sorted(
+            self._records_from_rows(self._load_rows()),
+            key=lambda item: (item.scope_canonical, item.nonce_hash),
+        )
+
+    def load_records(self) -> list[dict[str, str]]:
+        return [
+            {key: str(value) for key, value in record.to_dict().items()}
+            for record in self.list_records()
+        ]
+
+    def save_records(self, records: list[dict[str, str]]) -> None:
+        replay_records = self._records_from_rows(records)
+        self._write_records(replay_records)

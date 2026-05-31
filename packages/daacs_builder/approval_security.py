@@ -13,6 +13,8 @@ import json
 import re
 from typing import Any, Protocol
 
+from packages.core.repositories import replay_nonce_hash
+
 
 APPROVAL_SIGNATURE_ID_PATTERN = re.compile(r"^sig-[A-Za-z0-9_.-]{8,80}$")
 APPROVAL_NONCE_PATTERN = re.compile(r"^nonce-[A-Za-z0-9_.-]{8,80}$")
@@ -20,7 +22,7 @@ APPROVAL_VERIFIER_ID_PATTERN = re.compile(r"^verifier-[A-Za-z0-9_.-]{4,80}$")
 APPROVAL_KEY_ID_PATTERN = re.compile(r"^key-[A-Za-z0-9_.-]{4,80}$")
 APPROVAL_POLICY_ID_PATTERN = re.compile(r"^policy-[A-Za-z0-9_.-]{4,80}$")
 APPROVAL_KEY_IDENTITY_ID_PATTERN = re.compile(r"^key-identity-[A-Za-z0-9_.-]{4,80}$")
-APPROVAL_SCOPE_PATTERN = re.compile(r"^[A-Za-z0-9_.-]{4,80}$")
+APPROVAL_SCOPE_PATTERN = re.compile(r"^[A-Za-z0-9_.\-/]{4,200}$")
 CONTRACT_HASH_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 DEFAULT_VERIFIER_ID = "verifier-local-fake"
 DEFAULT_KEY_ID = "key-local-fake"
@@ -143,6 +145,24 @@ def merge_verifier_metrics(*metric_sets: dict[str, int]) -> dict[str, int]:
     return merged
 
 
+def _replay_record_metadata(
+    *,
+    approval_hash: str,
+    run_id: str,
+    approval_type: str,
+    expires_at: str,
+) -> dict[str, str]:
+    metadata = {
+        "approval_hash": str(approval_hash),
+        "run_id": str(run_id),
+        "approval_type": str(approval_type),
+        "expires_at": str(expires_at),
+        "claimed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "status": "claimed",
+    }
+    return {key: value for key, value in metadata.items() if value}
+
+
 class PersistentReplayStore:
     """Process-local persistent replay store skeleton.
 
@@ -152,34 +172,81 @@ class PersistentReplayStore:
 
     def __init__(self, used_records: list[dict[str, str]] | None = None) -> None:
         self._used_keys: set[tuple[str, str]] = set()
+        self._record_metadata: dict[tuple[str, str], dict[str, str]] = {}
         for record in used_records or []:
-            scope = str(record.get("scope", ""))
+            scope = str(record.get("scope_canonical") or record.get("scope") or "")
             nonce_hash = str(record.get("nonce_hash", ""))
             if scope and CONTRACT_HASH_PATTERN.fullmatch(nonce_hash):
-                self._used_keys.add((scope, nonce_hash))
+                key = (scope, nonce_hash)
+                self._used_keys.add(key)
+                self._record_metadata[key] = {
+                    field: str(record.get(field, ""))
+                    for field in (
+                        "approval_hash",
+                        "run_id",
+                        "approval_type",
+                        "claimed_at",
+                        "expires_at",
+                        "status",
+                    )
+                    if record.get(field)
+                }
 
     @staticmethod
     def _nonce_hash(*, scope: str, nonce: str) -> str:
-        return approval_contract_hash({"scope": scope, "authorization": nonce})
+        return replay_nonce_hash(scope_canonical=scope, nonce=nonce)
 
     def is_used(self, *, scope: str, nonce: str) -> bool:
         return (scope, self._nonce_hash(scope=scope, nonce=nonce)) in self._used_keys
 
-    def mark_used(self, *, scope: str, nonce: str) -> None:
-        self._used_keys.add((scope, self._nonce_hash(scope=scope, nonce=nonce)))
+    def mark_used(
+        self,
+        *,
+        scope: str,
+        nonce: str,
+        approval_hash: str = "",
+        run_id: str = "",
+        approval_type: str = "",
+        expires_at: str = "",
+    ) -> None:
+        key = (scope, self._nonce_hash(scope=scope, nonce=nonce))
+        self._used_keys.add(key)
+        self._record_metadata[key] = _replay_record_metadata(
+            approval_hash=approval_hash,
+            run_id=run_id,
+            approval_type=approval_type,
+            expires_at=expires_at,
+        )
 
-    def claim(self, *, scope: str, nonce: str) -> bool:
+    def claim(
+        self,
+        *,
+        scope: str,
+        nonce: str,
+        approval_hash: str = "",
+        run_id: str = "",
+        approval_type: str = "",
+        expires_at: str = "",
+    ) -> bool:
         key = (scope, self._nonce_hash(scope=scope, nonce=nonce))
         if key in self._used_keys:
             return False
         self._used_keys.add(key)
+        self._record_metadata[key] = _replay_record_metadata(
+            approval_hash=approval_hash,
+            run_id=run_id,
+            approval_type=approval_type,
+            expires_at=expires_at,
+        )
         return True
 
     def export_records(self) -> list[dict[str, str]]:
-        return [
-            {"scope": scope, "nonce_hash": nonce_hash}
-            for scope, nonce_hash in sorted(self._used_keys)
-        ]
+        records: list[dict[str, str]] = []
+        for scope, nonce_hash in sorted(self._used_keys):
+            row = {"scope_canonical": scope, "nonce_hash": nonce_hash}
+            row.update(self._record_metadata.get((scope, nonce_hash), {}))
+            records.append(row)
+        return records
 
     @classmethod
     def from_records(cls, records: list[dict[str, str]]) -> "PersistentReplayStore":
@@ -203,23 +270,53 @@ class DurableReplayStore(PersistentReplayStore):
             return
         records = self._adapter.load_records()
         self._used_keys.clear()
+        self._record_metadata.clear()
         for record in records:
-            scope = str(record.get("scope", ""))
+            scope = str(record.get("scope_canonical") or record.get("scope") or "")
             nonce_hash = str(record.get("nonce_hash", ""))
             if scope and CONTRACT_HASH_PATTERN.fullmatch(nonce_hash):
-                self._used_keys.add((scope, nonce_hash))
+                key = (scope, nonce_hash)
+                self._used_keys.add(key)
+                self._record_metadata[key] = {
+                    field: str(record.get(field, ""))
+                    for field in (
+                        "approval_hash",
+                        "run_id",
+                        "approval_type",
+                        "claimed_at",
+                        "expires_at",
+                        "status",
+                    )
+                    if record.get(field)
+                }
         self._loaded = True
 
-    def claim(self, *, scope: str, nonce: str) -> bool:
+    def claim(
+        self,
+        *,
+        scope: str,
+        nonce: str,
+        approval_hash: str = "",
+        run_id: str = "",
+        approval_type: str = "",
+        expires_at: str = "",
+    ) -> bool:
         self._load_once()
         key = (scope, self._nonce_hash(scope=scope, nonce=nonce))
         if key in self._used_keys:
             return False
         self._used_keys.add(key)
+        self._record_metadata[key] = _replay_record_metadata(
+            approval_hash=approval_hash,
+            run_id=run_id,
+            approval_type=approval_type,
+            expires_at=expires_at,
+        )
         try:
             self._adapter.save_records(self.export_records())
         except Exception:
             self._used_keys.discard(key)
+            self._record_metadata.pop(key, None)
             raise
         return True
 
@@ -400,6 +497,16 @@ def _parse_approval_timestamp(value: Any) -> datetime | None:
     return parsed.astimezone(timezone.utc)
 
 
+def _scope_allowed_by_policy(scope: str, allowed_scopes: tuple[str, ...]) -> bool:
+    if scope in allowed_scopes:
+        return True
+    if scope.startswith("aw.approval.v1/live_runner_approval/"):
+        return "live_runner" in allowed_scopes
+    if scope.startswith("aw.approval.v1/provider_approval/"):
+        return "provider_boundary" in allowed_scopes
+    return False
+
+
 def validate_approval_verifier_policy(
     approval: Any,
     *,
@@ -435,7 +542,7 @@ def validate_approval_verifier_policy(
         not isinstance(verifier_scope, str)
         or APPROVAL_SCOPE_PATTERN.fullmatch(verifier_scope) is None
         or verifier_scope != scope
-        or scope not in policy.allowed_scopes
+        or not _scope_allowed_by_policy(scope, policy.allowed_scopes)
     ):
         failures.append((f"{gate_prefix}_scope_matches", "approval verifier scope is not allowed."))
         metrics["approval_verifier_scope_block_count"] = 1
@@ -580,10 +687,21 @@ def claim_approval_replay(
     scope: str,
     gate_prefix: str,
     replay_store: PersistentReplayStore,
+    approval_hash: str = "",
+    run_id: str = "",
+    approval_type: str = "",
+    expires_at: str = "",
 ) -> list[tuple[str, str]]:
     nonce = getattr(approval, "nonce", "")
     try:
-        claimed = replay_store.claim(scope=scope, nonce=nonce)
+        claimed = replay_store.claim(
+            scope=scope,
+            nonce=nonce,
+            approval_hash=approval_hash,
+            run_id=run_id,
+            approval_type=approval_type,
+            expires_at=expires_at,
+        )
     except Exception:
         return [(f"{gate_prefix}_replay_store_available", "approval replay store is unavailable.")]
     if not claimed:

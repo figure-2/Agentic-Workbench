@@ -620,3 +620,50 @@ Measured after `RunSessionRepository` and `ArtifactRepository` skeletons were ad
 | repository stores metadata and correlation hashes only | covered |
 
 Interpretation: this is an in-memory persistence boundary skeleton. It is not a DB-backed repository, migration, transaction layer, or production persistence guarantee.
+
+## AW-PERSIST-02 Approval / Replay Repository Metrics
+
+Measured after `ApprovalRepository`, `ReplayNonceRepository`, and file-backed replay adapter skeletons were added.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 250 |
+| Pytest passed cases | 250 |
+| Regression delta vs AW-PERSIST-01 baseline | +23 |
+| Repository boundary unit test files | 2 |
+| New approval/replay repository test cases | 19 |
+| New provider/live file-backed replay integration tests | 2 |
+| New provider/live subject-bound approval reuse tests | 2 |
+| Provider boundary test cases | 63 |
+| Runner provider registry test cases | 78 |
+| Approval subject snapshot record types | 1 |
+| Approval decision record types | 1 |
+| Replay nonce record types | 1 |
+| Replay repository implementations | 2 |
+| File-backed replay corrupted/partial/path fixtures | 3 |
+| Atomic write failure preservation fixtures | 1 |
+| Raw nonce/signature/verifier/key/policy identity fields in tested repository rows | 0 |
+| Live LLM calls during eval | 0 |
+| Live API calls during eval | 0 |
+| Provider calls during eval | 0 |
+| Network calls during eval | 0 |
+| Solar Pro 3/DAACS live calls | 0 |
+
+| Gate | Result |
+|---|---|
+| immutable approval subject snapshot stores sanitized projection only | covered |
+| approval record stores `subject_hash`, `approval_hash`, `scope_canonical` refs only | covered |
+| raw authorization material storage count 0 | covered |
+| supplied `scope_canonical` bound to subject hash | covered |
+| canonical replay scope rejects unsafe public `run_id` | covered |
+| durable replay row metadata cannot be defaulted | covered |
+| file-backed durable row missing metadata blocked | covered |
+| signed provider/live approval cannot authorize a different subject | covered |
+| same canonical scope replay blocked | covered |
+| process restart simulation keeps replay tombstone | covered |
+| file-backed replay path traversal blocked | covered |
+| corrupted/partial replay store blocked fail-closed | covered |
+| atomic write failure preserves existing tombstone | covered |
+| provider/live file-backed replay reuse blocked before fake runtime/provider invocation | covered |
+
+Interpretation: this is a hash-only repository boundary skeleton with a local file-backed replay fixture. It is not production DB persistence, production cryptographic signing, multi-host replay prevention, real DAACS execution, or Solar Pro 3 live provider integration.

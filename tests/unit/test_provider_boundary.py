@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from packages.core.repositories import FileBackedReplayNonceRepository
 from packages.core.schemas import stable_contract_hash
 from packages.daacs_builder.adapters import (
     build_spec_to_daacs_initial_state,
@@ -20,6 +21,7 @@ from packages.daacs_builder.provider_boundary import (
     ProviderApprovalRecord,
     ProviderRequest,
     SOLAR_PRO_3_ENV_KEY_NAME,
+    provider_replay_scope_for_request,
 )
 from packages.daacs_builder.approval_security import (
     ApprovalPolicyResolver,
@@ -89,9 +91,23 @@ def _provider_approval(**overrides):
     fields.update(overrides)
     approval = ProviderApprovalRecord(**fields)
     if signed:
+        try:
+            signature_scope = provider_replay_scope_for_request(
+                ProviderRequest(
+                    run_id=fields["run_id"],
+                    prompt_contract_hash=_prompt_contract_hash(),
+                    provider_name=fields["provider_name"],
+                    model_name=fields["model_name"],
+                    mode=fields["mode"],
+                    env_key_name=fields["env_key_name"],
+                    approval=approval,
+                )
+            )
+        except ValueError:
+            signature_scope = PROVIDER_APPROVAL_SCOPE
         sign_approval_for_tests(
             approval,
-            scope=PROVIDER_APPROVAL_SCOPE,
+            scope=signature_scope,
             signature_id=signature_id,
             nonce=nonce,
         )
@@ -504,6 +520,27 @@ def test_provider_boundary_blocks_live_scope_signed_approval_reuse():
     assert result.metrics["network_calls"] == 0
 
 
+def test_provider_boundary_blocks_signed_approval_reuse_for_different_prompt_subject():
+    approval = _provider_approval(
+        signature_id="sig-provider-subject-reuse",
+        nonce="nonce-provider-subject-reuse",
+    )
+    request = _provider_request(
+        approval=approval,
+        prompt_contract_hash=stable_contract_hash({"different": "prompt-subject"}),
+    )
+
+    result = _fake_provider().invoke(request)
+    checks = {check["name"]: check["passed"] for check in result.checks}
+
+    assert result.status == "blocked"
+    assert checks["provider_approval_signature_valid"] is False
+    assert result.metrics["fake_provider_invocations"] == 0
+    assert result.metrics["provider_calls"] == 0
+    assert result.metrics["live_api_calls"] == 0
+    assert result.metrics["live_llm_calls"] == 0
+
+
 def test_provider_boundary_blocks_reused_nonce():
     provider = _fake_provider()
     request = _provider_request()
@@ -610,6 +647,35 @@ def test_provider_boundary_blocks_reused_nonce_after_durable_restart_simulation(
     assert second.metrics["approval_replay_store_hit_count"] == 1
     assert second.metrics["fake_provider_invocations"] == 0
     assert second.metrics["provider_calls"] == 0
+
+
+def test_provider_boundary_blocks_reused_nonce_with_file_backed_replay_repository(tmp_path):
+    request = _provider_request(
+        approval=_provider_approval(
+            signature_id="sig-provider-file-backed",
+            nonce="nonce-provider-file-backed",
+        )
+    )
+
+    first = _fake_provider(
+        replay_store=DurableReplayStore(FileBackedReplayNonceRepository(root=tmp_path))
+    ).invoke(request)
+    second = _fake_provider(
+        replay_store=DurableReplayStore(FileBackedReplayNonceRepository(root=tmp_path))
+    ).invoke(request)
+    checks = {check["name"]: check["passed"] for check in second.checks}
+
+    assert first.status == "passed"
+    assert second.status == "blocked"
+    assert checks["provider_approval_replay_fresh"] is False
+    assert second.metrics["approval_replay_store_hit_count"] == 1
+    assert second.metrics["fake_provider_invocations"] == 0
+    assert second.metrics["provider_calls"] == 0
+    assert second.metrics["live_api_calls"] == 0
+    assert second.metrics["live_llm_calls"] == 0
+    assert "aw.approval.v1/provider_approval/" in (tmp_path / "replay_nonces.json").read_text(
+        encoding="utf-8"
+    )
 
 
 @pytest.mark.parametrize(

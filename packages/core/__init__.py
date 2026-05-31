@@ -5,14 +5,27 @@ from .claims import assert_no_forbidden_claims, find_forbidden_claims
 from .evidence import sanitize_evidence
 from .events import WorkflowEvent
 from .repositories import (
+    ApprovalDecisionRecord,
+    ApprovalRepository,
+    ApprovalSubjectSnapshotRecord,
     ArtifactRecord,
     ArtifactRepository,
+    FileBackedReplayNonceRepository,
+    InMemoryApprovalRepository,
     InMemoryArtifactRepository,
+    InMemoryReplayNonceRepository,
     InMemoryRunSessionRepository,
+    ReplayNonceRecord,
+    ReplayNonceReplayError,
+    ReplayNonceRepository,
+    ReplayStoreUnavailableError,
     RunSessionRecord,
     RunSessionRepository,
     WorkflowSessionReadModel,
+    canonical_replay_scope,
+    parse_replay_scope,
     reconstruct_workflow_session_read_model,
+    replay_nonce_hash,
 )
 from .schemas import (
     Artifact,
@@ -30,6 +43,9 @@ from .schemas import (
 )
 
 __all__ = [
+    "ApprovalDecisionRecord",
+    "ApprovalRepository",
+    "ApprovalSubjectSnapshotRecord",
     "Artifact",
     "ArtifactKind",
     "ArtifactRecord",
@@ -38,13 +54,20 @@ __all__ = [
     "assert_no_forbidden_claims",
     "BuildSpec",
     "find_forbidden_claims",
+    "FileBackedReplayNonceRepository",
     "IdeaBrief",
     "ImplementationBrief",
+    "InMemoryApprovalRepository",
     "InMemoryArtifactRepository",
+    "InMemoryReplayNonceRepository",
     "InMemoryRunSessionRepository",
     "PlanningBlueprint",
     "PRDPackage",
     "reconstruct_workflow_session_read_model",
+    "ReplayNonceRecord",
+    "ReplayNonceReplayError",
+    "ReplayNonceRepository",
+    "ReplayStoreUnavailableError",
     "RunSessionRecord",
     "RunSessionRepository",
     "SpecApproval",
@@ -53,6 +76,9 @@ __all__ = [
     "WorkflowSession",
     "WorkflowSessionReadModel",
     "WorkflowStage",
+    "canonical_replay_scope",
+    "parse_replay_scope",
+    "replay_nonce_hash",
     "sanitize_evidence",
     "stable_contract_hash",
 ]

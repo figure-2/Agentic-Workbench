@@ -13,6 +13,7 @@ import re
 from typing import Any, Protocol
 
 from packages.core.exposure import sanitize_public_payload
+from packages.core.repositories import canonical_replay_scope
 from packages.core.schemas import JsonDict, stable_contract_hash
 
 from .approval_security import (
@@ -250,6 +251,51 @@ def validate_provider_request(request: ProviderRequest) -> list[tuple[str, str]]
     return failures
 
 
+def provider_subject_hash_for_request(request: ProviderRequest) -> str:
+    """Hash the provider approval subject without authorization material."""
+    if request.approval is None:
+        raise ValueError("provider approval is required")
+    return stable_contract_hash(
+        {
+            "run_id": request.run_id,
+            "prompt_contract_hash": request.prompt_contract_hash,
+            "provider_name": request.provider_name,
+            "model_name": request.model_name,
+            "mode": request.mode,
+            "env_key_name": request.env_key_name,
+            "max_live_api_calls": request.approval.max_live_api_calls,
+            "max_live_llm_calls": request.approval.max_live_llm_calls,
+        }
+    )
+
+
+def provider_replay_scope_for_request(request: ProviderRequest) -> str:
+    """Return the canonical provider replay scope for signature and nonce gates."""
+    return canonical_replay_scope(
+        approval_type="provider_approval",
+        run_id=request.run_id,
+        subject_hash=provider_subject_hash_for_request(request),
+    )
+
+
+def provider_approval_decision_hash(request: ProviderRequest, *, scope_canonical: str) -> str:
+    """Hash the approval decision without nonce/signature/key material."""
+    if request.approval is None:
+        raise ValueError("provider approval is required")
+    return stable_contract_hash(
+        {
+            "approval_type": "provider_approval",
+            "run_id": request.run_id,
+            "subject_hash": provider_subject_hash_for_request(request),
+            "scope_canonical": scope_canonical,
+            "decision": "approved",
+            "approved_at": request.approval.approved_at,
+            "expires_at": request.approval.expires_at,
+            "audit_log_id": request.approval.audit_log_id,
+        }
+    )
+
+
 def _blocked_result(request: ProviderRequest, failures: list[tuple[str, str]]) -> ProviderResult:
     result_run_id = safe_public_run_id(request.run_id)
     check_name = failures[0][0] if failures else "provider_boundary_blocked"
@@ -318,10 +364,16 @@ class FakeSolarProProvider:
             result.metrics["approval_verifier_missing_block_count"] = 1
             return result
 
+        replay_scope = provider_replay_scope_for_request(request)
+        approval_hash = provider_approval_decision_hash(
+            request,
+            scope_canonical=replay_scope,
+        )
+
         try:
             verification = self.approval_verifier.verify(
                 request.approval,
-                scope=PROVIDER_APPROVAL_SCOPE,
+                scope=replay_scope,
                 gate_prefix="provider_approval",
             )
         except Exception:
@@ -356,7 +408,7 @@ class FakeSolarProProvider:
 
         policy_verification = enforce_resolved_approval_contract_policy(
             request.approval,
-            scope=PROVIDER_APPROVAL_SCOPE,
+            scope=replay_scope,
             gate_prefix="provider_approval",
             policy_resolver=self.approval_policy_resolver,
             key_identity_registry=self.key_identity_registry,
@@ -372,9 +424,13 @@ class FakeSolarProProvider:
 
         replay_failures = claim_approval_replay(
             request.approval,
-            scope=PROVIDER_APPROVAL_SCOPE,
+            scope=replay_scope,
             gate_prefix="provider_approval",
             replay_store=self.replay_store,
+            approval_hash=approval_hash,
+            run_id=request.run_id,
+            approval_type="provider_approval",
+            expires_at=request.approval.expires_at,
         )
         if replay_failures:
             result = _blocked_result(request, replay_failures)
@@ -383,8 +439,6 @@ class FakeSolarProProvider:
             result.metrics["approval_replay_store_hit_count"] = 1
             return result
 
-        approval_payload = asdict(request.approval)
-        approval_hash = stable_contract_hash(approval_payload)
         output_contract = {
             "provider_name": request.provider_name,
             "model_name": request.model_name,

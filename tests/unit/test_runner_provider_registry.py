@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from packages.core.repositories import FileBackedReplayNonceRepository
 from packages.daacs_builder.adapters import (
     build_spec_to_daacs_initial_state,
     create_spec_approval,
@@ -28,7 +29,11 @@ from packages.daacs_builder.approval_security import (
     UnavailableReplayRecordAdapter,
     sign_approval_for_tests,
 )
-from packages.daacs_builder.live_runner import LIVE_APPROVAL_SCOPE, LiveRunnerProvider
+from packages.daacs_builder.live_runner import (
+    LIVE_APPROVAL_SCOPE,
+    LiveRunnerProvider,
+    live_replay_scope_for_request,
+)
 from packages.daacs_builder.runner_provider import (
     ApprovalRecord,
     RunnerPolicy,
@@ -39,6 +44,8 @@ from packages.div_planner.adapters import planning_blueprint_from_div_state, pla
 
 
 _live_approval_counter = count(1)
+_latest_live_state = None
+_latest_live_plan = None
 
 
 class RaisingApprovalVerifier:
@@ -101,6 +108,7 @@ def _approved_dry_run_parts():
 
 
 def _approved_dry_run_result():
+    global _latest_live_state, _latest_live_plan
     state, brief, approval = _approved_dry_run_parts()
     result = default_runner_provider_registry().run(
         RunnerRequest(
@@ -112,6 +120,8 @@ def _approved_dry_run_result():
         )
     )
     assert result.plan is not None
+    _latest_live_state = state
+    _latest_live_plan = result.plan
     return state, result.plan
 
 
@@ -139,9 +149,24 @@ def _valid_live_approval(**overrides):
     fields.update(overrides)
     approval = ApprovalRecord(**fields)
     if signed:
+        signature_scope = LIVE_APPROVAL_SCOPE
+        if _latest_live_state is not None and _latest_live_plan is not None:
+            try:
+                signature_scope = live_replay_scope_for_request(
+                    RunnerRequest(
+                        run_id=fields["run_id"],
+                        mode="live",
+                        state=_latest_live_state,
+                        approval=approval,
+                        plan=_latest_live_plan,
+                        policy=_valid_live_policy(workspace_root=fields["workspace_root"]),
+                    )
+                )
+            except (KeyError, TypeError, ValueError):
+                signature_scope = LIVE_APPROVAL_SCOPE
         sign_approval_for_tests(
             approval,
-            scope=LIVE_APPROVAL_SCOPE,
+            scope=signature_scope,
             signature_id=signature_id,
             nonce=nonce,
         )
@@ -946,6 +971,34 @@ def test_live_blocks_provider_scope_signed_approval_reuse():
     assert result.verification_report.metrics["network_calls"] == 0
 
 
+def test_live_blocks_signed_approval_reuse_for_different_state_subject():
+    state, plan = _approved_dry_run_result()
+    approval = _valid_live_approval(
+        signature_id="sig-live-subject-reuse",
+        nonce="nonce-live-subject-reuse",
+    )
+    mutated_state = dict(state)
+    mutated_state["safe_note"] = "same approval must not authorize a different state subject"
+
+    result = _live_provider().run(
+        RunnerRequest(
+            run_id="run-provider",
+            mode="live",
+            state=mutated_state,
+            approval=approval,
+            plan=plan,
+            policy=_valid_live_policy(),
+        )
+    )
+    checks = {check["name"]: check["passed"] for check in result.verification_report.checks}
+
+    assert result.status == "blocked"
+    assert checks["live_approval_signature_valid"] is False
+    assert result.verification_report.metrics["fake_live_runtime_invocations"] == 0
+    assert result.verification_report.metrics["real_daacs_invocations"] == 0
+    assert result.verification_report.metrics["solar_provider_calls"] == 0
+
+
 def test_live_blocks_reused_nonce_after_first_fake_runtime_pass():
     state, plan = _approved_dry_run_result()
     provider = _live_provider()
@@ -1100,6 +1153,40 @@ def test_live_blocks_reused_nonce_after_durable_restart_simulation():
     assert second.verification_report.metrics["approval_replay_store_hit_count"] == 1
     assert second.verification_report.metrics["fake_live_runtime_invocations"] == 0
     assert second.verification_report.metrics["real_daacs_invocations"] == 0
+
+
+def test_live_blocks_reused_nonce_with_file_backed_replay_repository(tmp_path):
+    state, plan = _approved_dry_run_result()
+    request = RunnerRequest(
+        run_id="run-provider",
+        mode="live",
+        state=state,
+        approval=_valid_live_approval(
+            signature_id="sig-live-file-backed",
+            nonce="nonce-live-file-backed",
+        ),
+        plan=plan,
+        policy=_valid_live_policy(),
+    )
+
+    first = _live_provider(
+        replay_store=DurableReplayStore(FileBackedReplayNonceRepository(root=tmp_path))
+    ).run(request)
+    second = _live_provider(
+        replay_store=DurableReplayStore(FileBackedReplayNonceRepository(root=tmp_path))
+    ).run(request)
+    checks = {check["name"]: check["passed"] for check in second.verification_report.checks}
+
+    assert first.status == "passed"
+    assert second.status == "blocked"
+    assert checks["live_approval_replay_fresh"] is False
+    assert second.verification_report.metrics["approval_replay_store_hit_count"] == 1
+    assert second.verification_report.metrics["fake_live_runtime_invocations"] == 0
+    assert second.verification_report.metrics["real_daacs_invocations"] == 0
+    assert second.verification_report.metrics["solar_provider_calls"] == 0
+    assert "aw.approval.v1/live_runner_approval/" in (tmp_path / "replay_nonces.json").read_text(
+        encoding="utf-8"
+    )
 
 
 @pytest.mark.parametrize(

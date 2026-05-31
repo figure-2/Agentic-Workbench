@@ -7,11 +7,11 @@ servers, or filesystem writers.
 
 from __future__ import annotations
 
-from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import Any
 
 from packages.core.pathing import PathBoundaryError, normalize_public_relative_path
+from packages.core.repositories import canonical_replay_scope
 from packages.core.schemas import VerificationReport, stable_contract_hash
 
 from .approval_security import (
@@ -262,6 +262,63 @@ def validate_fake_live_request(request: RunnerRequest) -> list[tuple[str, str]]:
     return failures
 
 
+def live_hashes_for_request(request: RunnerRequest) -> tuple[str, str]:
+    """Return state and plan hashes for a validated fake-live request."""
+    plan_payload = request.plan.to_dict() if request.plan is not None else {}
+    state_hash = stable_contract_hash(
+        {
+            "run_id": request.run_id,
+            "state": request.state,
+        }
+    )
+    plan_hash = str(plan_payload["plan_hash"])
+    return state_hash, plan_hash
+
+
+def live_subject_hash_for_request(request: RunnerRequest) -> str:
+    """Hash the live approval subject without authorization material."""
+    state_hash, plan_hash = live_hashes_for_request(request)
+    return stable_contract_hash(
+        {
+            "run_id": request.run_id,
+            "plan_hash": plan_hash,
+            "state_hash": state_hash,
+            "workspace_root": request.approval.workspace_root,
+            "allowed_operations": request.approval.allowed_operations,
+            "side_effect_limits": {
+                field_name: getattr(request.approval, field_name)
+                for field_name in LIVE_LIMIT_FIELDS
+            },
+        }
+    )
+
+
+def live_replay_scope_for_request(request: RunnerRequest) -> str:
+    """Return the canonical live replay scope for signature and nonce gates."""
+    return canonical_replay_scope(
+        approval_type="live_runner_approval",
+        run_id=request.run_id,
+        subject_hash=live_subject_hash_for_request(request),
+    )
+
+
+def live_approval_decision_hash(request: RunnerRequest, *, scope_canonical: str) -> str:
+    """Hash the live approval decision without nonce/signature/key material."""
+    return stable_contract_hash(
+        {
+            "approval_type": "live_runner_approval",
+            "run_id": request.run_id,
+            "subject_hash": live_subject_hash_for_request(request),
+            "scope_canonical": scope_canonical,
+            "decision": "approved",
+            "approved_at": request.approval.approved_at,
+            "expires_at": request.approval.expires_at,
+            "rollback_plan_id": request.approval.rollback_plan_id,
+            "audit_log_id": request.approval.audit_log_id,
+        }
+    )
+
+
 def _blocked_result(
     *,
     request: RunnerRequest,
@@ -377,10 +434,16 @@ class LiveRunnerProvider:
                 },
             )
 
+        replay_scope = live_replay_scope_for_request(request)
+        approval_hash = live_approval_decision_hash(
+            request,
+            scope_canonical=replay_scope,
+        )
+
         try:
             verification = self.approval_verifier.verify(
                 request.approval,
-                scope=LIVE_APPROVAL_SCOPE,
+                scope=replay_scope,
                 gate_prefix="live_approval",
             )
         except Exception:
@@ -426,7 +489,7 @@ class LiveRunnerProvider:
 
         policy_verification = enforce_resolved_approval_contract_policy(
             request.approval,
-            scope=LIVE_APPROVAL_SCOPE,
+            scope=replay_scope,
             gate_prefix="live_approval",
             policy_resolver=self.approval_policy_resolver,
             key_identity_registry=self.key_identity_registry,
@@ -461,11 +524,16 @@ class LiveRunnerProvider:
                 },
             )
 
+        state_hash, plan_hash = live_hashes_for_request(request)
         replay_failures = claim_approval_replay(
             request.approval,
-            scope=LIVE_APPROVAL_SCOPE,
+            scope=replay_scope,
             gate_prefix="live_approval",
             replay_store=self.replay_store,
+            approval_hash=approval_hash,
+            run_id=request.run_id,
+            approval_type="live_runner_approval",
+            expires_at=request.approval.expires_at,
         )
         if replay_failures:
             return _blocked_result(
@@ -479,16 +547,6 @@ class LiveRunnerProvider:
                 },
             )
 
-        approval_payload = asdict(request.approval)
-        plan_payload = request.plan.to_dict() if request.plan is not None else {}
-        approval_hash = stable_contract_hash(approval_payload)
-        state_hash = stable_contract_hash(
-            {
-                "run_id": request.run_id,
-                "state": request.state,
-            }
-        )
-        plan_hash = str(plan_payload["plan_hash"])
         runtime_evidence = self.runtime.run(
             request=request,
             approval_hash=approval_hash,
