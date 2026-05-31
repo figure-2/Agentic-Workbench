@@ -429,6 +429,129 @@ def test_runs_fixture_evidence_persistence_blocks_corrupted_sqlite_store_without
     assert "not a sqlite database" not in serialized
 
 
+def test_run_and_artifact_read_apis_return_sanitized_repository_rows_without_cross_run_leakage(tmp_path):
+    evidence_root = tmp_path / "evidence"
+    client = TestClient(create_app(evidence_repository_config=EvidenceRepositoryConfig(root=evidence_root)))
+
+    first_response = client.post(
+        "/api/v1/runs",
+        json={
+            "raw_prompt": "Build first fixture read model with API05_FIRST_RAW_PROMPT",
+            "target_user": "api05-first-owner@example.com",
+            "product_type": "run artifact read model",
+            "constraints": ["never expose API05_FIRST_CONSTRAINT"],
+            "success_criteria": ["read sanitized artifacts"],
+        },
+    )
+    second_response = client.post(
+        "/api/v1/runs",
+        json={
+            "raw_prompt": "Build second fixture read model with API05_SECOND_RAW_PROMPT",
+            "target_user": "api05-second-owner@example.com",
+            "product_type": "run artifact read model",
+            "constraints": ["never expose API05_SECOND_CONSTRAINT"],
+            "success_criteria": ["cross-run isolation"],
+        },
+    )
+
+    assert first_response.status_code == 200
+    assert second_response.status_code == 200
+    first_data = first_response.json()["data"]
+    second_data = second_response.json()["data"]
+    first_run_id = first_data["run"]["run_id"]
+    second_run_id = second_data["run"]["run_id"]
+
+    run_response = client.get(f"/api/v1/runs/{first_run_id}")
+    artifacts_response = client.get(f"/api/v1/runs/{first_run_id}/artifacts")
+
+    assert run_response.status_code == 200
+    assert artifacts_response.status_code == 200
+    run_payload = run_response.json()
+    artifacts_payload = artifacts_response.json()
+    run_data = run_payload["data"]
+    artifacts_data = artifacts_payload["data"]
+    run_checks = {check["name"]: check["passed"] for check in run_data["checks"]}
+    artifact_checks = {check["name"]: check["passed"] for check in artifacts_data["checks"]}
+
+    assert run_data["projection_version"] == "run-read-model-public-v1"
+    assert artifacts_data["projection_version"] == "artifact-read-model-public-v1"
+    assert run_data["status"] == "passed"
+    assert artifacts_data["status"] == "passed"
+    assert run_checks["runner_report_audit_repository_available"] is True
+    assert run_checks["approval_replay_repository_not_queried"] is True
+    assert artifact_checks["artifact_repository_available"] is True
+    assert artifact_checks["approval_replay_repository_not_queried"] is True
+    assert run_data["repository_boundary"]["approval_replay_backend"] == "not_queried"
+    assert run_data["repository_boundary"]["approval_replay_included"] is False
+    assert run_data["repository_boundary"]["run_session_backend"] == "not_implemented"
+    assert run_data["repository_boundary"]["canonical_run_record_included"] is False
+    assert run_data["repository_boundary"]["artifact_linkage_projection_only"] is True
+    assert artifacts_data["repository_boundary"]["approval_replay_included"] is False
+    assert artifacts_data["repository_boundary"]["canonical_run_record_included"] is False
+    assert run_data["counts"]["artifact_count"] == first_data["artifact_count"]
+    assert artifacts_data["counts"]["artifact_count"] == first_data["artifact_count"]
+    assert run_data["counts"]["runner_plan_count"] == 1
+    assert run_data["counts"]["verification_report_count"] == 1
+    assert run_data["counts"]["audit_event_count"] == len(first_response.json()["events"]) + 1
+    assert run_data["counts"]["approval_subject_snapshot_count"] == 0
+    assert run_data["counts"]["approval_count"] == 0
+    assert run_data["counts"]["replay_nonce_count"] == 0
+    assert {artifact["run_id"] for artifact in artifacts_data["artifacts"]} == {first_run_id}
+    assert run_data["execution_boundary"]["provider_calls"] == 0
+    assert run_data["execution_boundary"]["target_runtime_calls"] == 0
+    assert run_data["execution_boundary"]["solar_provider_calls"] == 0
+
+    combined = _serialized({"run": run_payload, "artifacts": artifacts_payload})
+    for forbidden in (
+        second_run_id,
+        "raw_prompt",
+        "API05_FIRST_RAW_PROMPT",
+        "API05_SECOND_RAW_PROMPT",
+        "API05_FIRST_CONSTRAINT",
+        "API05_SECOND_CONSTRAINT",
+        "api05-first-owner@example.com",
+        "api05-second-owner@example.com",
+        "provider_payload",
+        "runtime_payload",
+        "file_body",
+        "signature_id",
+        "signed_contract_hash",
+        str(tmp_path),
+    ):
+        assert forbidden not in combined
+
+
+def test_run_and_artifact_read_apis_block_corrupted_store_without_raw_path(tmp_path):
+    corrupt_root = tmp_path / "corrupt-evidence"
+    corrupt_root.mkdir()
+    (corrupt_root / "agentic_workbench.sqlite3").write_text("not a sqlite database", encoding="utf-8")
+    client = TestClient(create_app(evidence_repository_config=EvidenceRepositoryConfig(root=corrupt_root)))
+
+    run_response = client.get("/api/v1/runs/run-api-provider")
+    artifacts_response = client.get("/api/v1/runs/run-api-provider/artifacts")
+
+    assert run_response.status_code == 200
+    assert artifacts_response.status_code == 200
+    run_payload = run_response.json()
+    artifacts_payload = artifacts_response.json()
+    combined = _serialized({"run": run_payload, "artifacts": artifacts_payload})
+    run_data = run_payload["data"]
+    artifacts_data = artifacts_payload["data"]
+    run_checks = {check["name"]: check["passed"] for check in run_data["checks"]}
+    artifact_checks = {check["name"]: check["passed"] for check in artifacts_data["checks"]}
+
+    assert run_data["status"] == "blocked"
+    assert artifacts_data["status"] == "blocked"
+    assert run_checks["runner_report_audit_repository_available"] is False
+    assert artifact_checks["artifact_repository_available"] is False
+    assert run_data["counts"]["artifact_count"] == 0
+    assert artifacts_data["counts"]["artifact_count"] == 0
+    assert run_data["execution_boundary"]["provider_calls"] == 0
+    assert artifacts_data["execution_boundary"]["target_runtime_calls"] == 0
+    assert str(corrupt_root) not in combined
+    assert "not a sqlite database" not in combined
+
+
 def test_evidence_read_model_api_returns_sqlite_rows_without_raw_bodies_or_auth_material(tmp_path):
     evidence_root = tmp_path / "evidence"
     admission_root = tmp_path / "admission"

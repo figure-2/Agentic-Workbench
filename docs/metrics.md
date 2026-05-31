@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-API-04` fixture evidence persistence wiring.
+Current snapshot after `AW-API-05` repository-backed run/artifact read API wiring.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache | 125 |
-| Counted code/doc files, excluding cache | 123 |
-| Project lines, excluding cache | 22,726 |
+| Project files, excluding cache | 126 |
+| Counted code/doc files, excluding cache | 124 |
+| Project lines, excluding cache | 23,066 |
 | Python files | 57 |
-| Markdown files | 61 |
+| Markdown files | 62 |
 | Test files | 22 |
 | Unit test files | 18 |
 | Smoke test files | 3 |
 | Integration test files | 1 |
-| Pytest collected cases | 340 |
-| Pytest passed cases | 340 |
+| Pytest collected cases | 342 |
+| Pytest passed cases | 342 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -1156,3 +1156,37 @@ Interpretation: this adds local fixture evidence persistence for sanitized
 repository projections. It does not add external provider outcome, target
 runtime outcome, generated app delivery, hosted evidence service, or repository
 trust certification.
+
+## AW-API-05 Run / Artifact Read API Metrics
+
+Measured after adding repository-backed read APIs for sanitized run and artifact
+projection rows.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 342 |
+| Pytest passed cases | 342 |
+| Regression delta vs AW-API-04 baseline | +2 |
+| API run/artifact read integration tests | 2 |
+| Run/artifact read API paths | 2 |
+| Artifact payload body findings | 0 |
+| Raw prompt/log/file/provider/runtime findings | 0 |
+| Cross-run leakage findings | 0 |
+| Durable approval/replay evidence mixed into run/artifact read API | 0 |
+| Canonical run-session state claims | 0 |
+| Corrupted evidence store | blocked |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| `GET /api/v1/runs/{run_id}` returns local projection summary | covered |
+| `GET /api/v1/runs/{run_id}/artifacts` returns local artifact projection rows | covered |
+| approval/replay repositories are not queried by run/artifact read APIs | covered |
+| corrupted evidence DB fails closed without path/raw echo | covered |
+| public response keeps provider/runtime calls at 0 | covered |
+
+Interpretation: this adds local read APIs for sanitized repository projections.
+It does not add canonical run-session state, raw artifact storage, durable
+approval authority, external provider outcome, target runtime outcome, generated
+app delivery, hosted read service, or repository trust certification.

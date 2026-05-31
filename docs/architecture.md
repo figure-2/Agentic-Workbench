@@ -115,6 +115,14 @@ projection, audit event projections, and artifact linkage rows only when
 `EvidenceRepositoryConfig` is set. The fixture path remains synthetic and does
 not write durable approval/replay rows.
 
+`AW-API-05` adds repository-backed run and artifact read APIs over the same
+local runner/report/audit evidence store. `GET /api/v1/runs/{run_id}` returns a
+summary synthesized from projection rows, and
+`GET /api/v1/runs/{run_id}/artifacts` returns artifact metadata rows. These
+paths are evidence-backed skeletons, not canonical run-session APIs. They do
+not query approval/replay repositories and do not return artifact payload
+bodies.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -145,3 +153,6 @@ complete. Those surfaces are intentionally outside the current executable path.
 - fixture evidence persistence writes local projection rows only when explicitly
   configured, and corrupted stores are reported as blocked without raw/path
   echo.
+- run/artifact read APIs expose stored projection rows only, keep approval/replay
+  evidence out of the response, avoid canonical run-state claims, and keep
+  provider/runtime calls at 0.

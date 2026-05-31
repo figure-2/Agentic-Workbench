@@ -19,6 +19,8 @@ from .admission_demo import AdmissionRepositoryProvider
 
 
 EVIDENCE_PROJECTION_VERSION = "evidence-read-model-public-v1"
+RUN_READ_PROJECTION_VERSION = "run-read-model-public-v1"
+ARTIFACT_READ_PROJECTION_VERSION = "artifact-read-model-public-v1"
 SAFE_RUN_ID_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-")
 
 
@@ -69,6 +71,7 @@ def _safe_run_id(run_id: str) -> str:
         not isinstance(run_id, str)
         or not 1 <= len(run_id) <= 81
         or not run_id[0].isalnum()
+        or ".." in run_id
         or any(char not in SAFE_RUN_ID_CHARS for char in run_id)
     ):
         raise ValueError("run_id is not valid")
@@ -107,6 +110,77 @@ def _zero_execution_boundary() -> dict[str, int]:
         "target_runtime_calls": 0,
         "solar_provider_calls": 0,
     }
+
+
+def _artifact_read_counts(
+    *,
+    artifact_count: int = 0,
+    runner_plan_count: int = 0,
+    verification_report_count: int = 0,
+    audit_event_count: int = 0,
+) -> dict[str, int]:
+    return {
+        "artifact_count": artifact_count,
+        "runner_plan_count": runner_plan_count,
+        "verification_report_count": verification_report_count,
+        "audit_event_count": audit_event_count,
+        "approval_subject_snapshot_count": 0,
+        "approval_count": 0,
+        "replay_nonce_count": 0,
+    }
+
+
+def _artifact_read_base_projection(
+    *,
+    projection_version: str,
+    run_id: str,
+    evidence_provider: EvidenceRepositoryProvider,
+    status: str,
+    checks: list[dict[str, object]],
+    errors: list[str],
+    counts: dict[str, int],
+    artifacts: list[dict[str, object]] | None = None,
+    runner_plans: list[dict[str, object]] | None = None,
+    verification_reports: list[dict[str, object]] | None = None,
+    audit_events: list[dict[str, object]] | None = None,
+    include_artifacts: bool = True,
+) -> dict[str, Any]:
+    return _safe_public_payload(
+        {
+            "projection_version": projection_version,
+            "run_id": run_id,
+            "status": status,
+            "runtime_mode": "read_model",
+            "fixture_mode": False,
+            "checks": checks,
+            "errors": errors,
+            "repository_boundary": {
+                "runner_report_audit_backend": evidence_provider.backend,
+                "run_session_backend": "not_implemented",
+                "canonical_run_record_included": False,
+                "artifact_linkage_projection_only": True,
+                "approval_replay_backend": "not_queried",
+                "approval_replay_included": False,
+                "root_path_returned": False,
+                "raw_row_returned": False,
+            },
+            "counts": counts,
+            "artifacts": artifacts or [],
+            "runner_plans": runner_plans or [],
+            "verification_reports": verification_reports or [],
+            "audit_events": audit_events or [],
+            "execution_boundary": _zero_execution_boundary(),
+            "claim_boundary": {
+                "local_read_model_only": True,
+                "artifact_projection_only": include_artifacts,
+                "canonical_run_state_claim": False,
+                "approval_replay_evidence_included": False,
+                "external_provider_outcome": False,
+                "target_runtime_outcome": False,
+                "production_trust_claim": False,
+            },
+        }
+    )
 
 
 def _base_projection(
@@ -231,4 +305,104 @@ def read_run_evidence(
         approval_subject_snapshots=approval_subject_snapshots,
         approvals=approvals,
         replay_nonces=replay_nonces,
+    )
+
+
+def read_run_artifacts(
+    run_id: str,
+    *,
+    evidence_provider: EvidenceRepositoryProvider | None = None,
+) -> dict[str, Any]:
+    """Return sanitized artifact projection rows for one run."""
+    safe_run_id = _safe_run_id(run_id)
+    selected_evidence_provider = evidence_provider or EvidenceRepositoryProvider()
+    checks: list[dict[str, object]] = []
+    errors: list[str] = []
+    artifacts: list[dict[str, object]] = []
+    counts = _artifact_read_counts()
+    status = "passed"
+
+    try:
+        store = selected_evidence_provider.store()
+        artifact_records = store.list_artifacts_for_run(safe_run_id)
+        artifacts = _record_dicts(artifact_records)
+        counts["artifact_count"] = len(artifacts)
+        checks.append({"name": "artifact_repository_available", "passed": True})
+        checks.append({"name": "approval_replay_repository_not_queried", "passed": True})
+        if not artifacts:
+            status = "not_found"
+    except Exception:
+        status = "blocked"
+        errors.append("artifact repository is unavailable")
+        checks.append({"name": "artifact_repository_available", "passed": False})
+        checks.append({"name": "approval_replay_repository_not_queried", "passed": True})
+
+    return _artifact_read_base_projection(
+        projection_version=ARTIFACT_READ_PROJECTION_VERSION,
+        run_id=safe_run_id,
+        evidence_provider=selected_evidence_provider,
+        status=status,
+        checks=checks,
+        errors=errors,
+        counts=counts,
+        artifacts=artifacts,
+    )
+
+
+def read_run_summary(
+    run_id: str,
+    *,
+    evidence_provider: EvidenceRepositoryProvider | None = None,
+) -> dict[str, Any]:
+    """Return a sanitized repository-backed run summary without raw artifact bodies."""
+    safe_run_id = _safe_run_id(run_id)
+    selected_evidence_provider = evidence_provider or EvidenceRepositoryProvider()
+    checks: list[dict[str, object]] = []
+    errors: list[str] = []
+    artifacts: list[dict[str, object]] = []
+    runner_plans: list[dict[str, object]] = []
+    verification_reports: list[dict[str, object]] = []
+    audit_events: list[dict[str, object]] = []
+    counts = _artifact_read_counts()
+    status = "passed"
+
+    try:
+        store = selected_evidence_provider.store()
+        artifact_records = store.list_artifacts_for_run(safe_run_id)
+        runner_plan_records = store.runner_plans().list_for_run(safe_run_id)
+        verification_report_records = store.verification_reports().list_for_run(safe_run_id)
+        audit_event_records = store.audit_events().list_for_run(safe_run_id)
+        artifacts = _record_dicts(artifact_records)
+        runner_plans = _record_dicts(runner_plan_records)
+        verification_reports = _record_dicts(verification_report_records)
+        audit_events = _record_dicts(audit_event_records)
+        counts = _artifact_read_counts(
+            artifact_count=len(artifacts),
+            runner_plan_count=len(runner_plans),
+            verification_report_count=len(verification_reports),
+            audit_event_count=len(audit_events),
+        )
+        checks.append({"name": "runner_report_audit_repository_available", "passed": True})
+        checks.append({"name": "approval_replay_repository_not_queried", "passed": True})
+        if not artifacts and not runner_plans and not verification_reports and not audit_events:
+            status = "not_found"
+    except Exception:
+        status = "blocked"
+        errors.append("runner/report/audit repository is unavailable")
+        checks.append({"name": "runner_report_audit_repository_available", "passed": False})
+        checks.append({"name": "approval_replay_repository_not_queried", "passed": True})
+
+    return _artifact_read_base_projection(
+        projection_version=RUN_READ_PROJECTION_VERSION,
+        run_id=safe_run_id,
+        evidence_provider=selected_evidence_provider,
+        status=status,
+        checks=checks,
+        errors=errors,
+        counts=counts,
+        artifacts=artifacts,
+        runner_plans=runner_plans,
+        verification_reports=verification_reports,
+        audit_events=audit_events,
+        include_artifacts=True,
     )

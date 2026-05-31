@@ -23,6 +23,7 @@ API_01_PATH = ROOT / "docs" / "evals" / "aw-api-01-sanitized-approval-admission-
 API_02_PATH = ROOT / "docs" / "evals" / "aw-api-02-sqlite-admission-repository-wiring.md"
 API_03_PATH = ROOT / "docs" / "evals" / "aw-api-03-evidence-read-model-api.md"
 API_04_PATH = ROOT / "docs" / "evals" / "aw-api-04-fixture-evidence-persistence.md"
+API_05_PATH = ROOT / "docs" / "evals" / "aw-api-05-run-artifact-read-api.md"
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -43,6 +44,7 @@ PUBLIC_CLAIM_DOCS = [
     API_02_PATH,
     API_03_PATH,
     API_04_PATH,
+    API_05_PATH,
 ]
 
 
