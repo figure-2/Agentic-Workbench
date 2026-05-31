@@ -19,6 +19,7 @@ PERSIST_02_PATH = ROOT / "docs" / "evals" / "aw-persist-02-approval-replay-repos
 PERSIST_05_PATH = ROOT / "docs" / "evals" / "aw-persist-05-sqlite-approval-replay.md"
 PERSIST_06_PATH = ROOT / "docs" / "evals" / "aw-persist-06-approval-replay-wiring.md"
 PERSIST_07_PATH = ROOT / "docs" / "evals" / "aw-persist-07-canonical-approval-persistence.md"
+PERSIST_08_PATH = ROOT / "docs" / "evals" / "aw-persist-08-sqlite-run-artifact.md"
 API_01_PATH = ROOT / "docs" / "evals" / "aw-api-01-sanitized-approval-admission-api.md"
 API_02_PATH = ROOT / "docs" / "evals" / "aw-api-02-sqlite-admission-repository-wiring.md"
 API_03_PATH = ROOT / "docs" / "evals" / "aw-api-03-evidence-read-model-api.md"
@@ -40,6 +41,7 @@ PUBLIC_CLAIM_DOCS = [
     PERSIST_05_PATH,
     PERSIST_06_PATH,
     PERSIST_07_PATH,
+    PERSIST_08_PATH,
     API_01_PATH,
     API_02_PATH,
     API_03_PATH,

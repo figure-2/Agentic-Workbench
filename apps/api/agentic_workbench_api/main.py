@@ -21,12 +21,17 @@ from .services.admission_demo import (
 from .services.evidence_read_model import (
     EvidenceRepositoryConfig,
     EvidenceRepositoryProvider,
-    read_run_artifacts,
     read_run_evidence,
-    read_run_summary,
 )
 from .services.evidence_write_model import persist_fixture_run_evidence
 from .services.fixture_harness import create_fixture_harness
+from .services.canonical_run_store import (
+    RunArtifactRepositoryConfig,
+    RunArtifactRepositoryProvider,
+    persist_canonical_run_session,
+    read_canonical_artifacts,
+    read_canonical_run,
+)
 
 try:
     from fastapi import FastAPI, HTTPException
@@ -41,6 +46,8 @@ def create_app(
     admission_repository_provider: AdmissionRepositoryProvider | None = None,
     evidence_repository_config: EvidenceRepositoryConfig | None = None,
     evidence_repository_provider: EvidenceRepositoryProvider | None = None,
+    run_repository_config: RunArtifactRepositoryConfig | None = None,
+    run_repository_provider: RunArtifactRepositoryProvider | None = None,
 ):
     if FastAPI is None:
         raise RuntimeError("fastapi is not installed. Install API dependencies before serving.")
@@ -51,6 +58,9 @@ def create_app(
     )
     evidence_repositories = evidence_repository_provider or EvidenceRepositoryProvider(
         evidence_repository_config
+    )
+    run_repositories = run_repository_provider or RunArtifactRepositoryProvider(
+        run_repository_config
     )
 
     @app.post("/api/v1/runs")
@@ -66,6 +76,10 @@ def create_app(
         session = harness.run(idea)
         events = public_workflow_event_payloads(harness.event_dicts())
         data = public_workflow_session_payload(session)
+        data["canonical_persistence"] = persist_canonical_run_session(
+            session,
+            run_repository_provider=run_repositories,
+        )
         data["evidence_persistence"] = persist_fixture_run_evidence(
             session,
             harness.event_dicts(),
@@ -118,9 +132,9 @@ def create_app(
     def get_run(run_id: str):
         try:
             return {
-                "data": read_run_summary(
+                "data": read_canonical_run(
                     run_id,
-                    evidence_provider=evidence_repositories,
+                    run_repository_provider=run_repositories,
                 )
             }
         except (KeyError, TypeError, ValueError) as exc:
@@ -130,9 +144,9 @@ def create_app(
     def get_run_artifacts(run_id: str):
         try:
             return {
-                "data": read_run_artifacts(
+                "data": read_canonical_artifacts(
                     run_id,
-                    evidence_provider=evidence_repositories,
+                    run_repository_provider=run_repositories,
                 )
             }
         except (KeyError, TypeError, ValueError) as exc:

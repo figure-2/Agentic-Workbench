@@ -4,6 +4,7 @@ from dataclasses import asdict
 from fastapi.testclient import TestClient
 
 from apps.api.agentic_workbench_api.main import create_app
+from apps.api.agentic_workbench_api.services.canonical_run_store import RunArtifactRepositoryConfig
 from apps.api.agentic_workbench_api.services.evidence_read_model import EvidenceRepositoryConfig
 from packages.core.approval_replay_factory import ApprovalReplayRepositoryConfig
 from packages.core.repositories import (
@@ -298,6 +299,9 @@ def test_create_run_returns_public_projection_with_fixture_boundary_markers():
     assert data["execution_boundary"]["live_provider_call_count"] == 0
     assert data["execution_boundary"]["live_source_runtime_call_count"] == 0
     assert data["data_contract"]["workflow_session_to_dict_returned"] is False
+    assert data["canonical_persistence"]["status"] == "skipped"
+    assert data["canonical_persistence"]["repository_boundary"]["run_artifact_backend"] == "unconfigured"
+    assert data["canonical_persistence"]["execution_boundary"]["local_run_artifact_repository_write_count"] == 0
     assert data["evidence_persistence"]["status"] == "skipped"
     assert data["evidence_persistence"]["repository_boundary"]["runner_report_audit_backend"] == "unconfigured"
     assert data["evidence_persistence"]["execution_boundary"]["local_evidence_repository_write_count"] == 0
@@ -429,9 +433,62 @@ def test_runs_fixture_evidence_persistence_blocks_corrupted_sqlite_store_without
     assert "not a sqlite database" not in serialized
 
 
+def test_runs_fixture_canonical_persistence_blocks_corrupted_sqlite_store_without_raw_echo(tmp_path):
+    corrupt_root = tmp_path / "corrupt-canonical"
+    corrupt_root.mkdir()
+    (corrupt_root / "agentic_workbench_runs.sqlite3").write_text("not a sqlite database", encoding="utf-8")
+    client = TestClient(create_app(run_repository_config=RunArtifactRepositoryConfig(root=corrupt_root)))
+
+    response = client.post(
+        "/api/v1/runs",
+        json={
+            "raw_prompt": "Build canonical run path with API08_CORRUPT_RAW_SENTINEL",
+            "target_user": "api08-corrupt-owner@example.com",
+            "product_type": "canonical run persistence",
+            "constraints": ["never expose API08_CORRUPT_CONSTRAINT"],
+            "success_criteria": ["block unsafe canonical store"],
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    persistence = data["canonical_persistence"]
+    checks = {check["name"]: check["passed"] for check in persistence["checks"]}
+
+    assert data["runtime_mode"] == "fixture"
+    assert persistence["status"] == "blocked"
+    assert persistence["repository_boundary"]["run_artifact_backend"] == "sqlite"
+    assert persistence["repository_boundary"]["runner_report_audit_backend"] == "not_queried"
+    assert persistence["repository_boundary"]["approval_replay_backend"] == "not_queried"
+    assert checks["canonical_run_session_persisted"] is False
+    assert persistence["counts"]["run_session_count"] == 0
+    assert persistence["counts"]["artifact_count"] == 0
+    assert persistence["execution_boundary"]["provider_calls"] == 0
+    assert persistence["execution_boundary"]["target_runtime_calls"] == 0
+    assert persistence["execution_boundary"]["local_run_artifact_repository_write_count"] == 0
+    assert "API08_CORRUPT_RAW_SENTINEL" not in serialized
+    assert "API08_CORRUPT_CONSTRAINT" not in serialized
+    assert "api08-corrupt-owner@example.com" not in serialized
+    assert str(corrupt_root) not in serialized
+    assert "not a sqlite database" not in serialized
+
+
 def test_run_and_artifact_read_apis_return_sanitized_repository_rows_without_cross_run_leakage(tmp_path):
     evidence_root = tmp_path / "evidence"
-    client = TestClient(create_app(evidence_repository_config=EvidenceRepositoryConfig(root=evidence_root)))
+    run_root = tmp_path / "canonical-runs"
+    admission_root = tmp_path / "admission"
+    client = TestClient(
+        create_app(
+            evidence_repository_config=EvidenceRepositoryConfig(root=evidence_root),
+            run_repository_config=RunArtifactRepositoryConfig(root=run_root),
+            admission_repository_config=ApprovalReplayRepositoryConfig(
+                backend="sqlite",
+                root=admission_root,
+            ),
+        )
+    )
 
     first_response = client.post(
         "/api/v1/runs",
@@ -461,6 +518,18 @@ def test_run_and_artifact_read_apis_return_sanitized_repository_rows_without_cro
     first_run_id = first_data["run"]["run_id"]
     second_run_id = second_data["run"]["run_id"]
 
+    assert first_data["canonical_persistence"]["status"] == "persisted"
+    assert first_data["canonical_persistence"]["repository_boundary"]["run_artifact_backend"] == "sqlite"
+    assert first_data["canonical_persistence"]["repository_boundary"]["runner_report_audit_backend"] == "not_queried"
+    assert first_data["canonical_persistence"]["repository_boundary"]["approval_replay_backend"] == "not_queried"
+    assert first_data["canonical_persistence"]["counts"]["run_session_count"] == 1
+    assert first_data["canonical_persistence"]["counts"]["artifact_count"] == first_data["artifact_count"]
+    assert first_data["canonical_persistence"]["execution_boundary"]["provider_calls"] == 0
+    assert first_data["canonical_persistence"]["execution_boundary"]["target_runtime_calls"] == 0
+    assert (run_root / "agentic_workbench_runs.sqlite3").exists()
+    assert (evidence_root / "agentic_workbench.sqlite3").exists()
+    assert not (admission_root / "approval_replay.sqlite3").exists()
+
     run_response = client.get(f"/api/v1/runs/{first_run_id}")
     artifacts_response = client.get(f"/api/v1/runs/{first_run_id}/artifacts")
 
@@ -473,30 +542,39 @@ def test_run_and_artifact_read_apis_return_sanitized_repository_rows_without_cro
     run_checks = {check["name"]: check["passed"] for check in run_data["checks"]}
     artifact_checks = {check["name"]: check["passed"] for check in artifacts_data["checks"]}
 
-    assert run_data["projection_version"] == "run-read-model-public-v1"
-    assert artifacts_data["projection_version"] == "artifact-read-model-public-v1"
+    assert run_data["projection_version"] == "canonical-run-read-model-public-v1"
+    assert artifacts_data["projection_version"] == "canonical-artifact-read-model-public-v1"
     assert run_data["status"] == "passed"
     assert artifacts_data["status"] == "passed"
-    assert run_checks["runner_report_audit_repository_available"] is True
+    assert run_checks["run_artifact_repository_available"] is True
+    assert run_checks["evidence_repository_not_queried"] is True
     assert run_checks["approval_replay_repository_not_queried"] is True
-    assert artifact_checks["artifact_repository_available"] is True
+    assert artifact_checks["run_artifact_repository_available"] is True
+    assert artifact_checks["evidence_repository_not_queried"] is True
     assert artifact_checks["approval_replay_repository_not_queried"] is True
+    assert run_data["repository_boundary"]["run_artifact_backend"] == "sqlite"
+    assert run_data["repository_boundary"]["runner_report_audit_backend"] == "not_queried"
     assert run_data["repository_boundary"]["approval_replay_backend"] == "not_queried"
-    assert run_data["repository_boundary"]["approval_replay_included"] is False
-    assert run_data["repository_boundary"]["run_session_backend"] == "not_implemented"
-    assert run_data["repository_boundary"]["canonical_run_record_included"] is False
-    assert run_data["repository_boundary"]["artifact_linkage_projection_only"] is True
-    assert artifacts_data["repository_boundary"]["approval_replay_included"] is False
-    assert artifacts_data["repository_boundary"]["canonical_run_record_included"] is False
+    assert run_data["repository_boundary"]["evidence_db_queried"] is False
+    assert run_data["repository_boundary"]["approval_replay_db_queried"] is False
+    assert artifacts_data["repository_boundary"]["run_artifact_backend"] == "sqlite"
+    assert artifacts_data["repository_boundary"]["approval_replay_backend"] == "not_queried"
+    assert run_data["run"]["run_id"] == first_run_id
+    assert run_data["run"]["prompt_contract_hash"]
+    assert run_data["run"]["stage"] == "complete"
+    assert run_data["run"]["status"] == "complete"
+    assert run_data["run"]["idea_summary"]
     assert run_data["counts"]["artifact_count"] == first_data["artifact_count"]
     assert artifacts_data["counts"]["artifact_count"] == first_data["artifact_count"]
-    assert run_data["counts"]["runner_plan_count"] == 1
-    assert run_data["counts"]["verification_report_count"] == 1
-    assert run_data["counts"]["audit_event_count"] == len(first_response.json()["events"]) + 1
+    assert run_data["counts"]["run_session_count"] == 1
+    assert run_data["counts"]["runner_plan_count"] == 0
+    assert run_data["counts"]["verification_report_count"] == 0
+    assert run_data["counts"]["audit_event_count"] == 0
     assert run_data["counts"]["approval_subject_snapshot_count"] == 0
     assert run_data["counts"]["approval_count"] == 0
     assert run_data["counts"]["replay_nonce_count"] == 0
     assert {artifact["run_id"] for artifact in artifacts_data["artifacts"]} == {first_run_id}
+    assert {artifact["run_id"] for artifact in run_data["artifacts"]} == {first_run_id}
     assert run_data["execution_boundary"]["provider_calls"] == 0
     assert run_data["execution_boundary"]["target_runtime_calls"] == 0
     assert run_data["execution_boundary"]["solar_provider_calls"] == 0
@@ -522,10 +600,10 @@ def test_run_and_artifact_read_apis_return_sanitized_repository_rows_without_cro
 
 
 def test_run_and_artifact_read_apis_block_corrupted_store_without_raw_path(tmp_path):
-    corrupt_root = tmp_path / "corrupt-evidence"
+    corrupt_root = tmp_path / "corrupt-canonical"
     corrupt_root.mkdir()
-    (corrupt_root / "agentic_workbench.sqlite3").write_text("not a sqlite database", encoding="utf-8")
-    client = TestClient(create_app(evidence_repository_config=EvidenceRepositoryConfig(root=corrupt_root)))
+    (corrupt_root / "agentic_workbench_runs.sqlite3").write_text("not a sqlite database", encoding="utf-8")
+    client = TestClient(create_app(run_repository_config=RunArtifactRepositoryConfig(root=corrupt_root)))
 
     run_response = client.get("/api/v1/runs/run-api-provider")
     artifacts_response = client.get("/api/v1/runs/run-api-provider/artifacts")
@@ -542,10 +620,13 @@ def test_run_and_artifact_read_apis_block_corrupted_store_without_raw_path(tmp_p
 
     assert run_data["status"] == "blocked"
     assert artifacts_data["status"] == "blocked"
-    assert run_checks["runner_report_audit_repository_available"] is False
-    assert artifact_checks["artifact_repository_available"] is False
+    assert run_checks["run_artifact_repository_available"] is False
+    assert artifact_checks["run_artifact_repository_available"] is False
     assert run_data["counts"]["artifact_count"] == 0
     assert artifacts_data["counts"]["artifact_count"] == 0
+    assert run_data["repository_boundary"]["run_artifact_backend"] == "sqlite"
+    assert run_data["repository_boundary"]["runner_report_audit_backend"] == "not_queried"
+    assert run_data["repository_boundary"]["approval_replay_backend"] == "not_queried"
     assert run_data["execution_boundary"]["provider_calls"] == 0
     assert artifacts_data["execution_boundary"]["target_runtime_calls"] == 0
     assert str(corrupt_root) not in combined

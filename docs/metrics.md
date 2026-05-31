@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-API-05` repository-backed run/artifact read API wiring.
+Current snapshot after `AW-PERSIST-08` SQLite canonical run/artifact repository wiring.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache | 126 |
-| Counted code/doc files, excluding cache | 124 |
-| Project lines, excluding cache | 23,066 |
-| Python files | 57 |
-| Markdown files | 62 |
-| Test files | 22 |
-| Unit test files | 18 |
+| Project files, excluding cache | 106 |
+| Counted code/doc files, excluding cache | 106 |
+| Project lines, excluding cache | 20,651 |
+| Python files | 59 |
+| Markdown files | 42 |
+| Test files | 23 |
+| Unit test files | 19 |
 | Smoke test files | 3 |
 | Integration test files | 1 |
-| Pytest collected cases | 342 |
-| Pytest passed cases | 342 |
+| Pytest collected cases | 348 |
+| Pytest passed cases | 348 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -1190,3 +1190,40 @@ Interpretation: this adds local read APIs for sanitized repository projections.
 It does not add canonical run-session state, raw artifact storage, durable
 approval authority, external provider outcome, target runtime outcome, generated
 app delivery, hosted read service, or repository trust certification.
+
+## AW-PERSIST-08 SQLite Run / Artifact Repository Metrics
+
+Measured after adding a separate SQLite adapter skeleton for canonical
+run-session and artifact projection rows.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 348 |
+| Pytest passed cases | 348 |
+| Regression delta vs AW-API-05 baseline | +6 |
+| SQLite run/artifact repository unit tests | 5 |
+| API public projection integration tests | 18 |
+| Canonical run/artifact SQLite tables | 2 |
+| Canonical run/artifact explicit indexes | 3 |
+| Raw prompt findings in canonical DB rows | 0 |
+| Artifact payload body findings in canonical DB rows | 0 |
+| Cross-run artifact leakage findings | 0 |
+| Evidence DB queried by canonical read API | 0 |
+| Approval/replay DB queried by canonical read API | 0 |
+| Corrupted canonical store | blocked |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| `/api/v1/runs` persists sanitized `RunSessionRecord` when explicitly configured | covered |
+| `GET /api/v1/runs/{run_id}` returns canonical run projection fields | covered |
+| `GET /api/v1/runs/{run_id}/artifacts` returns artifact metadata rows | covered |
+| canonical DB file is separate from evidence and approval/replay DB files | covered |
+| mixed SQLite schema files fail closed | covered |
+| transaction rollback leaves no partial run/artifact rows | covered |
+| public response keeps provider/runtime calls at 0 | covered |
+
+Interpretation: this adds local canonical run/artifact projection persistence.
+It does not add external provider outcome, target runtime outcome, generated app
+delivery, hosted persistence, or repository trust certification.

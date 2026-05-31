@@ -21,16 +21,19 @@ from .repositories import (
     ReplayNonceRecord,
     ReplayNonceReplayError,
     RunnerPlanRecord,
+    RunSessionRecord,
     VerificationReportRecord,
     audit_event_record_from_event,
     approval_decision_record,
     approval_subject_snapshot_record,
+    artifact_record_from_artifact,
     parse_replay_scope,
     replay_nonce_record,
     runner_plan_record_from_plan,
+    run_session_record_from_session,
     verification_report_record_from_report,
 )
-from .schemas import VerificationReport, utc_now
+from .schemas import Artifact, VerificationReport, WorkflowSession, utc_now
 
 
 SCHEMA_VERSION = 1
@@ -59,6 +62,17 @@ APPROVAL_REPLAY_EXPECTED_INDEXES = {
     "idx_approval_snapshots_run_created",
     "idx_approvals_run_type_created",
     "idx_replay_nonces_run_claimed",
+}
+RUN_ARTIFACT_SCHEMA_VERSION = 1
+RUN_ARTIFACT_EXPECTED_TABLES = {
+    "schema_migrations",
+    "run_sessions",
+    "artifacts",
+}
+RUN_ARTIFACT_EXPECTED_INDEXES = {
+    "idx_run_sessions_stage_created",
+    "idx_artifacts_run_kind_created",
+    "idx_artifacts_content_hash",
 }
 SAFE_DB_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,120}$")
 CONTRACT_HASH_PATTERN = re.compile(r"^[a-f0-9]{64}$")
@@ -202,6 +216,45 @@ APPROVAL_REPLAY_EXPECTED_COLUMNS = {
         "expires_at",
         "status",
     },
+}
+RUN_ARTIFACT_EXPECTED_COLUMNS = {
+    "schema_migrations": {"version", "applied_at"},
+    "run_sessions": {
+        "run_id",
+        "stage",
+        "status",
+        "prompt_contract_hash",
+        "idea_summary",
+        "created_at",
+        "updated_at",
+    },
+    "artifacts": {
+        "artifact_id",
+        "run_id",
+        "kind",
+        "name",
+        "path",
+        "content_hash",
+        "payload_field_count",
+        "summary",
+        "created_at",
+    },
+}
+RUN_ARTIFACT_EXPECTED_COLUMN_TYPES = {
+    "schema_migrations": {
+        "version": "INTEGER",
+        "applied_at": "TEXT",
+    },
+    "run_sessions": {
+        column: "TEXT" for column in RUN_ARTIFACT_EXPECTED_COLUMNS["run_sessions"]
+    },
+    "artifacts": {
+        column: "TEXT" for column in RUN_ARTIFACT_EXPECTED_COLUMNS["artifacts"]
+    }
+    | {"payload_field_count": "INTEGER"},
+}
+RUN_ARTIFACT_NULLABLE_COLUMNS = {
+    ("artifacts", "path"),
 }
 APPROVAL_REPLAY_EXPECTED_COLUMN_TYPES = {
     "schema_migrations": {
@@ -817,7 +870,7 @@ class SQLiteRunnerReportAuditStore:
             run_id=str(row["run_id"]),
             kind=str(row["kind"]),
             name=str(row["name"]),
-            path=_not_null(row["path"]),
+            path=str(row["path"]) if row["path"] is not None else None,
             content_hash=str(row["content_hash"]),
             payload_field_count=int(row["payload_field_count"]),
             summary=str(row["summary"]),
@@ -885,6 +938,299 @@ class SQLiteRunnerReportAuditStore:
             payload_hash=str(row["payload_hash"]),
             payload_field_count=int(row["payload_field_count"]),
             visible_field_counts=_json_loads_dict(str(row["visible_field_counts"])),
+            summary=str(row["summary"]),
+            created_at=str(row["created_at"]),
+        )
+
+
+class SQLiteRunArtifactStore:
+    """SQLite schema and transaction boundary for canonical run/artifact rows."""
+
+    def __init__(
+        self,
+        *,
+        root: str | Path,
+        relative_path: str | Path = "agentic_workbench_runs.sqlite3",
+    ) -> None:
+        self.root = Path(root)
+        self.path = resolve_within_root(self.root, relative_path)
+        try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            raise SQLiteRepositoryUnavailableError("sqlite run/artifact repository is unavailable") from exc
+        self._ensure_schema()
+
+    def run_sessions(self) -> "SQLiteRunSessionRepository":
+        return SQLiteRunSessionRepository(self)
+
+    def artifacts(self) -> "SQLiteArtifactRepository":
+        return SQLiteArtifactRepository(self)
+
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
+        try:
+            connection = sqlite3.connect(self.path)
+            connection.row_factory = sqlite3.Row
+            connection.execute("PRAGMA foreign_keys = ON")
+            check = connection.execute("PRAGMA quick_check").fetchone()
+            if not check or str(check[0]).lower() != "ok":
+                raise SQLiteRepositoryUnavailableError("sqlite run/artifact repository is unavailable")
+            yield connection
+        except SQLiteRepositoryUnavailableError:
+            raise
+        except (OSError, sqlite3.DatabaseError) as exc:
+            raise SQLiteRepositoryUnavailableError("sqlite run/artifact repository is unavailable") from exc
+        finally:
+            try:
+                connection.close()
+            except UnboundLocalError:
+                pass
+
+    @contextmanager
+    def transaction(self) -> Iterator[sqlite3.Connection]:
+        with self._connect() as connection:
+            try:
+                connection.execute("BEGIN")
+                yield connection
+                connection.commit()
+            except Exception:
+                connection.rollback()
+                raise
+
+    def _ensure_schema(self) -> None:
+        try:
+            with self._connect() as connection:
+                tables = self._existing_tables(connection)
+                if "schema_migrations" in tables:
+                    self._validate_existing_schema(connection)
+                    return
+                if tables:
+                    raise SQLiteRepositoryUnavailableError("sqlite run/artifact schema is unavailable")
+                connection.executescript(
+                    """
+                    CREATE TABLE IF NOT EXISTS schema_migrations (
+                        version INTEGER PRIMARY KEY,
+                        applied_at TEXT NOT NULL
+                    );
+
+                    CREATE TABLE IF NOT EXISTS run_sessions (
+                        run_id TEXT PRIMARY KEY,
+                        stage TEXT NOT NULL,
+                        status TEXT NOT NULL,
+                        prompt_contract_hash TEXT NOT NULL,
+                        idea_summary TEXT NOT NULL,
+                        created_at TEXT NOT NULL,
+                        updated_at TEXT NOT NULL
+                    );
+
+                    CREATE TABLE IF NOT EXISTS artifacts (
+                        artifact_id TEXT PRIMARY KEY,
+                        run_id TEXT NOT NULL REFERENCES run_sessions(run_id),
+                        kind TEXT NOT NULL,
+                        name TEXT NOT NULL,
+                        path TEXT,
+                        content_hash TEXT NOT NULL,
+                        payload_field_count INTEGER NOT NULL,
+                        summary TEXT NOT NULL,
+                        created_at TEXT NOT NULL
+                    );
+
+                    CREATE INDEX IF NOT EXISTS idx_run_sessions_stage_created
+                        ON run_sessions(stage, created_at DESC);
+                    CREATE INDEX IF NOT EXISTS idx_artifacts_run_kind_created
+                        ON artifacts(run_id, kind, created_at DESC);
+                    CREATE INDEX IF NOT EXISTS idx_artifacts_content_hash
+                        ON artifacts(content_hash);
+                    """
+                )
+                connection.execute(
+                    "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
+                    (RUN_ARTIFACT_SCHEMA_VERSION, utc_now()),
+                )
+                self._validate_existing_schema(connection)
+                connection.commit()
+        except SQLiteRepositoryUnavailableError:
+            raise
+        except sqlite3.DatabaseError as exc:
+            raise SQLiteRepositoryUnavailableError("sqlite run/artifact repository is unavailable") from exc
+
+    def _existing_tables(self, connection: sqlite3.Connection) -> set[str]:
+        rows = connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+        ).fetchall()
+        return {str(row[0]) for row in rows}
+
+    def _existing_indexes(self, connection: sqlite3.Connection) -> set[str]:
+        rows = connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'index' AND name NOT LIKE 'sqlite_%'"
+        ).fetchall()
+        return {str(row[0]) for row in rows}
+
+    def _validate_existing_schema(self, connection: sqlite3.Connection) -> None:
+        tables = self._existing_tables(connection)
+        indexes = self._existing_indexes(connection)
+        if tables != RUN_ARTIFACT_EXPECTED_TABLES:
+            raise SQLiteRepositoryUnavailableError("sqlite run/artifact schema is unavailable")
+        if not RUN_ARTIFACT_EXPECTED_INDEXES.issubset(indexes):
+            raise SQLiteRepositoryUnavailableError("sqlite run/artifact schema is unavailable")
+        for table, expected_columns in RUN_ARTIFACT_EXPECTED_COLUMNS.items():
+            table_info = connection.execute(f"PRAGMA table_info({table})").fetchall()
+            columns = {str(row["name"]) for row in table_info}
+            if columns != expected_columns:
+                raise SQLiteRepositoryUnavailableError("sqlite run/artifact schema is unavailable")
+            for row in table_info:
+                column = str(row["name"])
+                column_type = str(row["type"]).upper()
+                if column_type != RUN_ARTIFACT_EXPECTED_COLUMN_TYPES[table][column]:
+                    raise SQLiteRepositoryUnavailableError("sqlite run/artifact schema is unavailable")
+                is_primary_key = int(row["pk"]) > 0
+                if (
+                    (table, column) not in RUN_ARTIFACT_NULLABLE_COLUMNS
+                    and not is_primary_key
+                    and int(row["notnull"]) != 1
+                ):
+                    raise SQLiteRepositoryUnavailableError("sqlite run/artifact schema is unavailable")
+        for table, primary_key in (
+            ("schema_migrations", "version"),
+            ("run_sessions", "run_id"),
+            ("artifacts", "artifact_id"),
+        ):
+            if not self._has_primary_key_on(connection, table, primary_key):
+                raise SQLiteRepositoryUnavailableError("sqlite run/artifact schema is unavailable")
+        self._assert_schema_sql_contains(
+            connection,
+            "artifacts",
+            [
+                "REFERENCES run_sessions",
+                "payload_field_count INTEGER NOT NULL",
+            ],
+        )
+        row = connection.execute(
+            "SELECT version FROM schema_migrations WHERE version = ?",
+            (RUN_ARTIFACT_SCHEMA_VERSION,),
+        ).fetchone()
+        if row is None:
+            raise SQLiteRepositoryUnavailableError("sqlite run/artifact schema is unavailable")
+
+    def _assert_schema_sql_contains(
+        self,
+        connection: sqlite3.Connection,
+        table: str,
+        snippets: Sequence[str],
+    ) -> None:
+        row = connection.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+            (table,),
+        ).fetchone()
+        sql = str(row["sql"] if row else "")
+        normalized = " ".join(sql.split())
+        for snippet in snippets:
+            if snippet not in normalized:
+                raise SQLiteRepositoryUnavailableError("sqlite run/artifact schema is unavailable")
+
+    def _has_primary_key_on(self, connection: sqlite3.Connection, table: str, column: str) -> bool:
+        rows = connection.execute(f"PRAGMA table_info({table})").fetchall()
+        return any(str(row["name"]) == column and int(row["pk"]) == 1 for row in rows)
+
+    def save_session_with_artifacts(
+        self,
+        session: WorkflowSession,
+    ) -> tuple[RunSessionRecord, list[ArtifactRecord]]:
+        run_record = run_session_record_from_session(session)
+        artifact_records = [artifact_record_from_artifact(artifact) for artifact in session.artifacts]
+        self.save_records_atomically(run_session=run_record, artifacts=artifact_records)
+        return run_record, artifact_records
+
+    def save_records_atomically(
+        self,
+        *,
+        run_session: RunSessionRecord,
+        artifacts: Sequence[ArtifactRecord] = (),
+    ) -> None:
+        with self.transaction() as connection:
+            self._insert_run_session(connection, run_session)
+            for record in artifacts:
+                self._insert_artifact(connection, record)
+
+    def _insert_run_session(self, connection: sqlite3.Connection, record: RunSessionRecord) -> None:
+        row = record.to_dict()
+        _assert_public_row_safe(row, label="run session record")
+        _assert_no_authorization_material_values(row, label="run session record")
+        _assert_safe_db_identifier(record.run_id, label="run_id")
+        _assert_contract_hash(record.prompt_contract_hash, label="prompt_contract_hash")
+        try:
+            connection.execute(
+                """
+                INSERT INTO run_sessions(
+                    run_id, stage, status, prompt_contract_hash, idea_summary,
+                    created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    record.run_id,
+                    record.stage,
+                    record.status,
+                    record.prompt_contract_hash,
+                    record.idea_summary,
+                    record.created_at,
+                    record.updated_at,
+                ),
+            )
+        except sqlite3.IntegrityError as exc:
+            raise ValueError("run session repository constraint failed") from exc
+
+    def _insert_artifact(self, connection: sqlite3.Connection, record: ArtifactRecord) -> None:
+        row = record.to_dict()
+        _assert_public_row_safe(row, label="artifact record")
+        _assert_no_authorization_material_values(row, label="artifact record")
+        _assert_safe_db_identifier(record.artifact_id, label="artifact_id")
+        _assert_safe_db_identifier(record.run_id, label="run_id")
+        _assert_contract_hash(record.content_hash, label="content_hash")
+        try:
+            connection.execute(
+                """
+                INSERT INTO artifacts(
+                    artifact_id, run_id, kind, name, path, content_hash,
+                    payload_field_count, summary, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    record.artifact_id,
+                    record.run_id,
+                    record.kind,
+                    record.name,
+                    _nullable(record.path or ""),
+                    record.content_hash,
+                    record.payload_field_count,
+                    record.summary,
+                    record.created_at,
+                ),
+            )
+        except sqlite3.IntegrityError as exc:
+            raise ValueError("artifact repository constraint failed") from exc
+
+    def _run_session_from_row(self, row: sqlite3.Row) -> RunSessionRecord:
+        return RunSessionRecord(
+            run_id=str(row["run_id"]),
+            stage=str(row["stage"]),
+            status=str(row["status"]),
+            prompt_contract_hash=str(row["prompt_contract_hash"]),
+            idea_summary=str(row["idea_summary"]),
+            created_at=str(row["created_at"]),
+            updated_at=str(row["updated_at"]),
+        )
+
+    def _artifact_from_row(self, row: sqlite3.Row) -> ArtifactRecord:
+        return ArtifactRecord(
+            artifact_id=str(row["artifact_id"]),
+            run_id=str(row["run_id"]),
+            kind=str(row["kind"]),
+            name=str(row["name"]),
+            path=str(row["path"]) if row["path"] is not None else None,
+            content_hash=str(row["content_hash"]),
+            payload_field_count=int(row["payload_field_count"]),
             summary=str(row["summary"]),
             created_at=str(row["created_at"]),
         )
@@ -1615,6 +1961,50 @@ class SQLiteAuditEventRepository:
                 (run_id,),
             ).fetchall()
         return [self.store._audit_event_from_row(row) for row in rows]
+
+
+class SQLiteRunSessionRepository:
+    """SQLite implementation that persists canonical run-session projections."""
+
+    def __init__(self, store: SQLiteRunArtifactStore) -> None:
+        self.store = store
+
+    def save(self, session: WorkflowSession) -> RunSessionRecord:
+        record = run_session_record_from_session(session)
+        with self.store.transaction() as connection:
+            self.store._insert_run_session(connection, record)
+        return record
+
+    def get(self, run_id: str) -> RunSessionRecord | None:
+        _assert_safe_db_identifier(run_id, label="run_id")
+        with self.store._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM run_sessions WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
+        return self.store._run_session_from_row(row) if row else None
+
+
+class SQLiteArtifactRepository:
+    """SQLite implementation that persists canonical artifact projections."""
+
+    def __init__(self, store: SQLiteRunArtifactStore) -> None:
+        self.store = store
+
+    def save(self, artifact: Artifact) -> ArtifactRecord:
+        record = artifact_record_from_artifact(artifact)
+        with self.store.transaction() as connection:
+            self.store._insert_artifact(connection, record)
+        return record
+
+    def list_for_run(self, run_id: str) -> list[ArtifactRecord]:
+        _assert_safe_db_identifier(run_id, label="run_id")
+        with self.store._connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM artifacts WHERE run_id = ? ORDER BY created_at, artifact_id",
+                (run_id,),
+            ).fetchall()
+        return [self.store._artifact_from_row(row) for row in rows]
 
 
 class SQLiteApprovalRepository:

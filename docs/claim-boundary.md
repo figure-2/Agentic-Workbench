@@ -18,6 +18,7 @@ Agentic Workbench is a local/dev AI agent workflow harness prototype. It may cla
 - Sanitized evidence read-model API for local repository projections
 - Optional fixture evidence persistence for local repository projections
 - Repository-backed run/artifact read APIs for local projection rows
+- SQLite-backed canonical run/artifact read APIs for local projection rows
 - Sanitized public summaries and correlation hashes
 - Fixture-based smoke tests and local regression tests
 
@@ -51,7 +52,8 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
 - SQLite-backed fake admission API wiring described as hosted approval service or multi-host replay protection
 - evidence read-model API described as execution, provider, target runtime, or generated app outcome
 - fixture evidence persistence described as durable user approval, provider outcome, target runtime outcome, or generated app outcome
-- run/artifact read API described as canonical run-session state, raw artifact storage, approval authority, provider outcome, target runtime outcome, or generated app outcome
+- evidence-backed run/artifact read API described as canonical run-session state, raw artifact storage, approval authority, provider outcome, target runtime outcome, or generated app outcome
+- canonical run/artifact read API described as provider outcome, target runtime outcome, generated app outcome, hosted persistence, production database layer, or repository trust certification
 
 ## Public Artifact Rules
 

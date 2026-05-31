@@ -28,7 +28,8 @@ Verification Boundary
 
 Persistence Boundary
   sanitized in-memory repositories, file-backed replay fixture,
-  SQLite skeletons for runner/report/audit and approval/replay projection rows
+  SQLite skeletons for runner/report/audit, approval/replay, and canonical
+  run/artifact projection rows
 ```
 
 ## Current Flow
@@ -123,6 +124,14 @@ paths are evidence-backed skeletons, not canonical run-session APIs. They do
 not query approval/replay repositories and do not return artifact payload
 bodies.
 
+`AW-PERSIST-08` adds a separate SQLite adapter skeleton for canonical
+`RunSessionRecord` and `ArtifactRecord` rows. `/api/v1/runs` can persist the
+sanitized run-session row and artifact metadata when a `RunArtifactRepository`
+is explicitly configured. `GET /api/v1/runs/{run_id}` and
+`GET /api/v1/runs/{run_id}/artifacts` now read from this canonical run/artifact
+store. These paths do not query runner/report/audit evidence, approval/replay
+evidence, external providers, or target runtimes.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -153,6 +162,6 @@ complete. Those surfaces are intentionally outside the current executable path.
 - fixture evidence persistence writes local projection rows only when explicitly
   configured, and corrupted stores are reported as blocked without raw/path
   echo.
-- run/artifact read APIs expose stored projection rows only, keep approval/replay
-  evidence out of the response, avoid canonical run-state claims, and keep
-  provider/runtime calls at 0.
+- canonical run/artifact read APIs expose stored run-session and artifact
+  metadata projection rows only, keep evidence/admission rows out of the
+  response, and keep provider/runtime calls at 0.

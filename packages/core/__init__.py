@@ -50,11 +50,14 @@ from .repositories import (
 from .sqlite_repositories import (
     SQLiteApprovalReplayStore,
     SQLiteApprovalRepository,
+    SQLiteArtifactRepository,
     SQLiteAuditEventRepository,
     SQLiteRepositoryUnavailableError,
     SQLiteReplayNonceRepository,
+    SQLiteRunArtifactStore,
     SQLiteRunnerPlanRepository,
     SQLiteRunnerReportAuditStore,
+    SQLiteRunSessionRepository,
     SQLiteVerificationReportRepository,
 )
 from .schemas import (
@@ -117,10 +120,13 @@ __all__ = [
     "SQLiteAuditEventRepository",
     "SQLiteApprovalReplayStore",
     "SQLiteApprovalRepository",
+    "SQLiteArtifactRepository",
     "SQLiteReplayNonceRepository",
     "SQLiteRepositoryUnavailableError",
+    "SQLiteRunArtifactStore",
     "SQLiteRunnerPlanRepository",
     "SQLiteRunnerReportAuditStore",
+    "SQLiteRunSessionRepository",
     "SQLiteVerificationReportRepository",
     "VerificationReport",
     "VerificationReportRecord",
