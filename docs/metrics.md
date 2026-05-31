@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-PARITY-00` public API fixture boundary.
+Current snapshot after `AW-PARITY-01B` source identity golden path smoke coverage.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache | 102 |
-| Counted code/doc files, excluding cache | 100 |
-| Project lines, excluding cache | 14,632 |
-| Python files | 45 |
-| Markdown files | 50 |
-| Test files | 16 |
+| Project files, excluding cache | 104 |
+| Counted code/doc files, excluding cache | 102 |
+| Project lines, excluding cache | 15,135 |
+| Python files | 46 |
+| Markdown files | 51 |
+| Test files | 17 |
 | Unit test files | 13 |
-| Smoke test files | 2 |
+| Smoke test files | 3 |
 | Integration test files | 1 |
-| Pytest collected cases | 255 |
-| Pytest passed cases | 255 |
+| Pytest collected cases | 261 |
+| Pytest passed cases | 261 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -739,3 +739,44 @@ Measured after DIV and DAACS test-only source identity fixtures were added.
 Interpretation: this creates the parity reference set only. It does not run
 source runtimes, generate an app, execute CLI tools, call providers, or prove
 source-runtime reproduction.
+
+## AW-PARITY-01B Source Identity Golden Path Metrics
+
+Measured after connecting the source identity fixture to the Workbench artifact
+chain through the dry-run runner.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 261 |
+| Pytest passed cases | 261 |
+| Regression delta vs AW-PARITY-01A baseline | +1 |
+| Source identity smoke tests | 1 |
+| Session artifact records excluding IdeaBrief | 7 |
+| Artifact run_id linkage | 7 / 7 |
+| DIV section titles preserved | 7 / 7 |
+| Fixture baseline trace-row coverage asserted in smoke test | 8 / 8 |
+| RunnerPlan backend planned actions | 1 |
+| RunnerPlan frontend planned actions | 1 |
+| RunnerPlan verifier planned actions | 1 |
+| Required live-runner approval placeholders | 1 |
+| VerificationReport next-action placeholder metrics | 2 |
+| Public projection forbidden key findings | 0 |
+| Public projection forbidden claim findings | 0 |
+| Live LLM calls during eval | 0 |
+| Live API calls during eval | 0 |
+| Provider calls during eval | 0 |
+| Network calls during eval | 0 |
+| Direct source-runtime calls during eval | 0 |
+| Subprocess/package/server/filesystem write counters | 0 |
+
+| Gate | Result |
+|---|---|
+| Idea -> PlanningBlueprint -> PRDPackage -> ImplementationBrief -> SpecApproval -> RunnerPlan -> VerificationReport | covered |
+| DIV section/visual/evidence identity reflected in artifacts | covered |
+| DAACS backend/frontend/API split reflected in BuildSpec and RunnerPlan | covered |
+| VerificationReport dry-run checks and metrics reflected | covered |
+| public leakage scan uses public projection, not internal safety contracts | covered |
+
+Interpretation: this proves fixture-based source identity preservation through
+the local artifact chain. It does not run source runtimes, generate an app, call
+providers, or prove production readiness.

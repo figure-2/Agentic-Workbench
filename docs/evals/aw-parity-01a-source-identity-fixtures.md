@@ -55,12 +55,14 @@ python -m pytest tests -q
 - The fixture does not expose raw source prompts, logs, file bodies, provider
   payloads, or approval authorization material.
 
-## Next Step
+## Follow-Up
 
-`AW-PARITY-01B` should use this fixture set to create the golden path
-smoke/parity test:
+`AW-PARITY-01B` uses this fixture set to create the golden path smoke/parity
+test:
 
 ```text
 Idea -> PlanningBlueprint -> PRDPackage -> ImplementationBrief
 -> SpecApproval -> RunnerPlan -> VerificationReport
 ```
+
+Evidence: `docs/evals/aw-parity-01b-source-identity-golden-path.md`.

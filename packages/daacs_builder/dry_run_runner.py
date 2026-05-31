@@ -247,6 +247,12 @@ class DAACSDryRunRunner:
                 "planned_verification_actions": sum(1 for item in actions if item.get("role") == "verifier"),
                 "artifact_manifest_count": len(plan_payload["artifact_manifest"]),
                 "required_live_approval_count": len(plan.required_approvals),
+                "next_action_placeholder_count": len(plan.required_approvals),
+                "next_action_required_before_live_count": sum(
+                    1
+                    for item in plan.required_approvals
+                    if item.get("status") == "required_before_live"
+                ),
                 "plan_sanitization_failure_count": 0,
                 "generated_payload_in_dry_run_count": 0,
                 "raw_secret_log_count": 0,
