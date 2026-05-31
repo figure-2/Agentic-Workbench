@@ -14,6 +14,11 @@ from .services.admission_demo import (
     run_live_admission_demo,
     run_provider_admission_demo,
 )
+from .services.evidence_read_model import (
+    EvidenceRepositoryConfig,
+    EvidenceRepositoryProvider,
+    read_run_evidence,
+)
 from .services.fixture_harness import create_fixture_harness
 
 try:
@@ -27,6 +32,8 @@ def create_app(
     *,
     admission_repository_config: ApprovalReplayRepositoryConfig | None = None,
     admission_repository_provider: AdmissionRepositoryProvider | None = None,
+    evidence_repository_config: EvidenceRepositoryConfig | None = None,
+    evidence_repository_provider: EvidenceRepositoryProvider | None = None,
 ):
     if FastAPI is None:
         raise RuntimeError("fastapi is not installed. Install API dependencies before serving.")
@@ -34,6 +41,9 @@ def create_app(
     app = FastAPI(title="Agentic Workbench API", version="0.1.0")
     admission_repositories = admission_repository_provider or AdmissionRepositoryProvider(
         admission_repository_config
+    )
+    evidence_repositories = evidence_repository_provider or EvidenceRepositoryProvider(
+        evidence_repository_config
     )
 
     @app.post("/api/v1/runs")
@@ -71,6 +81,19 @@ def create_app(
                 "data": run_live_admission_demo(
                     payload,
                     repository_provider=admission_repositories,
+                )
+            }
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.get("/api/v1/evidence/runs/{run_id}")
+    def get_run_evidence(run_id: str):
+        try:
+            return {
+                "data": read_run_evidence(
+                    run_id,
+                    evidence_provider=evidence_repositories,
+                    admission_repository_provider=admission_repositories,
                 )
             }
         except (KeyError, TypeError, ValueError) as exc:

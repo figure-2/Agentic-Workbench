@@ -101,6 +101,13 @@ SQLite approval/replay repositories across API requests. The existing fixture
 run endpoint remains synthetic and separate from the durable approval demo path,
 and does not create the admission SQLite store.
 
+`AW-API-03` adds a read-only evidence API over the same sanitized projection
+rows. `GET /api/v1/evidence/runs/{run_id}` returns runner plan, verification
+report, audit event, approval, and replay projection rows as hashes, counts,
+safe summaries, and linkage fields only. It does not expose raw repository rows,
+local database paths, raw authorization material, provider payloads, logs, or
+file bodies.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -126,3 +133,5 @@ complete. Those surfaces are intentionally outside the current executable path.
   of public output.
 - API fake admission may report the selected repository backend and persistence
   marker, but never returns local database root paths.
+- evidence read-model API paths are read-only and keep provider/runtime calls at
+  0.

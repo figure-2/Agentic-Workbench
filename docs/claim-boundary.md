@@ -15,6 +15,7 @@ Agentic Workbench is a local/dev AI agent workflow harness prototype. It may cla
 - Canonical approval persistence before durable replay claim
 - Sanitized fake admission API demo paths for provider/live approval persistence
 - SQLite-backed fake admission API mode selected only through server-side config
+- Sanitized evidence read-model API for local repository projections
 - Sanitized public summaries and correlation hashes
 - Fixture-based smoke tests and local regression tests
 
@@ -46,6 +47,7 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
 - source runtime described as directly integrated
 - fake admission API demo described as external provider or target runtime outcome
 - SQLite-backed fake admission API wiring described as hosted approval service or multi-host replay protection
+- evidence read-model API described as execution, provider, target runtime, or generated app outcome
 
 ## Public Artifact Rules
 

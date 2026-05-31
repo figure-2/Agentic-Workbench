@@ -4,8 +4,16 @@ from dataclasses import asdict
 from fastapi.testclient import TestClient
 
 from apps.api.agentic_workbench_api.main import create_app
+from apps.api.agentic_workbench_api.services.evidence_read_model import EvidenceRepositoryConfig
 from packages.core.approval_replay_factory import ApprovalReplayRepositoryConfig
-from packages.core.schemas import stable_contract_hash
+from packages.core.repositories import (
+    ArtifactRecord,
+    audit_event_record_from_event,
+    runner_plan_record_from_plan,
+    verification_report_record_from_report,
+)
+from packages.core.schemas import VerificationReport, stable_contract_hash
+from packages.core.sqlite_repositories import SQLiteRunnerReportAuditStore
 from packages.daacs_builder.adapters import (
     build_spec_to_daacs_initial_state,
     create_spec_approval,
@@ -21,6 +29,7 @@ from packages.daacs_builder.provider_boundary import (
 )
 from packages.daacs_builder.runner_provider import (
     ApprovalRecord,
+    RunnerPlan,
     RunnerPolicy,
     RunnerRequest,
     default_runner_provider_registry,
@@ -36,11 +45,16 @@ def _prompt_contract_hash() -> str:
     return stable_contract_hash({"purpose": "api provider admission demo"})
 
 
-def _provider_admission_payload() -> dict:
+def _provider_admission_payload(
+    *,
+    run_id: str = "run-api-provider",
+    signature_id: str = "sig-api-provider-admission",
+    nonce: str = "nonce-api-provider-admission",
+) -> dict:
     approval = ProviderApprovalRecord(
         approved_by="local-user",
         approved_at="2026-05-31T00:00:00Z",
-        run_id="run-api-provider",
+        run_id=run_id,
         provider_name="solar-pro-3",
         model_name="solar-pro-3",
         mode="fake",
@@ -48,18 +62,18 @@ def _provider_admission_payload() -> dict:
         max_live_api_calls=0,
         max_live_llm_calls=0,
         expires_at="2099-01-01T00:00:00Z",
-        audit_log_id="audit-api-provider",
+        audit_log_id=f"audit-{run_id}",
     )
     request = ProviderRequest(
-        run_id="run-api-provider",
+        run_id=run_id,
         prompt_contract_hash=_prompt_contract_hash(),
         approval=approval,
     )
     sign_approval_for_tests(
         approval,
         scope=provider_replay_scope_for_request(request),
-        signature_id="sig-api-provider-admission",
-        nonce="nonce-api-provider-admission",
+        signature_id=signature_id,
+        nonce=nonce,
     )
     return {
         "run_id": request.run_id,
@@ -149,6 +163,111 @@ def _live_admission_payload() -> dict:
     }
 
 
+def _persist_evidence_chain(root, run_id: str = "run-api-provider") -> None:
+    store = SQLiteRunnerReportAuditStore(root=root)
+    plan_artifact_id = f"artifact-api-plan-{run_id}"
+    report_artifact_id = f"artifact-api-report-{run_id}"
+    audit_artifact_id = f"artifact-api-audit-{run_id}"
+    artifacts = [
+        ArtifactRecord(
+            artifact_id=plan_artifact_id,
+            run_id=run_id,
+            kind="api_evidence_fixture",
+            name="plan artifact",
+            path=None,
+            content_hash="f" * 64,
+            payload_field_count=0,
+            summary="api evidence plan projection",
+            created_at="2026-05-31T00:00:00+00:00",
+        ),
+        ArtifactRecord(
+            artifact_id=report_artifact_id,
+            run_id=run_id,
+            kind="api_evidence_fixture",
+            name="report artifact",
+            path=None,
+            content_hash="f" * 64,
+            payload_field_count=0,
+            summary="api evidence report projection",
+            created_at="2026-05-31T00:00:00+00:00",
+        ),
+        ArtifactRecord(
+            artifact_id=audit_artifact_id,
+            run_id=run_id,
+            kind="api_evidence_fixture",
+            name="audit artifact",
+            path=None,
+            content_hash="f" * 64,
+            payload_field_count=0,
+            summary="api evidence audit projection",
+            created_at="2026-05-31T00:00:00+00:00",
+        ),
+    ]
+    plan = RunnerPlan(
+        run_id=run_id,
+        mode="dry_run",
+        implementation_brief_hash="a" * 64,
+        build_spec_hash="b" * 64,
+        planned_actions=[
+            {
+                "id": "backend-action",
+                "role": "backend",
+                "summary": "plan backend projection",
+                "raw_request_body": "API03_RAW_PLANNED_BODY",
+                "provider_payload": {"body": "API03_PROVIDER_BODY"},
+                "runtime_payload": "API03_RUNTIME_BODY",
+                "file_body": "API03_FILE_BODY",
+            }
+        ],
+        artifact_manifest=[{"kind": "backend", "path": f"runs/{run_id}/backend"}],
+        required_approvals=[{"approval_type": "live_runner", "signature_id": "API03_SIGNATURE"}],
+        side_effects={"provider_calls": 0, "subprocess_calls": 0, "filesystem_writes": 0},
+        created_at="2026-05-31T00:00:01+00:00",
+    )
+    plan_record = runner_plan_record_from_plan(plan, source_artifact_id=plan_artifact_id)
+    report = VerificationReport(
+        run_id=run_id,
+        passed=False,
+        checks=[{"name": "dry_run", "passed": True, "details": "API03_RAW_LOG"}],
+        errors=["token=api03-secret"],
+        generated_files=["backend/main.py"],
+        metrics={"boundary_mode": "dry_run", "provider_calls": 0, "raw_log": "API03_METRIC_RAW_LOG"},
+        created_at="2026-05-31T00:00:02+00:00",
+    )
+    report_record = verification_report_record_from_report(
+        report,
+        source_artifact_id=report_artifact_id,
+        runner_plan_hash=plan_record.plan_hash,
+    )
+    audit_record = audit_event_record_from_event(
+        {
+            "run_id": run_id,
+            "event": "api_evidence",
+            "source": "api_test",
+            "stage": "read_model",
+            "level": "info",
+            "message": "API03_AUDIT_RAW_MESSAGE",
+            "payload": {
+                "provider_payload": "API03_AUDIT_PROVIDER_PAYLOAD",
+                "runtime_payload": "API03_AUDIT_RUNTIME_PAYLOAD",
+                "signature_id": "API03_AUDIT_SIGNATURE",
+                "nonce": "API03_AUDIT_NONCE",
+                "safe_count": 1,
+            },
+            "created_at": "2026-05-31T00:00:03+00:00",
+        },
+        source_artifact_id=audit_artifact_id,
+        linked_plan_hash=plan_record.plan_hash,
+        linked_report_hash=report_record.report_hash,
+    )
+    store.save_records_atomically(
+        artifacts=artifacts,
+        runner_plans=[plan_record],
+        verification_reports=[report_record],
+        audit_events=[audit_record],
+    )
+
+
 def test_create_run_returns_public_projection_with_fixture_boundary_markers():
     client = TestClient(create_app())
 
@@ -187,6 +306,142 @@ def test_create_run_returns_public_projection_with_fixture_boundary_markers():
     assert "API_KEY=secret-value" not in serialized
     assert "provider_payload" not in serialized
     assert "approval_authorization_material" not in serialized
+
+
+def test_evidence_read_model_api_returns_sqlite_rows_without_raw_bodies_or_auth_material(tmp_path):
+    evidence_root = tmp_path / "evidence"
+    admission_root = tmp_path / "admission"
+    _persist_evidence_chain(evidence_root)
+    _persist_evidence_chain(evidence_root, run_id="run-api-other")
+    client = TestClient(
+        create_app(
+            evidence_repository_config=EvidenceRepositoryConfig(root=evidence_root),
+            admission_repository_config=ApprovalReplayRepositoryConfig(
+                backend="sqlite",
+                root=admission_root,
+            ),
+        )
+    )
+    admission_response = client.post(
+        "/api/v1/admissions/provider/fake",
+        json=_provider_admission_payload(),
+    )
+    other_admission_response = client.post(
+        "/api/v1/admissions/provider/fake",
+        json=_provider_admission_payload(
+            run_id="run-api-other",
+            signature_id="sig-api-provider-other",
+            nonce="nonce-api-provider-other",
+        ),
+    )
+
+    response = client.get("/api/v1/evidence/runs/run-api-provider")
+
+    assert admission_response.status_code == 200
+    assert other_admission_response.status_code == 200
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+
+    assert data["projection_version"] == "evidence-read-model-public-v1"
+    assert data["status"] == "passed"
+    assert data["repository_boundary"]["runner_report_audit_backend"] == "sqlite"
+    assert data["repository_boundary"]["approval_replay_backend"] == "sqlite"
+    assert data["repository_boundary"]["root_path_returned"] is False
+    assert data["counts"]["runner_plan_count"] == 1
+    assert data["counts"]["verification_report_count"] == 1
+    assert data["counts"]["audit_event_count"] == 1
+    assert data["counts"]["approval_subject_snapshot_count"] == 1
+    assert data["counts"]["approval_count"] == 1
+    assert data["counts"]["replay_nonce_count"] == 1
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["target_runtime_calls"] == 0
+    assert data["execution_boundary"]["solar_provider_calls"] == 0
+    assert "run-api-other" not in serialized
+
+    for forbidden in (
+        "API03_RAW_PLANNED_BODY",
+        "API03_PROVIDER_BODY",
+        "API03_RUNTIME_BODY",
+        "API03_FILE_BODY",
+        "API03_RAW_LOG",
+        "API03_METRIC_RAW_LOG",
+        "API03_AUDIT_RAW_MESSAGE",
+        "API03_AUDIT_PROVIDER_PAYLOAD",
+        "API03_AUDIT_RUNTIME_PAYLOAD",
+        "API03_AUDIT_SIGNATURE",
+        "API03_AUDIT_NONCE",
+        "api03-secret",
+        "sig-api-provider-admission",
+        "nonce-api-provider-admission",
+        "sig-api-provider-other",
+        "nonce-api-provider-other",
+        _provider_admission_payload()["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_evidence_read_model_api_blocks_corrupted_evidence_store_without_raw_path(tmp_path):
+    corrupt_root = tmp_path / "corrupt-evidence"
+    corrupt_root.mkdir()
+    (corrupt_root / "agentic_workbench.sqlite3").write_text("not a sqlite database", encoding="utf-8")
+    client = TestClient(create_app(evidence_repository_config=EvidenceRepositoryConfig(root=corrupt_root)))
+
+    response = client.get("/api/v1/evidence/runs/run-api-provider")
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    checks = {check["name"]: check["passed"] for check in data["checks"]}
+
+    assert data["status"] == "blocked"
+    assert checks["runner_report_audit_repository_available"] is False
+    assert data["counts"]["runner_plan_count"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["target_runtime_calls"] == 0
+    assert str(corrupt_root) not in serialized
+    assert "not a sqlite database" not in serialized
+
+
+def test_evidence_read_model_api_blocks_corrupted_approval_store_without_runtime_calls(tmp_path):
+    evidence_root = tmp_path / "evidence"
+    approval_root = tmp_path / "approval"
+    approval_root.mkdir()
+    _persist_evidence_chain(evidence_root)
+    (approval_root / "approval_replay.sqlite3").write_text("not a sqlite database", encoding="utf-8")
+    client = TestClient(
+        create_app(
+            evidence_repository_config=EvidenceRepositoryConfig(root=evidence_root),
+            admission_repository_config=ApprovalReplayRepositoryConfig(
+                backend="sqlite",
+                root=approval_root,
+            ),
+        )
+    )
+
+    response = client.get("/api/v1/evidence/runs/run-api-provider")
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    checks = {check["name"]: check["passed"] for check in data["checks"]}
+
+    assert data["status"] == "blocked"
+    assert checks["runner_report_audit_repository_available"] is True
+    assert checks["approval_replay_repository_available"] is False
+    assert data["counts"]["runner_plan_count"] == 1
+    assert data["counts"]["approval_count"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["target_runtime_calls"] == 0
+    assert data["execution_boundary"]["solar_provider_calls"] == 0
+    assert str(approval_root) not in serialized
+    assert "not a sqlite database" not in serialized
 
 
 def test_provider_fake_admission_api_uses_canonical_persistence_without_raw_auth_material():

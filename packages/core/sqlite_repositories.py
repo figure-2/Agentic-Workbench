@@ -1709,6 +1709,22 @@ class SQLiteApprovalRepository:
             ).fetchone()
         return self.store._approval_from_row(row) if row else None
 
+    def list_snapshots_for_run(self, run_id: str) -> list[ApprovalSubjectSnapshotRecord]:
+        with self.store._connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM approval_subject_snapshots WHERE run_id = ? ORDER BY created_at, subject_snapshot_id",
+                (run_id,),
+            ).fetchall()
+        return [self.store._approval_subject_snapshot_from_row(row) for row in rows]
+
+    def list_approvals_for_run(self, run_id: str) -> list[ApprovalDecisionRecord]:
+        with self.store._connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM approvals WHERE run_id = ? ORDER BY created_at, approval_id",
+                (run_id,),
+            ).fetchall()
+        return [self.store._approval_from_row(row) for row in rows]
+
 
 class SQLiteReplayNonceRepository:
     """SQLite implementation for hash-only replay nonce tombstones."""
@@ -1744,5 +1760,13 @@ class SQLiteReplayNonceRepository:
         with self.store._connect() as connection:
             rows = connection.execute(
                 "SELECT * FROM replay_nonces ORDER BY scope_canonical, nonce_hash",
+            ).fetchall()
+        return [self.store._replay_nonce_from_row(row) for row in rows]
+
+    def list_records_for_run(self, run_id: str) -> list[ReplayNonceRecord]:
+        with self.store._connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM replay_nonces WHERE run_id = ? ORDER BY scope_canonical, nonce_hash",
+                (run_id,),
             ).fetchall()
         return [self.store._replay_nonce_from_row(row) for row in rows]

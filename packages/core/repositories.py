@@ -304,6 +304,12 @@ class ApprovalRepository(Protocol):
     def get_approval(self, approval_id: str) -> ApprovalDecisionRecord | None:
         ...
 
+    def list_snapshots_for_run(self, run_id: str) -> list[ApprovalSubjectSnapshotRecord]:
+        ...
+
+    def list_approvals_for_run(self, run_id: str) -> list[ApprovalDecisionRecord]:
+        ...
+
 
 class ReplayNonceRepository(Protocol):
     """Repository contract for hash-only replay nonce tombstones."""
@@ -322,6 +328,9 @@ class ReplayNonceRepository(Protocol):
         ...
 
     def list_records(self) -> list[ReplayNonceRecord]:
+        ...
+
+    def list_records_for_run(self, run_id: str) -> list[ReplayNonceRecord]:
         ...
 
 
@@ -1183,6 +1192,14 @@ class InMemoryApprovalRepository:
     def get_approval(self, approval_id: str) -> ApprovalDecisionRecord | None:
         return self.approvals.get(approval_id)
 
+    def list_snapshots_for_run(self, run_id: str) -> list[ApprovalSubjectSnapshotRecord]:
+        records = [record for record in self.snapshots.values() if record.run_id == run_id]
+        return sorted(records, key=lambda item: item.created_at)
+
+    def list_approvals_for_run(self, run_id: str) -> list[ApprovalDecisionRecord]:
+        records = [record for record in self.approvals.values() if record.run_id == run_id]
+        return sorted(records, key=lambda item: item.created_at)
+
 
 @dataclass(slots=True)
 class InMemoryReplayNonceRepository:
@@ -1225,6 +1242,10 @@ class InMemoryReplayNonceRepository:
 
     def list_records(self) -> list[ReplayNonceRecord]:
         return sorted(self.records.values(), key=lambda item: (item.scope_canonical, item.nonce_hash))
+
+    def list_records_for_run(self, run_id: str) -> list[ReplayNonceRecord]:
+        records = [record for record in self.records.values() if record.run_id == run_id]
+        return sorted(records, key=lambda item: (item.scope_canonical, item.nonce_hash))
 
 
 class FileBackedReplayNonceRepository:
@@ -1340,6 +1361,10 @@ class FileBackedReplayNonceRepository:
             self._records_from_rows(self._load_rows()),
             key=lambda item: (item.scope_canonical, item.nonce_hash),
         )
+
+    def list_records_for_run(self, run_id: str) -> list[ReplayNonceRecord]:
+        records = [record for record in self.list_records() if record.run_id == run_id]
+        return sorted(records, key=lambda item: (item.scope_canonical, item.nonce_hash))
 
     def load_records(self) -> list[dict[str, str]]:
         return [

@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-API-02` SQLite-backed fake admission API wiring.
+Current snapshot after `AW-API-03` evidence read-model API wiring.
 
 | Metric | Value |
 |---|---:|
 | Project files, excluding cache | 121 |
-| Counted code/doc files, excluding cache | 119 |
-| Project lines, excluding cache | 21,383 |
-| Python files | 55 |
-| Markdown files | 59 |
+| Counted code/doc files, excluding cache | 121 |
+| Project lines, excluding cache | 22,186 |
+| Python files | 56 |
+| Markdown files | 60 |
 | Test files | 22 |
 | Unit test files | 18 |
 | Smoke test files | 3 |
 | Integration test files | 1 |
-| Pytest collected cases | 335 |
-| Pytest passed cases | 335 |
+| Pytest collected cases | 338 |
+| Pytest passed cases | 338 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -1084,3 +1084,39 @@ Interpretation: this is local SQLite-backed API wiring for fake admission
 evidence. It does not add a hosted approval system, multi-host replay
 protection, external provider outcome, target runtime outcome, generated app
 delivery, or production approval trust.
+
+## AW-API-03 Evidence Read Model API Metrics
+
+Measured after adding a sanitized read-only API over local repository evidence
+projections.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 338 |
+| Pytest passed cases | 338 |
+| Regression delta vs AW-API-02 baseline | +3 |
+| API evidence read-model tests | 3 |
+| Evidence read-model API paths | 1 |
+| Runner/report/audit repository backends exposed by API | 1 |
+| Approval/replay repository backends reused by API | 2 |
+| Raw planned payload/log/file/provider/runtime body findings | 0 |
+| Raw approval authorization material findings | 0 |
+| Local DB root path findings | 0 |
+| Cross-run evidence leakage findings | 0 |
+| Corrupted runner/report/audit store | blocked |
+| Corrupted approval/replay store | blocked |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| stored runner plan evidence exposed as hash/count projection | covered |
+| stored verification report evidence exposed as hash/count projection | covered |
+| stored audit event evidence exposed as metadata/hash projection | covered |
+| approval/replay evidence exposed as sanitized projection rows | covered |
+| corrupted evidence store fails closed without path exposure | covered |
+| read-model API keeps provider/runtime calls at 0 | covered |
+
+Interpretation: this is a local read-model API for sanitized repository
+evidence. It does not execute providers, run the target runtime, generate an
+application, host an evidence service, or certify repository trust.
