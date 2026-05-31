@@ -4,6 +4,7 @@ from dataclasses import asdict
 from fastapi.testclient import TestClient
 
 from apps.api.agentic_workbench_api.main import create_app
+from packages.core.approval_replay_factory import ApprovalReplayRepositoryConfig
 from packages.core.schemas import stable_contract_hash
 from packages.daacs_builder.adapters import (
     build_spec_to_daacs_initial_state,
@@ -221,6 +222,50 @@ def test_provider_fake_admission_api_uses_canonical_persistence_without_raw_auth
     assert "signed_contract_hash" not in serialized
 
 
+def test_provider_fake_admission_api_uses_sqlite_repository_and_blocks_reused_nonce_across_requests(tmp_path):
+    client = TestClient(
+        create_app(
+            admission_repository_config=ApprovalReplayRepositoryConfig(
+                backend="sqlite",
+                root=tmp_path,
+            )
+        )
+    )
+    request_payload = _provider_admission_payload()
+
+    first = client.post("/api/v1/admissions/provider/fake", json=request_payload)
+    second = client.post("/api/v1/admissions/provider/fake", json=request_payload)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    first_data = first.json()["data"]
+    second_payload = second.json()
+    second_data = second_payload["data"]
+    serialized = _serialized(second_payload)
+    checks = {check["name"]: check["passed"] for check in second_data["checks"]}
+
+    assert first_data["status"] == "passed"
+    assert first_data["repository_boundary"]["backend"] == "sqlite"
+    assert first_data["repository_boundary"]["persists_across_requests"] is True
+    assert first_data["execution_boundary"]["fake_provider_invocations"] == 1
+    assert second_data["status"] == "blocked"
+    assert second_data["repository_boundary"]["backend"] == "sqlite"
+    assert second_data["repository_boundary"]["persists_across_requests"] is True
+    assert checks["provider_approval_replay_fresh"] is False
+    assert second_data["execution_boundary"]["fake_provider_invocations"] == 0
+    assert second_data["execution_boundary"]["provider_calls"] == 0
+    assert second_data["execution_boundary"]["live_api_calls"] == 0
+    assert second_data["execution_boundary"]["live_llm_calls"] == 0
+    assert second_data["execution_boundary"]["solar_provider_calls"] == 0
+    assert (tmp_path / "approval_replay.sqlite3").exists()
+    assert request_payload["approval"]["nonce"] not in serialized
+    assert request_payload["approval"]["signature_id"] not in serialized
+    assert request_payload["approval"]["signed_contract_hash"] not in serialized
+    assert "nonce" not in serialized
+    assert "signature_id" not in serialized
+    assert "signed_contract_hash" not in serialized
+
+
 def test_live_fake_admission_api_uses_canonical_persistence_without_target_runtime_calls():
     client = TestClient(create_app())
     request_payload = _live_admission_payload()
@@ -251,6 +296,179 @@ def test_live_fake_admission_api_uses_canonical_persistence_without_target_runti
     assert "nonce" not in serialized
     assert "signature_id" not in serialized
     assert "signed_contract_hash" not in serialized
+
+
+def test_live_fake_admission_api_uses_sqlite_repository_and_blocks_reused_nonce_across_requests(tmp_path):
+    client = TestClient(
+        create_app(
+            admission_repository_config=ApprovalReplayRepositoryConfig(
+                backend="sqlite",
+                root=tmp_path,
+            )
+        )
+    )
+    request_payload = _live_admission_payload()
+
+    first = client.post("/api/v1/admissions/live/fake", json=request_payload)
+    second = client.post("/api/v1/admissions/live/fake", json=request_payload)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    first_data = first.json()["data"]
+    second_payload = second.json()
+    second_data = second_payload["data"]
+    serialized = _serialized(second_payload)
+    checks = {check["name"]: check["passed"] for check in second_data["checks"]}
+
+    assert first_data["status"] == "passed"
+    assert first_data["repository_boundary"]["backend"] == "sqlite"
+    assert first_data["repository_boundary"]["persists_across_requests"] is True
+    assert first_data["execution_boundary"]["fake_live_runtime_invocations"] == 1
+    assert second_data["status"] == "blocked"
+    assert second_data["repository_boundary"]["backend"] == "sqlite"
+    assert second_data["repository_boundary"]["persists_across_requests"] is True
+    assert checks["live_approval_replay_fresh"] is False
+    assert second_data["execution_boundary"]["fake_live_runtime_invocations"] == 0
+    assert second_data["execution_boundary"]["target_runtime_calls"] == 0
+    assert second_data["execution_boundary"]["provider_calls"] == 0
+    assert second_data["execution_boundary"]["solar_provider_calls"] == 0
+    assert (tmp_path / "approval_replay.sqlite3").exists()
+    assert request_payload["approval"]["nonce"] not in serialized
+    assert request_payload["approval"]["signature_id"] not in serialized
+    assert request_payload["approval"]["signed_contract_hash"] not in serialized
+    assert "nonce" not in serialized
+    assert "signature_id" not in serialized
+    assert "signed_contract_hash" not in serialized
+
+
+def test_provider_fake_admission_api_blocks_corrupted_sqlite_store_before_fake_invocation(tmp_path):
+    (tmp_path / "approval_replay.sqlite3").write_text("not a sqlite database", encoding="utf-8")
+    client = TestClient(
+        create_app(
+            admission_repository_config=ApprovalReplayRepositoryConfig(
+                backend="sqlite",
+                root=tmp_path,
+            )
+        )
+    )
+    request_payload = _provider_admission_payload()
+
+    response = client.post("/api/v1/admissions/provider/fake", json=request_payload)
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    checks = {check["name"]: check["passed"] for check in data["checks"]}
+
+    assert data["status"] == "blocked"
+    assert data["repository_boundary"]["backend"] == "sqlite"
+    assert data["repository_boundary"]["persists_across_requests"] is True
+    assert checks["provider_repository_available"] is False
+    assert data["approval_persistence"]["approval_row_present"] is False
+    assert data["execution_boundary"]["fake_provider_invocations"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["solar_provider_calls"] == 0
+    assert request_payload["approval"]["nonce"] not in serialized
+    assert request_payload["approval"]["signature_id"] not in serialized
+    assert request_payload["approval"]["signed_contract_hash"] not in serialized
+    assert "nonce" not in serialized
+    assert "signature_id" not in serialized
+    assert "signed_contract_hash" not in serialized
+
+
+def test_live_fake_admission_api_blocks_corrupted_sqlite_store_before_fake_runtime(tmp_path):
+    (tmp_path / "approval_replay.sqlite3").write_text("not a sqlite database", encoding="utf-8")
+    client = TestClient(
+        create_app(
+            admission_repository_config=ApprovalReplayRepositoryConfig(
+                backend="sqlite",
+                root=tmp_path,
+            )
+        )
+    )
+    request_payload = _live_admission_payload()
+
+    response = client.post("/api/v1/admissions/live/fake", json=request_payload)
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    checks = {check["name"]: check["passed"] for check in data["checks"]}
+
+    assert data["status"] == "blocked"
+    assert data["repository_boundary"]["backend"] == "sqlite"
+    assert data["repository_boundary"]["persists_across_requests"] is True
+    assert checks["live_runner_repository_available"] is False
+    assert data["approval_persistence"]["approval_row_present"] is False
+    assert data["execution_boundary"]["fake_live_runtime_invocations"] == 0
+    assert data["execution_boundary"]["target_runtime_calls"] == 0
+    assert data["execution_boundary"]["solar_provider_calls"] == 0
+    assert request_payload["approval"]["nonce"] not in serialized
+    assert request_payload["approval"]["signature_id"] not in serialized
+    assert request_payload["approval"]["signed_contract_hash"] not in serialized
+    assert "nonce" not in serialized
+    assert "signature_id" not in serialized
+    assert "signed_contract_hash" not in serialized
+
+
+def test_provider_fake_admission_api_blocks_unavailable_sqlite_store_before_fake_invocation(tmp_path):
+    unavailable_root = tmp_path / "not-a-directory"
+    unavailable_root.write_text("file blocks sqlite directory", encoding="utf-8")
+    client = TestClient(
+        create_app(
+            admission_repository_config=ApprovalReplayRepositoryConfig(
+                backend="sqlite",
+                root=unavailable_root,
+            )
+        )
+    )
+    request_payload = _provider_admission_payload()
+
+    response = client.post("/api/v1/admissions/provider/fake", json=request_payload)
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    checks = {check["name"]: check["passed"] for check in data["checks"]}
+
+    assert data["status"] == "blocked"
+    assert data["repository_boundary"]["backend"] == "sqlite"
+    assert checks["provider_repository_available"] is False
+    assert data["execution_boundary"]["fake_provider_invocations"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["solar_provider_calls"] == 0
+
+
+def test_runs_fixture_path_does_not_touch_sqlite_admission_store(tmp_path):
+    client = TestClient(
+        create_app(
+            admission_repository_config=ApprovalReplayRepositoryConfig(
+                backend="sqlite",
+                root=tmp_path,
+            )
+        )
+    )
+
+    response = client.post(
+        "/api/v1/runs",
+        json={
+            "raw_prompt": "Build fixture-only planning flow with API_KEY=secret-value",
+            "target_user": "fixture-owner@example.com",
+            "product_type": "fixture admission boundary",
+            "constraints": ["do not touch durable admission store"],
+            "success_criteria": ["public projection only"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+
+    assert data["runtime_mode"] == "fixture"
+    assert data["approval_lifecycle"] == "synthetic"
+    assert data["fixture_mode"] is True
+    assert data["durable_user_approval"] is False
+    assert not (tmp_path / "approval_replay.sqlite3").exists()
 
 
 def test_fake_admission_api_rejects_fixture_or_synthetic_approval_path_without_raw_echo():

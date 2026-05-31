@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-API-01` sanitized approval admission API wiring.
+Current snapshot after `AW-API-02` SQLite-backed fake admission API wiring.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache | 120 |
-| Counted code/doc files, excluding cache | 118 |
-| Project lines, excluding cache | 20,986 |
+| Project files, excluding cache | 121 |
+| Counted code/doc files, excluding cache | 119 |
+| Project lines, excluding cache | 21,383 |
 | Python files | 55 |
-| Markdown files | 58 |
+| Markdown files | 59 |
 | Test files | 22 |
 | Unit test files | 18 |
 | Smoke test files | 3 |
 | Integration test files | 1 |
-| Pytest collected cases | 329 |
-| Pytest passed cases | 329 |
+| Pytest collected cases | 335 |
+| Pytest passed cases | 335 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -1047,3 +1047,40 @@ is not a public approval product, production persistence, external provider
 outcome, target runtime outcome, generated app delivery, hosted status, or
 production approval trust. The current API demo uses request-scoped memory
 repositories and does not prove cross-request durable evidence.
+
+## AW-API-02 SQLite Admission Repository Wiring Metrics
+
+Measured after adding explicit API repository backend selection and SQLite
+request persistence wiring for fake admission paths.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 335 |
+| Pytest passed cases | 335 |
+| Regression delta vs AW-API-01 baseline | +6 |
+| API admission integration tests | 9 |
+| New SQLite-backed API tests | 6 |
+| Configurable admission repository backends in API | 2 |
+| Provider repeated nonce across API requests | blocked |
+| Live repeated nonce across API requests | blocked |
+| Corrupted SQLite store before fake provider invocation | blocked |
+| Corrupted SQLite store before fake runtime invocation | blocked |
+| Unavailable SQLite store before fake provider invocation | blocked |
+| Fixture `/api/v1/runs` durable admission store writes | 0 |
+| Public response raw nonce/signature/signed contract findings | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| API fake admission can select explicit SQLite approval/replay repository | covered |
+| SQLite replay evidence persists across API requests in the same configured app | covered |
+| repeated provider/live nonce blocks before fake invocation | covered |
+| corrupted/unavailable SQLite store fails closed before fake provider invocation | covered |
+| fixture/synthetic run path stays separate from durable admission store | covered |
+| public response returns backend markers but not database root path | covered |
+
+Interpretation: this is local SQLite-backed API wiring for fake admission
+evidence. It does not add a hosted approval system, multi-host replay
+protection, external provider outcome, target runtime outcome, generated app
+delivery, or production approval trust.

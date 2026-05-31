@@ -95,8 +95,11 @@ authorization material or call external provider/runtime surfaces.
 `AW-API-01` adds sanitized fake admission API demo paths for provider and live
 runner approval envelopes. These endpoints prove API/service wiring can call
 `CanonicalApprovalPersistenceService` before replay claim and then return a
-public projection with raw authorization fields removed. The existing fixture
-run endpoint remains synthetic and separate from the durable approval demo path.
+public projection with raw authorization fields removed. `AW-API-02` adds a
+server-side repository selector so fake admission endpoints can explicitly use
+SQLite approval/replay repositories across API requests. The existing fixture
+run endpoint remains synthetic and separate from the durable approval demo path,
+and does not create the admission SQLite store.
 
 ## Target-Only Runtime
 
@@ -121,3 +124,5 @@ complete. Those surfaces are intentionally outside the current executable path.
 - API fake admission responses expose only hashes, counts, safe checks, and
   zero-call metrics; raw signature, nonce, and signed contract fields stay out
   of public output.
+- API fake admission may report the selected repository backend and persistence
+  marker, but never returns local database root paths.

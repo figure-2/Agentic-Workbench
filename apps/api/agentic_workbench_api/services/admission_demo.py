@@ -8,10 +8,14 @@ or expose raw approval authorization material.
 
 from __future__ import annotations
 
-from dataclasses import fields
+from dataclasses import dataclass, fields
 from typing import Any
 
-from packages.core.approval_replay_factory import build_approval_replay_repositories
+from packages.core.approval_replay_factory import (
+    ApprovalReplayRepositories,
+    ApprovalReplayRepositoryConfig,
+    build_approval_replay_repositories,
+)
 from packages.core.exposure import sanitize_public_payload
 from packages.core.public_projection import assert_public_projection_safe
 from packages.daacs_builder.approval_persistence import CanonicalApprovalPersistenceService
@@ -43,6 +47,29 @@ from packages.daacs_builder.runner_provider import (
 
 ADMISSION_PROJECTION_VERSION = "approval-admission-public-v1"
 DURABLE_APPROVAL_LIFECYCLE = "durable"
+
+
+@dataclass(slots=True)
+class AdmissionRepositoryProvider:
+    """Server-side repository selector for local fake admission API paths."""
+
+    config: ApprovalReplayRepositoryConfig | None = None
+    _cached_repositories: ApprovalReplayRepositories | None = None
+
+    @property
+    def backend(self) -> str:
+        return (self.config or ApprovalReplayRepositoryConfig()).backend.strip().lower()
+
+    @property
+    def persists_across_requests(self) -> bool:
+        return self.backend == "sqlite"
+
+    def repositories(self) -> ApprovalReplayRepositories:
+        if self.persists_across_requests:
+            if self._cached_repositories is None:
+                self._cached_repositories = build_approval_replay_repositories(self.config)
+            return self._cached_repositories
+        return build_approval_replay_repositories(self.config)
 
 
 def _dataclass_payload(payload: dict[str, Any], cls: type) -> dict[str, Any]:
@@ -82,6 +109,8 @@ def _approval_projection(
     expected_approval,
     saved_approval,
     replay_record_count: int,
+    repository_backend: str,
+    persists_across_requests: bool,
 ) -> dict[str, Any]:
     hash_match = (
         saved_approval is not None
@@ -114,6 +143,11 @@ def _approval_projection(
                 "claim_count": int(result_metrics.get("approval_replay_store_claim_count", 0)),
                 "hit_count": int(result_metrics.get("approval_replay_store_hit_count", 0)),
             },
+            "repository_boundary": {
+                "backend": repository_backend,
+                "persists_across_requests": persists_across_requests,
+                "root_path_returned": False,
+            },
             "execution_boundary": {
                 "provider_calls": int(result_metrics.get("provider_calls", 0)),
                 "live_api_calls": int(result_metrics.get("live_api_calls", 0)),
@@ -137,8 +171,59 @@ def _approval_projection(
     )
 
 
-def run_provider_admission_demo(payload: dict[str, Any]) -> dict[str, Any]:
+def _repository_unavailable_projection(
+    *,
+    admission_kind: str,
+    expected_approval,
+    repository_provider: AdmissionRepositoryProvider,
+) -> dict[str, Any]:
+    return _approval_projection(
+        admission_kind=admission_kind,
+        status="blocked",
+        result_metrics={
+            "provider_calls": 0,
+            "live_api_calls": 0,
+            "live_llm_calls": 0,
+            "network_calls": 0,
+            "subprocess_calls": 0,
+            "filesystem_writes": 0,
+            "fake_provider_invocations": 0,
+            "fake_live_runtime_invocations": 0,
+            "real_daacs_invocations": 0,
+            "solar_provider_calls": 0,
+            "approval_persistence_block_count": 1,
+        },
+        checks=[{"name": f"{admission_kind}_repository_available", "passed": False}],
+        errors=["approval/replay repository is unavailable."],
+        expected_approval=expected_approval,
+        saved_approval=None,
+        replay_record_count=0,
+        repository_backend=repository_provider.backend,
+        persists_across_requests=repository_provider.persists_across_requests,
+    )
+
+
+def _safe_get_approval(repositories: ApprovalReplayRepositories, approval_id: str):
+    try:
+        return repositories.approval_repository.get_approval(approval_id)
+    except Exception:
+        return None
+
+
+def _safe_replay_record_count(repositories: ApprovalReplayRepositories) -> int:
+    try:
+        return len(repositories.replay_nonce_repository.list_records())
+    except Exception:
+        return 0
+
+
+def run_provider_admission_demo(
+    payload: dict[str, Any],
+    *,
+    repository_provider: AdmissionRepositoryProvider | None = None,
+) -> dict[str, Any]:
     """Run fake provider admission through canonical approval persistence."""
+    selected_repository_provider = repository_provider or AdmissionRepositoryProvider()
     _require_durable_approval_path(payload)
     approval_payload = payload.get("approval")
     if not isinstance(approval_payload, dict):
@@ -154,7 +239,19 @@ def run_provider_admission_demo(payload: dict[str, Any]) -> dict[str, Any]:
         approval=approval,
     )
 
-    repositories = build_approval_replay_repositories()
+    replay_scope = provider_replay_scope_for_request(request)
+    expected_approval = provider_approval_decision_record_for_request(
+        request,
+        scope_canonical=replay_scope,
+    )
+    try:
+        repositories = selected_repository_provider.repositories()
+    except Exception:
+        return _repository_unavailable_projection(
+            admission_kind="provider",
+            expected_approval=expected_approval,
+            repository_provider=selected_repository_provider,
+        )
     approval_service = CanonicalApprovalPersistenceService(repositories.approval_repository)
     provider = FakeSolarProProvider(
         approval_verifier=FakeApprovalVerifier(),
@@ -165,12 +262,7 @@ def run_provider_admission_demo(payload: dict[str, Any]) -> dict[str, Any]:
         require_approval_persistence=True,
     )
     result = provider.invoke(request)
-    replay_scope = provider_replay_scope_for_request(request)
-    expected_approval = provider_approval_decision_record_for_request(
-        request,
-        scope_canonical=replay_scope,
-    )
-    saved_approval = repositories.approval_repository.get_approval(expected_approval.approval_id)
+    saved_approval = _safe_get_approval(repositories, expected_approval.approval_id)
     return _approval_projection(
         admission_kind="provider",
         status=result.status,
@@ -179,12 +271,19 @@ def run_provider_admission_demo(payload: dict[str, Any]) -> dict[str, Any]:
         errors=result.errors,
         expected_approval=expected_approval,
         saved_approval=saved_approval,
-        replay_record_count=len(repositories.replay_nonce_repository.list_records()),
+        replay_record_count=_safe_replay_record_count(repositories),
+        repository_backend=selected_repository_provider.backend,
+        persists_across_requests=selected_repository_provider.persists_across_requests,
     )
 
 
-def run_live_admission_demo(payload: dict[str, Any]) -> dict[str, Any]:
+def run_live_admission_demo(
+    payload: dict[str, Any],
+    *,
+    repository_provider: AdmissionRepositoryProvider | None = None,
+) -> dict[str, Any]:
     """Run fake live admission through canonical approval persistence."""
+    selected_repository_provider = repository_provider or AdmissionRepositoryProvider()
     _require_durable_approval_path(payload)
     approval_payload = payload.get("approval")
     plan_payload = payload.get("plan")
@@ -209,7 +308,19 @@ def run_live_admission_demo(payload: dict[str, Any]) -> dict[str, Any]:
         policy=policy,
     )
 
-    repositories = build_approval_replay_repositories()
+    replay_scope = live_replay_scope_for_request(request)
+    expected_approval = live_approval_decision_record_for_request(
+        request,
+        scope_canonical=replay_scope,
+    )
+    try:
+        repositories = selected_repository_provider.repositories()
+    except Exception:
+        return _repository_unavailable_projection(
+            admission_kind="live_runner",
+            expected_approval=expected_approval,
+            repository_provider=selected_repository_provider,
+        )
     approval_service = CanonicalApprovalPersistenceService(repositories.approval_repository)
     registry = default_runner_provider_registry(
         approval_replay_repositories=repositories,
@@ -217,12 +328,7 @@ def run_live_admission_demo(payload: dict[str, Any]) -> dict[str, Any]:
         require_approval_persistence=True,
     )
     result = registry.run(request)
-    replay_scope = live_replay_scope_for_request(request)
-    expected_approval = live_approval_decision_record_for_request(
-        request,
-        scope_canonical=replay_scope,
-    )
-    saved_approval = repositories.approval_repository.get_approval(expected_approval.approval_id)
+    saved_approval = _safe_get_approval(repositories, expected_approval.approval_id)
     return _approval_projection(
         admission_kind="live_runner",
         status=result.status,
@@ -231,5 +337,7 @@ def run_live_admission_demo(payload: dict[str, Any]) -> dict[str, Any]:
         errors=result.verification_report.errors,
         expected_approval=expected_approval,
         saved_approval=saved_approval,
-        replay_record_count=len(repositories.replay_nonce_repository.list_records()),
+        replay_record_count=_safe_replay_record_count(repositories),
+        repository_backend=selected_repository_provider.backend,
+        persists_across_requests=selected_repository_provider.persists_across_requests,
     )

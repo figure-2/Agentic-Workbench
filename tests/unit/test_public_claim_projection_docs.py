@@ -20,6 +20,7 @@ PERSIST_05_PATH = ROOT / "docs" / "evals" / "aw-persist-05-sqlite-approval-repla
 PERSIST_06_PATH = ROOT / "docs" / "evals" / "aw-persist-06-approval-replay-wiring.md"
 PERSIST_07_PATH = ROOT / "docs" / "evals" / "aw-persist-07-canonical-approval-persistence.md"
 API_01_PATH = ROOT / "docs" / "evals" / "aw-api-01-sanitized-approval-admission-api.md"
+API_02_PATH = ROOT / "docs" / "evals" / "aw-api-02-sqlite-admission-repository-wiring.md"
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -37,6 +38,7 @@ PUBLIC_CLAIM_DOCS = [
     PERSIST_06_PATH,
     PERSIST_07_PATH,
     API_01_PATH,
+    API_02_PATH,
 ]
 
 
