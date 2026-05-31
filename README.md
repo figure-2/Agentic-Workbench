@@ -60,6 +60,7 @@ Current implementation:
 - Side-effect-free dry-run runner that emits `RunnerPlan`
 - Fail-closed runner provider registry for offline, dry-run, and gated fake paths
 - Fake-only admission gates for future live/provider boundaries
+- In-memory repository boundaries for sanitized run and artifact read models
 - Sanitizers for secrets, PII-like values, unsafe paths, raw payload fields, and public artifact exposure
 - Local unit/smoke/eval documentation for regression tracking
 
@@ -97,8 +98,8 @@ python -m pytest tests
 Latest documented local baseline:
 
 ```text
-Measurement date: 2026-05-27
-Pytest: 223 / 223 passed
+Measurement date: 2026-05-31
+Pytest: 227 / 227 passed
 Live LLM calls in offline/dry-run/fake paths: 0
 Live API calls in offline/dry-run/fake paths: 0
 Provider calls/imports in the latest documented eval: 0

@@ -592,3 +592,31 @@ Measured after resolver, registry, adapter-backed replay boundary skeletons, and
 | Solar Pro 3/DAACS live call 0 유지 | covered |
 
 Interpretation: this adds admission boundary skeletons only. Safe contract hashes such as `approval_hash`, `state_hash`, `plan_hash`, `prompt_contract_hash`, and `content_hash` remain allowed as sanitized correlation evidence. `DurableReplayStore` with the in-memory adapter simulates restart durability, but it is not atomic disk/DB persistence and is not a production replay store.
+
+## AW-PERSIST-01 Repository Boundary Metrics
+
+Measured after `RunSessionRepository` and `ArtifactRepository` skeletons were added.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 227 |
+| Pytest passed cases | 227 |
+| Regression delta vs AW-NEXT-13 baseline | +4 |
+| Repository boundary unit tests | 4 |
+| Raw prompt storage fields in run records | 0 |
+| Raw artifact payload/body storage fields in artifact records | 0 |
+| Read-model reconstruction tests | 1 |
+| Cross-run artifact lineage rejection tests | 1 |
+| Live LLM calls during eval | 0 |
+| Live API calls during eval | 0 |
+| Provider calls during eval | 0 |
+| Network calls during eval | 0 |
+
+| Gate | Result |
+|---|---|
+| raw prompt/body storage blocked | covered |
+| workflow read model reconstructed from sanitized rows | covered |
+| artifact lineage `run_id` mismatch blocked | covered |
+| repository stores metadata and correlation hashes only | covered |
+
+Interpretation: this is an in-memory persistence boundary skeleton. It is not a DB-backed repository, migration, transaction layer, or production persistence guarantee.
