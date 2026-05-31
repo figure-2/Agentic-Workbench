@@ -9,6 +9,11 @@ from .public_projection import (
     public_workflow_event_payloads,
     public_workflow_session_payload,
 )
+from .approval_replay_factory import (
+    ApprovalReplayRepositories,
+    ApprovalReplayRepositoryConfig,
+    build_approval_replay_repositories,
+)
 from .repositories import (
     ApprovalDecisionRecord,
     ApprovalRepository,
@@ -70,6 +75,8 @@ from .schemas import (
 __all__ = [
     "ApprovalDecisionRecord",
     "ApprovalRepository",
+    "ApprovalReplayRepositories",
+    "ApprovalReplayRepositoryConfig",
     "ApprovalSubjectSnapshotRecord",
     "AuditEventRecord",
     "AuditEventRepository",
@@ -79,6 +86,7 @@ __all__ = [
     "ArtifactRepository",
     "ArtifactRegistry",
     "assert_no_forbidden_claims",
+    "build_approval_replay_repositories",
     "BuildSpec",
     "find_forbidden_claims",
     "FileBackedReplayNonceRepository",

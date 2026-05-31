@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-PERSIST-05` SQLite approval/replay adapter boundary.
+Current snapshot after `AW-PERSIST-06` approval/replay factory wiring boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache | 113 |
-| Counted code/doc files, excluding cache | 111 |
-| Project lines, excluding cache | 18,851 |
-| Python files | 51 |
-| Markdown files | 55 |
-| Test files | 21 |
-| Unit test files | 17 |
+| Project files, excluding cache | 116 |
+| Counted code/doc files, excluding cache | 114 |
+| Project lines, excluding cache | 23,375 |
+| Python files | 53 |
+| Markdown files | 56 |
+| Test files | 22 |
+| Unit test files | 18 |
 | Smoke test files | 3 |
 | Integration test files | 1 |
-| Pytest collected cases | 312 |
-| Pytest passed cases | 312 |
+| Pytest collected cases | 323 |
+| Pytest passed cases | 323 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -936,3 +936,44 @@ Interpretation: this adds a local SQLite adapter skeleton for approval/replay
 projection rows. It does not add production persistence, external provider
 outcome, target runtime outcome, generated app delivery, hosted status, or
 production-grade approval trust.
+
+## AW-PERSIST-06 Approval / Replay Factory Wiring Metrics
+
+Measured after adding an explicit repository factory and optional SQLite-backed
+replay wiring for fake provider/live admission gates.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 323 |
+| Pytest passed cases | 323 |
+| Regression delta vs AW-PERSIST-05 baseline | +11 |
+| Repository factory tests | 5 |
+| Provider SQLite admission wiring tests | 3 |
+| Live SQLite admission wiring tests | 3 |
+| Repository backends covered | 3 |
+| SQLite replay repository selected by factory | covered |
+| Canonical approval row precondition before replay claim | covered |
+| Missing canonical approval row before replay claim | blocked |
+| Provider reused nonce after process restart simulation | blocked |
+| Live reused nonce after process restart simulation | blocked |
+| Unavailable SQLite repository root | blocked |
+| Corrupted SQLite DB before fake provider invocation | blocked |
+| Corrupted SQLite DB before fake runtime invocation | blocked |
+| Fixture/synthetic approval durable storage | blocked |
+| DB row raw authorization material findings | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| memory/file/SQLite approval replay factory selection | covered |
+| SQLite-backed replay path requires canonical approval evidence before nonce claim | covered |
+| missing canonical approval row fails closed before fake invocation | covered |
+| provider boundary blocks reused SQLite nonce before fake invocation | covered |
+| live boundary blocks reused SQLite nonce before fake invocation | covered |
+| unavailable/corrupted SQLite storage fails closed before fake invocation | covered |
+| public architecture/eval claim docs remain scanner-safe | covered |
+
+Interpretation: this is optional local wiring for fake admission gates. It does
+not add production persistence, external provider outcome, target runtime
+outcome, generated app delivery, hosted status, or production approval trust.

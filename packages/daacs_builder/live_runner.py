@@ -11,7 +11,13 @@ from datetime import datetime, timezone
 from typing import Any
 
 from packages.core.pathing import PathBoundaryError, normalize_public_relative_path
-from packages.core.repositories import canonical_replay_scope
+from packages.core.repositories import (
+    ApprovalDecisionRecord,
+    ApprovalSubjectSnapshotRecord,
+    approval_decision_record,
+    approval_subject_snapshot_record,
+    canonical_replay_scope,
+)
 from packages.core.schemas import VerificationReport, stable_contract_hash
 
 from .approval_security import (
@@ -275,22 +281,25 @@ def live_hashes_for_request(request: RunnerRequest) -> tuple[str, str]:
     return state_hash, plan_hash
 
 
+def live_approval_subject_for_request(request: RunnerRequest) -> dict[str, Any]:
+    """Return the live approval subject without authorization material."""
+    state_hash, plan_hash = live_hashes_for_request(request)
+    return {
+        "run_id": request.run_id,
+        "plan_hash": plan_hash,
+        "state_hash": state_hash,
+        "workspace_root": request.approval.workspace_root,
+        "allowed_operations": request.approval.allowed_operations,
+        "side_effect_limits": {
+            field_name: getattr(request.approval, field_name)
+            for field_name in LIVE_LIMIT_FIELDS
+        },
+    }
+
+
 def live_subject_hash_for_request(request: RunnerRequest) -> str:
     """Hash the live approval subject without authorization material."""
-    state_hash, plan_hash = live_hashes_for_request(request)
-    return stable_contract_hash(
-        {
-            "run_id": request.run_id,
-            "plan_hash": plan_hash,
-            "state_hash": state_hash,
-            "workspace_root": request.approval.workspace_root,
-            "allowed_operations": request.approval.allowed_operations,
-            "side_effect_limits": {
-                field_name: getattr(request.approval, field_name)
-                for field_name in LIVE_LIMIT_FIELDS
-            },
-        }
-    )
+    return stable_contract_hash(live_approval_subject_for_request(request))
 
 
 def live_replay_scope_for_request(request: RunnerRequest) -> str:
@@ -304,18 +313,64 @@ def live_replay_scope_for_request(request: RunnerRequest) -> str:
 
 def live_approval_decision_hash(request: RunnerRequest, *, scope_canonical: str) -> str:
     """Hash the live approval decision without nonce/signature/key material."""
-    return stable_contract_hash(
+    return live_approval_decision_record_for_request(
+        request,
+        scope_canonical=scope_canonical,
+    ).approval_hash
+
+
+def live_approval_subject_snapshot_for_request(
+    request: RunnerRequest,
+    *,
+    scope_canonical: str,
+) -> ApprovalSubjectSnapshotRecord:
+    """Build the canonical live approval snapshot row."""
+    return approval_subject_snapshot_record(
+        approval_type="live_runner_approval",
+        run_id=request.run_id,
+        subject_kind="live_runner_request",
+        subject=live_approval_subject_for_request(request),
+        subject_schema_version="live-runner-approval-subject-v1",
+        lifecycle_class="durable",
+        scope_canonical=scope_canonical,
+        sanitized_summary="live runner approval subject hash-only snapshot",
+        created_at=request.approval.approved_at,
+    )
+
+
+def live_approval_decision_record_for_request(
+    request: RunnerRequest,
+    *,
+    scope_canonical: str,
+) -> ApprovalDecisionRecord:
+    """Build the canonical live approval decision row."""
+    snapshot = live_approval_subject_snapshot_for_request(
+        request,
+        scope_canonical=scope_canonical,
+    )
+    approval_id = stable_contract_hash(
         {
             "approval_type": "live_runner_approval",
             "run_id": request.run_id,
-            "subject_hash": live_subject_hash_for_request(request),
             "scope_canonical": scope_canonical,
-            "decision": "approved",
-            "approved_at": request.approval.approved_at,
-            "expires_at": request.approval.expires_at,
             "rollback_plan_id": request.approval.rollback_plan_id,
             "audit_log_id": request.approval.audit_log_id,
+            "approved_at": request.approval.approved_at,
         }
+    )
+    return approval_decision_record(
+        approval_id=f"approval-{approval_id[:24]}",
+        snapshot=snapshot,
+        decision="approved",
+        approved_by_ref=request.approval.approved_by,
+        approver_role="live_runner",
+        approved_at=request.approval.approved_at,
+        expires_at=request.approval.expires_at,
+        policy_id_ref=request.approval.verifier_policy_id,
+        key_identity_ref=request.approval.key_identity_id,
+        audit_log_id=request.approval.audit_log_id,
+        lifecycle_class="durable",
+        created_at=request.approval.approved_at,
     )
 
 

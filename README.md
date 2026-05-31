@@ -106,7 +106,7 @@ Latest documented local baseline:
 
 ```text
 Measurement date: 2026-05-31
-Pytest: 312 / 312 passed
+Pytest: 323 / 323 passed
 Live LLM calls in offline/dry-run/fake paths: 0
 Live API calls in offline/dry-run/fake paths: 0
 Provider calls/imports in the latest documented eval: 0
@@ -125,6 +125,7 @@ Allowed public summary:
 - Approval gate before execution handoff
 - Side-effect-free dry-run plan generation
 - Fake-only admission gates with external calls kept at 0 in current paths
+- Optional SQLite-backed replay wiring for fake admission gates
 - Public output designed around sanitized summaries and correlation hashes
 
 Do not interpret current results as:

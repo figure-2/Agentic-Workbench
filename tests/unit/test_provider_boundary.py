@@ -8,6 +8,11 @@ from pathlib import Path
 import pytest
 
 from packages.core.repositories import FileBackedReplayNonceRepository
+from packages.core.approval_replay_factory import (
+    ApprovalReplayRepositoryConfig,
+    build_approval_replay_repositories,
+)
+from packages.core.sqlite_repositories import SQLiteReplayNonceRepository
 from packages.core.schemas import stable_contract_hash
 from packages.daacs_builder.adapters import (
     build_spec_to_daacs_initial_state,
@@ -21,6 +26,9 @@ from packages.daacs_builder.provider_boundary import (
     ProviderApprovalRecord,
     ProviderRequest,
     SOLAR_PRO_3_ENV_KEY_NAME,
+    provider_approval_decision_hash,
+    provider_approval_decision_record_for_request,
+    provider_approval_subject_snapshot_for_request,
     provider_replay_scope_for_request,
 )
 from packages.daacs_builder.approval_security import (
@@ -34,6 +42,7 @@ from packages.daacs_builder.approval_security import (
     KeyIdentityRegistry,
     PersistentReplayStore,
     UnavailableReplayRecordAdapter,
+    replay_store_from_approval_replay_repositories,
     sign_approval_for_tests,
 )
 from packages.daacs_builder.runner_provider import RunnerRequest, default_runner_provider_registry
@@ -133,6 +142,37 @@ def _fake_provider(**overrides):
     }
     fields.update(overrides)
     return FakeSolarProProvider(**fields)
+
+
+def _persist_provider_approval(repositories, request):
+    replay_scope = provider_replay_scope_for_request(request)
+    snapshot = provider_approval_subject_snapshot_for_request(
+        request,
+        scope_canonical=replay_scope,
+    )
+    expected_approval = provider_approval_decision_record_for_request(
+        request,
+        scope_canonical=replay_scope,
+    )
+    saved_approval = repositories.approval_repository.save_approval(
+        approval_id=expected_approval.approval_id,
+        snapshot=snapshot,
+        decision=expected_approval.decision,
+        approved_by_ref=expected_approval.approved_by_ref,
+        approver_role=expected_approval.approver_role,
+        approved_at=expected_approval.approved_at,
+        expires_at=expected_approval.expires_at,
+        policy_id_ref=expected_approval.policy_id_ref,
+        key_identity_ref=expected_approval.key_identity_ref,
+        audit_log_id=expected_approval.audit_log_id,
+        lifecycle_class=expected_approval.lifecycle_class,
+        created_at=expected_approval.created_at,
+    )
+    assert saved_approval.approval_hash == provider_approval_decision_hash(
+        request,
+        scope_canonical=replay_scope,
+    )
+    return saved_approval
 
 
 def _approved_dry_run_request():
@@ -676,6 +716,106 @@ def test_provider_boundary_blocks_reused_nonce_with_file_backed_replay_repositor
     assert "aw.approval.v1/provider_approval/" in (tmp_path / "replay_nonces.json").read_text(
         encoding="utf-8"
     )
+
+
+def test_provider_boundary_uses_sqlite_replay_repository_and_blocks_reused_nonce_after_restart(tmp_path):
+    request = _provider_request(
+        approval=_provider_approval(
+            signature_id="sig-provider-sqlite-backed",
+            nonce="nonce-provider-sqlite-backed",
+        )
+    )
+    first_repositories = build_approval_replay_repositories(
+        ApprovalReplayRepositoryConfig(backend="sqlite", root=tmp_path)
+    )
+    second_repositories = build_approval_replay_repositories(
+        ApprovalReplayRepositoryConfig(backend="sqlite", root=tmp_path)
+    )
+
+    assert isinstance(first_repositories.replay_nonce_repository, SQLiteReplayNonceRepository)
+    saved_approval = _persist_provider_approval(first_repositories, request)
+    first = _fake_provider(
+        replay_store=replay_store_from_approval_replay_repositories(first_repositories)
+    ).invoke(request)
+    second = _fake_provider(
+        replay_store=replay_store_from_approval_replay_repositories(second_repositories)
+    ).invoke(request)
+    checks = {check["name"]: check["passed"] for check in second.checks}
+    serialized = str(second.to_dict())
+
+    assert first.status == "passed"
+    assert second.status == "blocked"
+    assert checks["provider_approval_replay_fresh"] is False
+    assert second.metrics["approval_replay_store_hit_count"] == 1
+    assert second.metrics["fake_provider_invocations"] == 0
+    assert second.metrics["provider_calls"] == 0
+    assert second.metrics["live_api_calls"] == 0
+    assert second.metrics["live_llm_calls"] == 0
+    assert request.approval.nonce not in serialized
+    assert request.approval.signature_id not in serialized
+    assert request.approval.signed_contract_hash not in serialized
+    sqlite_rows = str(
+        {
+            "approval": first_repositories.approval_repository.get_approval(
+                saved_approval.approval_id
+            ).to_dict(),
+            "replay": [
+                record.to_dict()
+                for record in first_repositories.replay_nonce_repository.list_records()
+            ],
+        }
+    )
+    assert request.approval.nonce not in sqlite_rows
+    assert request.approval.signature_id not in sqlite_rows
+    assert request.approval.signed_contract_hash not in sqlite_rows
+    assert "signed_contract_hash" not in sqlite_rows
+
+
+def test_provider_boundary_blocks_sqlite_replay_without_persisted_canonical_approval(tmp_path):
+    repositories = build_approval_replay_repositories(
+        ApprovalReplayRepositoryConfig(backend="sqlite", root=tmp_path)
+    )
+    result = _fake_provider(
+        replay_store=replay_store_from_approval_replay_repositories(repositories)
+    ).invoke(
+        _provider_request(
+            approval=_provider_approval(
+                signature_id="sig-provider-sqlite-no-approval",
+                nonce="nonce-provider-sqlite-no-approval",
+            )
+        )
+    )
+    checks = {check["name"]: check["passed"] for check in result.checks}
+
+    assert result.status == "blocked"
+    assert checks["provider_approval_replay_store_available"] is False
+    assert result.metrics["fake_provider_invocations"] == 0
+    assert result.metrics["provider_calls"] == 0
+
+
+def test_provider_boundary_blocks_corrupted_sqlite_replay_repository_before_fake_invocation(tmp_path):
+    repositories = build_approval_replay_repositories(
+        ApprovalReplayRepositoryConfig(backend="sqlite", root=tmp_path)
+    )
+    request = _provider_request(
+        approval=_provider_approval(
+            signature_id="sig-provider-sqlite-corrupt",
+            nonce="nonce-provider-sqlite-corrupt",
+        )
+    )
+    _persist_provider_approval(repositories, request)
+    replay_store = replay_store_from_approval_replay_repositories(repositories)
+    repositories.sqlite_store.path.write_text("not a sqlite database", encoding="utf-8")
+
+    result = _fake_provider(replay_store=replay_store).invoke(request)
+    checks = {check["name"]: check["passed"] for check in result.checks}
+
+    assert result.status == "blocked"
+    assert checks["provider_approval_replay_store_available"] is False
+    assert result.metrics["fake_provider_invocations"] == 0
+    assert result.metrics["provider_calls"] == 0
+    assert result.metrics["live_api_calls"] == 0
+    assert result.metrics["live_llm_calls"] == 0
 
 
 @pytest.mark.parametrize(

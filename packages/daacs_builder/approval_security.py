@@ -13,7 +13,11 @@ import json
 import re
 from typing import Any, Protocol
 
-from packages.core.repositories import replay_nonce_hash
+from packages.core.repositories import (
+    ReplayNonceReplayError,
+    ReplayNonceRepository,
+    replay_nonce_hash,
+)
 
 
 APPROVAL_SIGNATURE_ID_PATTERN = re.compile(r"^sig-[A-Za-z0-9_.-]{8,80}$")
@@ -323,6 +327,51 @@ class DurableReplayStore(PersistentReplayStore):
     def export_records(self) -> list[dict[str, str]]:
         self._load_once()
         return super().export_records()
+
+
+class RepositoryReplayStore(PersistentReplayStore):
+    """Replay store wrapper backed by a hash-only ReplayNonceRepository."""
+
+    def __init__(self, repository: ReplayNonceRepository) -> None:
+        super().__init__([])
+        self._repository = repository
+
+    def claim(
+        self,
+        *,
+        scope: str,
+        nonce: str,
+        approval_hash: str = "",
+        run_id: str = "",
+        approval_type: str = "",
+        expires_at: str = "",
+    ) -> bool:
+        try:
+            self._repository.claim(
+                scope_canonical=scope,
+                nonce=nonce,
+                approval_hash=approval_hash,
+                run_id=run_id,
+                approval_type=approval_type,
+                expires_at=expires_at,
+            )
+        except ReplayNonceReplayError:
+            return False
+        return True
+
+    def export_records(self) -> list[dict[str, str]]:
+        return [
+            {key: str(value) for key, value in record.to_dict().items()}
+            for record in self._repository.list_records()
+        ]
+
+
+def replay_store_from_approval_replay_repositories(repositories: Any) -> PersistentReplayStore:
+    """Create an admission replay store from an approval/replay repository bundle."""
+    replay_repository = getattr(repositories, "replay_nonce_repository", None)
+    if replay_repository is None:
+        raise ValueError("approval/replay repositories must include a replay nonce repository")
+    return RepositoryReplayStore(replay_repository)
 
 
 _PROCESS_REPLAY_GUARD = ApprovalReplayGuard()

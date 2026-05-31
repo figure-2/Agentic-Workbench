@@ -13,7 +13,13 @@ import re
 from typing import Any, Protocol
 
 from packages.core.exposure import sanitize_public_payload
-from packages.core.repositories import canonical_replay_scope
+from packages.core.repositories import (
+    ApprovalDecisionRecord,
+    ApprovalSubjectSnapshotRecord,
+    approval_decision_record,
+    approval_subject_snapshot_record,
+    canonical_replay_scope,
+)
 from packages.core.schemas import JsonDict, stable_contract_hash
 
 from .approval_security import (
@@ -251,22 +257,25 @@ def validate_provider_request(request: ProviderRequest) -> list[tuple[str, str]]
     return failures
 
 
-def provider_subject_hash_for_request(request: ProviderRequest) -> str:
-    """Hash the provider approval subject without authorization material."""
+def provider_approval_subject_for_request(request: ProviderRequest) -> JsonDict:
+    """Return the provider approval subject without authorization material."""
     if request.approval is None:
         raise ValueError("provider approval is required")
-    return stable_contract_hash(
-        {
-            "run_id": request.run_id,
-            "prompt_contract_hash": request.prompt_contract_hash,
-            "provider_name": request.provider_name,
-            "model_name": request.model_name,
-            "mode": request.mode,
-            "env_key_name": request.env_key_name,
-            "max_live_api_calls": request.approval.max_live_api_calls,
-            "max_live_llm_calls": request.approval.max_live_llm_calls,
-        }
-    )
+    return {
+        "run_id": request.run_id,
+        "prompt_contract_hash": request.prompt_contract_hash,
+        "provider_name": request.provider_name,
+        "model_name": request.model_name,
+        "mode": request.mode,
+        "env_key_name": request.env_key_name,
+        "max_live_api_calls": request.approval.max_live_api_calls,
+        "max_live_llm_calls": request.approval.max_live_llm_calls,
+    }
+
+
+def provider_subject_hash_for_request(request: ProviderRequest) -> str:
+    """Hash the provider approval subject without authorization material."""
+    return stable_contract_hash(provider_approval_subject_for_request(request))
 
 
 def provider_replay_scope_for_request(request: ProviderRequest) -> str:
@@ -280,19 +289,67 @@ def provider_replay_scope_for_request(request: ProviderRequest) -> str:
 
 def provider_approval_decision_hash(request: ProviderRequest, *, scope_canonical: str) -> str:
     """Hash the approval decision without nonce/signature/key material."""
+    return provider_approval_decision_record_for_request(
+        request,
+        scope_canonical=scope_canonical,
+    ).approval_hash
+
+
+def provider_approval_subject_snapshot_for_request(
+    request: ProviderRequest,
+    *,
+    scope_canonical: str,
+) -> ApprovalSubjectSnapshotRecord:
+    """Build the canonical provider approval snapshot row."""
     if request.approval is None:
         raise ValueError("provider approval is required")
-    return stable_contract_hash(
+    return approval_subject_snapshot_record(
+        approval_type="provider_approval",
+        run_id=request.run_id,
+        subject_kind="provider_request",
+        subject=provider_approval_subject_for_request(request),
+        subject_schema_version="provider-approval-subject-v1",
+        lifecycle_class="durable",
+        scope_canonical=scope_canonical,
+        sanitized_summary="provider approval subject hash-only snapshot",
+        created_at=request.approval.approved_at,
+    )
+
+
+def provider_approval_decision_record_for_request(
+    request: ProviderRequest,
+    *,
+    scope_canonical: str,
+) -> ApprovalDecisionRecord:
+    """Build the canonical provider approval decision row."""
+    if request.approval is None:
+        raise ValueError("provider approval is required")
+    snapshot = provider_approval_subject_snapshot_for_request(
+        request,
+        scope_canonical=scope_canonical,
+    )
+    approval_id = stable_contract_hash(
         {
             "approval_type": "provider_approval",
             "run_id": request.run_id,
-            "subject_hash": provider_subject_hash_for_request(request),
             "scope_canonical": scope_canonical,
-            "decision": "approved",
-            "approved_at": request.approval.approved_at,
-            "expires_at": request.approval.expires_at,
             "audit_log_id": request.approval.audit_log_id,
+            "approved_at": request.approval.approved_at,
         }
+    )
+    return approval_decision_record(
+        approval_id=f"approval-{approval_id[:24]}",
+        snapshot=snapshot,
+        decision="approved",
+        approved_by_ref=request.approval.approved_by,
+        approver_role="provider_boundary",
+        approved_at=request.approval.approved_at,
+        expires_at=request.approval.expires_at,
+        policy_id_ref=request.approval.verifier_policy_id,
+        key_identity_ref=request.approval.key_identity_id,
+        audit_log_id=request.approval.audit_log_id,
+        lifecycle_class="durable",
+        created_at=request.approval.approved_at,
     )
 
 

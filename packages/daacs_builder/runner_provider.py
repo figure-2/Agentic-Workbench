@@ -307,16 +307,31 @@ class RunnerProviderRegistry:
         return provider.run(request)
 
 
-def default_runner_provider_registry() -> RunnerProviderRegistry:
+def default_runner_provider_registry(
+    *,
+    replay_store=None,
+    approval_replay_repositories=None,
+) -> RunnerProviderRegistry:
     """Create the default registry with fail-closed mode providers."""
     from .approval_security import (
         ApprovalPolicyResolver,
         FakeApprovalVerifier,
         KeyIdentityRegistry,
         default_approval_replay_guard,
+        replay_store_from_approval_replay_repositories,
     )
     from .dry_run_runner import DryRunRunnerProvider
     from .live_runner import LiveRunnerProvider
+
+    if replay_store is not None and approval_replay_repositories is not None:
+        raise ValueError("choose replay_store or approval_replay_repositories, not both")
+    selected_replay_store = replay_store
+    if selected_replay_store is None and approval_replay_repositories is not None:
+        selected_replay_store = replay_store_from_approval_replay_repositories(
+            approval_replay_repositories
+        )
+    if selected_replay_store is None:
+        selected_replay_store = default_approval_replay_guard()
 
     registry = RunnerProviderRegistry()
     registry.register(OfflineRunnerProvider())
@@ -326,7 +341,7 @@ def default_runner_provider_registry() -> RunnerProviderRegistry:
             approval_verifier=FakeApprovalVerifier(),
             approval_policy_resolver=ApprovalPolicyResolver(),
             key_identity_registry=KeyIdentityRegistry(),
-            replay_store=default_approval_replay_guard(),
+            replay_store=selected_replay_store,
         )
     )
     return registry
