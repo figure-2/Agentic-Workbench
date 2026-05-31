@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-PERSIST-07` canonical approval persistence service boundary.
+Current snapshot after `AW-API-01` sanitized approval admission API wiring.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache | 118 |
-| Counted code/doc files, excluding cache | 116 |
-| Project lines, excluding cache | 20,502 |
-| Python files | 54 |
-| Markdown files | 57 |
+| Project files, excluding cache | 120 |
+| Counted code/doc files, excluding cache | 118 |
+| Project lines, excluding cache | 20,986 |
+| Python files | 55 |
+| Markdown files | 58 |
 | Test files | 22 |
 | Unit test files | 18 |
 | Smoke test files | 3 |
 | Integration test files | 1 |
-| Pytest collected cases | 326 |
-| Pytest passed cases | 326 |
+| Pytest collected cases | 329 |
+| Pytest passed cases | 329 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -1012,3 +1012,38 @@ Interpretation: this is a local service boundary for canonical approval
 persistence before fake admission replay claim. It is not production
 persistence, external provider outcome, target runtime outcome, generated app
 delivery, hosted status, or production approval trust.
+
+## AW-API-01 Sanitized Approval Admission API Metrics
+
+Measured after adding API-facing fake provider/live admission demo paths that
+reuse `CanonicalApprovalPersistenceService` before replay claim.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 329 |
+| Pytest passed cases | 329 |
+| Regression delta vs AW-PERSIST-07 baseline | +3 |
+| API admission service implementation files | 1 |
+| New API integration tests | 3 |
+| Fake provider admission API paths | 1 |
+| Fake live admission API paths | 1 |
+| Fixture/synthetic rejection API tests | 1 |
+| Public response raw nonce/signature/signed contract findings | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| provider API path uses canonical approval persistence service | covered |
+| live API path uses canonical approval persistence service | covered |
+| fixture/synthetic approval path remains separate from durable demo path | covered |
+| public API response excludes raw authorization fields | covered |
+| provider/live fake admission stores approval row before replay claim | covered |
+| fake admission keeps provider/runtime calls at zero | covered |
+| public eval claim docs remain scanner-safe | covered |
+
+Interpretation: this is local API/service wiring for fake admission paths. It
+is not a public approval product, production persistence, external provider
+outcome, target runtime outcome, generated app delivery, hosted status, or
+production approval trust. The current API demo uses request-scoped memory
+repositories and does not prove cross-request durable evidence.

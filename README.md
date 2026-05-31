@@ -65,6 +65,7 @@ Current implementation:
 - SQLite adapter skeleton for sanitized runner plan, verification report, audit event, and source artifact projection rows
 - SQLite adapter skeleton for sanitized approval subject, approval decision, and replay nonce rows
 - Public API projection for sanitized fixture responses with fixture/synthetic markers
+- Sanitized fake provider/live admission API demo paths that reuse canonical approval persistence
 - Test-only DIV/DAACS source identity fixtures for parity reference
 - Fixture-based source identity smoke path from planning artifact to dry-run report
 - Source-to-target trace and portfolio-safe claim projection for parity evidence
@@ -106,7 +107,7 @@ Latest documented local baseline:
 
 ```text
 Measurement date: 2026-05-31
-Pytest: 323 / 323 passed
+Pytest: 329 / 329 passed
 Live LLM calls in offline/dry-run/fake paths: 0
 Live API calls in offline/dry-run/fake paths: 0
 Provider calls/imports in the latest documented eval: 0
@@ -127,6 +128,7 @@ Allowed public summary:
 - Fake-only admission gates with external calls kept at 0 in current paths
 - Optional SQLite-backed replay wiring for fake admission gates
 - Canonical approval persistence service before durable replay claim
+- Sanitized fake admission API demo paths for provider/live approval persistence
 - Public output designed around sanitized summaries and correlation hashes
 
 Do not interpret current results as:
@@ -140,6 +142,6 @@ Do not interpret current results as:
 
 ## Status
 
-Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection, source identity golden path smoke coverage, claim-safe trace projection, hash/count repository boundaries, SQLite adapter skeletons for runner/report/audit plus approval/replay evidence, and canonical approval persistence service wiring before replay claim.
+Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection, source identity golden path smoke coverage, claim-safe trace projection, hash/count repository boundaries, SQLite adapter skeletons for runner/report/audit plus approval/replay evidence, canonical approval persistence service wiring before replay claim, and sanitized fake admission API demo paths.
 
-Next implementation track: sanitized API wiring that reuses the canonical approval persistence and replay boundaries, or a local end-to-end demo that remains fake-only for live/provider execution.
+Next implementation track: persistent API store selection behind sanitized admission boundaries, or a local end-to-end demo that remains fake-only for live/provider execution.

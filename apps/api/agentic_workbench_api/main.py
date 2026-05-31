@@ -8,12 +8,14 @@ from __future__ import annotations
 
 from packages.core.public_projection import public_workflow_event_payloads, public_workflow_session_payload
 from packages.core.schemas import IdeaBrief
+from .services.admission_demo import run_live_admission_demo, run_provider_admission_demo
 from .services.fixture_harness import create_fixture_harness
 
 try:
-    from fastapi import FastAPI
+    from fastapi import FastAPI, HTTPException
 except ImportError:  # pragma: no cover - documented fallback for local schema tests
     FastAPI = None
+    HTTPException = None
 
 
 def create_app():
@@ -37,6 +39,20 @@ def create_app():
             "data": public_workflow_session_payload(session),
             "events": public_workflow_event_payloads(harness.event_dicts()),
         }
+
+    @app.post("/api/v1/admissions/provider/fake")
+    def create_provider_admission(payload: dict):
+        try:
+            return {"data": run_provider_admission_demo(payload)}
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/admissions/live/fake")
+    def create_live_admission(payload: dict):
+        try:
+            return {"data": run_live_admission_demo(payload)}
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     return app
 

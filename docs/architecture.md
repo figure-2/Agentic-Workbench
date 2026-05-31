@@ -40,6 +40,7 @@ sequenceDiagram
     participant Planner as "Planning Contracts"
     participant Gate as "Approval Gate"
     participant Runner as "Dry-run Runner"
+    participant Admit as "Fake Admission API"
     participant Verify as "Verifier"
     participant Repo as "Sanitized Repositories"
 
@@ -51,6 +52,8 @@ sequenceDiagram
     API->>Runner: "approved ImplementationBrief"
     Runner-->>Verify: "RunnerPlan projection"
     Verify-->>Repo: "VerificationReport projection"
+    API->>Admit: "signed approval envelope"
+    Admit->>Repo: "canonical approval row before replay"
     Repo-->>API: "public-safe summaries"
 ```
 
@@ -89,6 +92,12 @@ paths to reuse the same approval persistence and replay contract. The service
 stores canonical hash-bound rows only; fake admission still does not store raw
 authorization material or call external provider/runtime surfaces.
 
+`AW-API-01` adds sanitized fake admission API demo paths for provider and live
+runner approval envelopes. These endpoints prove API/service wiring can call
+`CanonicalApprovalPersistenceService` before replay claim and then return a
+public projection with raw authorization fields removed. The existing fixture
+run endpoint remains synthetic and separate from the durable approval demo path.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -109,3 +118,6 @@ complete. Those surfaces are intentionally outside the current executable path.
 - fake admission wiring may choose SQLite replay storage through the canonical
   approval persistence service, but external calls and target runtime calls
   remain at 0 in current paths.
+- API fake admission responses expose only hashes, counts, safe checks, and
+  zero-call metrics; raw signature, nonce, and signed contract fields stay out
+  of public output.
