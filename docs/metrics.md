@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-NEXT-13` policy resolver, key identity registry, and durable replay boundary skeleton.
+Current snapshot after `AW-PARITY-00` public API fixture boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache | 68 |
-| Counted code/doc files, excluding cache | 68 |
-| Project lines, excluding cache | 9,399 |
-| Python files | 38 |
-| Markdown files | 26 |
-| Test files | 11 |
-| Unit test files | 9 |
+| Project files, excluding cache | 99 |
+| Counted code/doc files, excluding cache | 97 |
+| Project lines, excluding cache | 14,293 |
+| Python files | 44 |
+| Markdown files | 49 |
+| Test files | 15 |
+| Unit test files | 12 |
 | Smoke test files | 2 |
-| Integration test files | 0 |
-| Pytest collected cases | 223 |
-| Pytest passed cases | 223 |
+| Integration test files | 1 |
+| Pytest collected cases | 255 |
+| Pytest passed cases | 255 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -667,3 +667,41 @@ Measured after `ApprovalRepository`, `ReplayNonceRepository`, and file-backed re
 | provider/live file-backed replay reuse blocked before fake runtime/provider invocation | covered |
 
 Interpretation: this is a hash-only repository boundary skeleton with a local file-backed replay fixture. It is not production DB persistence, production cryptographic signing, multi-host replay prevention, real DAACS execution, or Solar Pro 3 live provider integration.
+
+## AW-PARITY-00 Public API / Fixture Boundary Metrics
+
+Measured after public API projection, fixture mode markers, raw-field denylist
+expansion, and claim scanner expansion were added.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 255 |
+| Pytest passed cases | 255 |
+| Regression delta vs AW-PERSIST-02 baseline | +5 |
+| New public projection unit tests | 3 |
+| New API integration tests | 1 |
+| New claim scanner fixture tests | 1 |
+| Public API raw prompt exposure fixtures | 0 exposed |
+| Public API raw log/file body exposure fixtures | 0 exposed |
+| Public API provider payload exposure fixtures | 0 exposed |
+| Public API approval auth material exposure fixtures | 0 exposed |
+| Fixture/synthetic marker coverage in API fixture path | covered |
+| `WorkflowSession.to_dict()` direct API return | 0 covered paths |
+| Live LLM calls during eval | 0 |
+| Live API calls during eval | 0 |
+| Provider calls during eval | 0 |
+| Network calls during eval | 0 |
+| Solar Pro 3/DAACS live calls | 0 |
+
+| Gate | Result |
+|---|---|
+| API response uses sanitized public projection | covered |
+| fixture planner does not copy raw input into public problem text | covered |
+| public sanitizer drops raw prompt/log/file/provider/approval auth fields | covered |
+| public event/session projection blocks forbidden claim language | covered |
+| public correlation IDs remain visible after redaction | covered |
+
+Interpretation: this closes the fixture API exposure boundary before source
+identity parity fixtures are added. It does not claim live provider success,
+real DAACS execution, source-runtime reproduction, generated-app production, or
+production API security.

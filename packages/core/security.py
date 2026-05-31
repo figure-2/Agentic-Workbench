@@ -25,30 +25,34 @@ PATH_PATTERNS = [
 ]
 
 PUBLIC_HASH_PATTERN = re.compile(r"\b[a-f0-9]{32,64}\b", re.IGNORECASE)
+PUBLIC_ID_PATTERN = re.compile(r"\b(?:run|artifact|snapshot)-[A-Za-z0-9_.-]{6,32}\b")
 
 SENSITIVE_KEY_PATTERN = re.compile(
     r"(?i)(api[_-]?key|token|secret|password|client[_-]?secret|authorization|cookie|set-cookie|raw[_-]?content|"
+    r"raw[_-]?prompt|raw[_-]?log|log[_-]?body|raw[_-]?file[_-]?body|file[_-]?body|request[_-]?payload|"
+    r"response[_-]?payload|provider[_-]?(payload|request|response)|approval[_-]?(token|authorization|material)|"
     r"full[_-]?prompt|full[_-]?search|private[_-]?corpus)"
 )
 
 
 def redact_text(value: str) -> str:
     """Redact likely secrets, PII, and local paths from text while preserving context."""
-    protected_hashes: dict[str, str] = {}
+    protected_public_values: dict[str, str] = {}
 
-    def protect_hash(match: re.Match[str]) -> str:
-        placeholder = f"__PUBLIC_HASH_{len(protected_hashes)}__"
-        protected_hashes[placeholder] = match.group(0)
+    def protect_public_value(match: re.Match[str]) -> str:
+        placeholder = f"__PUBLIC_VALUE_{len(protected_public_values)}__"
+        protected_public_values[placeholder] = match.group(0)
         return placeholder
 
-    redacted = PUBLIC_HASH_PATTERN.sub(protect_hash, value)
+    redacted = PUBLIC_ID_PATTERN.sub(protect_public_value, value)
+    redacted = PUBLIC_HASH_PATTERN.sub(protect_public_value, redacted)
     for pattern in SECRET_PATTERNS:
         redacted = pattern.sub("[REDACTED_SECRET]", redacted)
     for pattern in PII_PATTERNS:
         redacted = pattern.sub("[REDACTED_PII]", redacted)
     for pattern in PATH_PATTERNS:
         redacted = pattern.sub("[REDACTED_PATH]", redacted)
-    for placeholder, original in protected_hashes.items():
+    for placeholder, original in protected_public_values.items():
         redacted = redacted.replace(placeholder, original)
     return redacted
 

@@ -4,6 +4,11 @@ from .artifacts import ArtifactRegistry
 from .claims import assert_no_forbidden_claims, find_forbidden_claims
 from .evidence import sanitize_evidence
 from .events import WorkflowEvent
+from .public_projection import (
+    public_workflow_event_payload,
+    public_workflow_event_payloads,
+    public_workflow_session_payload,
+)
 from .repositories import (
     ApprovalDecisionRecord,
     ApprovalRepository,
@@ -63,6 +68,9 @@ __all__ = [
     "InMemoryRunSessionRepository",
     "PlanningBlueprint",
     "PRDPackage",
+    "public_workflow_event_payload",
+    "public_workflow_event_payloads",
+    "public_workflow_session_payload",
     "reconstruct_workflow_session_read_model",
     "ReplayNonceRecord",
     "ReplayNonceReplayError",

@@ -27,6 +27,24 @@ def test_claim_gate_allows_scoped_prototype_language():
     assert_no_forbidden_claims("local/dev 환경에서 검증한 AI Agent Workflow Harness prototype")
 
 
+def test_claim_gate_blocks_live_provider_and_source_runtime_success_language():
+    text = (
+        "Live provider success, real DAACS execution, Solar Pro 3 live success, "
+        "and source runtime direct integration are not supported public claims."
+    )
+
+    findings = find_forbidden_claims(text)
+
+    assert [finding.phrase for finding in findings] == [
+        "live provider success",
+        "real DAACS execution",
+        "Solar Pro 3 live success",
+        "source runtime direct integration",
+    ]
+    with pytest.raises(ValueError):
+        assert_no_forbidden_claims(text)
+
+
 def test_evidence_sanitizer_removes_raw_content_and_redacts_secret():
     item = {
         "title": "Research",
@@ -58,9 +76,17 @@ def test_public_payload_sanitization_drops_forbidden_fields_and_redacts_values()
     payload = {
         "title": "Research",
         "raw_content": "do not expose",
+        "raw_prompt": "do not expose prompt",
+        "raw_log": "do not expose log",
+        "file_body": "do not expose file body",
+        "provider_payload": {"body": "do not expose provider body"},
+        "approval_authorization_material": "do not expose approval material",
         "nested": {
             "full_prompt": "secret prompt",
             "summary": "email user@example.com",
+            "request_payload": "request body",
+            "response_payload": "response body",
+            "approval_token": "token body",
             "nonce": "nonce-live-sensitive",
             "signed_contract_hash": "a" * 64,
             "verifier_policy_id": "policy-local-fake",
@@ -71,7 +97,15 @@ def test_public_payload_sanitization_drops_forbidden_fields_and_redacts_values()
     sanitized = sanitize_public_payload(payload)
 
     assert "raw_content" not in sanitized
+    assert "raw_prompt" not in sanitized
+    assert "raw_log" not in sanitized
+    assert "file_body" not in sanitized
+    assert "provider_payload" not in sanitized
+    assert "approval_authorization_material" not in sanitized
     assert "full_prompt" not in sanitized["nested"]
+    assert "request_payload" not in sanitized["nested"]
+    assert "response_payload" not in sanitized["nested"]
+    assert "approval_token" not in sanitized["nested"]
     assert "nonce" not in sanitized["nested"]
     assert "signed_contract_hash" not in sanitized["nested"]
     assert "verifier_policy_id" not in sanitized["nested"]

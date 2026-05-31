@@ -61,13 +61,14 @@ Current implementation:
 - Fail-closed runner provider registry for offline, dry-run, and gated fake paths
 - Fake-only admission gates for future live/provider boundaries
 - In-memory repository boundaries for sanitized run and artifact read models
+- Public API projection for sanitized fixture responses with fixture/synthetic markers
 - Sanitizers for secrets, PII-like values, unsafe paths, raw payload fields, and public artifact exposure
 - Local unit/smoke/eval documentation for regression tracking
 
 Not included in the current scope:
 
 - Real external provider calls
-- Real source-runtime execution
+- Direct original runtime execution
 - Generated application artifact production
 - CLI agent execution
 - Package install, server start, unrestricted file write
@@ -99,12 +100,12 @@ Latest documented local baseline:
 
 ```text
 Measurement date: 2026-05-31
-Pytest: 227 / 227 passed
+Pytest: 255 / 255 passed
 Live LLM calls in offline/dry-run/fake paths: 0
 Live API calls in offline/dry-run/fake paths: 0
 Provider calls/imports in the latest documented eval: 0
 Network calls in the latest documented eval: 0
-Real source-runtime calls in the latest documented eval: 0
+Direct original-runtime calls in the latest documented eval: 0
 ```
 
 These numbers describe local regression and boundary checks. They are not production, hosting, model-quality, or security-certification claims.
@@ -123,7 +124,7 @@ Allowed public summary:
 Do not interpret current results as:
 
 - Real external-provider integration success
-- Real source-runtime execution success
+- Direct original runtime execution success
 - Generated application production
 - Hosted deployment success
 - Production security or durable replay infrastructure
@@ -131,6 +132,6 @@ Do not interpret current results as:
 
 ## Status
 
-Current status: contract/gate/dry-run/fake-boundary MVP.
+Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection.
 
-Next implementation track: repository boundaries for run sessions and artifacts, with raw prompt/body storage blocked before persistence is introduced.
+Next implementation track: source identity golden path fixtures for DIV/DAACS parity, without live provider calls or direct original runtime execution.

@@ -6,6 +6,7 @@ without live LLM, Tavily, Qdrant, or CLI agent calls.
 
 from __future__ import annotations
 
+from packages.core.public_projection import public_workflow_event_payloads, public_workflow_session_payload
 from packages.core.schemas import IdeaBrief
 from .services.fixture_harness import create_fixture_harness
 
@@ -32,10 +33,12 @@ def create_app():
         )
         harness = create_fixture_harness()
         session = harness.run(idea)
-        return {"data": session.to_dict(), "events": harness.event_dicts()}
+        return {
+            "data": public_workflow_session_payload(session),
+            "events": public_workflow_event_payloads(harness.event_dicts()),
+        }
 
     return app
 
 
 app = create_app() if FastAPI is not None else None
-
