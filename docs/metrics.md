@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-PERSIST-04` SQLite runner/report/audit adapter boundary.
+Current snapshot after `AW-PERSIST-05` SQLite approval/replay adapter boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache | 111 |
-| Counted code/doc files, excluding cache | 109 |
-| Project lines, excluding cache | 17,653 |
-| Python files | 50 |
-| Markdown files | 54 |
-| Test files | 20 |
-| Unit test files | 16 |
+| Project files, excluding cache | 113 |
+| Counted code/doc files, excluding cache | 111 |
+| Project lines, excluding cache | 18,851 |
+| Python files | 51 |
+| Markdown files | 55 |
+| Test files | 21 |
+| Unit test files | 17 |
 | Smoke test files | 3 |
 | Integration test files | 1 |
-| Pytest collected cases | 297 |
-| Pytest passed cases | 297 |
+| Pytest collected cases | 312 |
+| Pytest passed cases | 312 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -890,3 +890,49 @@ Interpretation: this adds a local SQLite adapter skeleton for sanitized
 projection rows. It does not add production persistence, target runtime
 execution, external provider outcome, generated app delivery, or production
 readiness.
+
+## AW-PERSIST-05 SQLite Approval / Replay Adapter Metrics
+
+Measured after adding a separate SQLite adapter skeleton for sanitized approval
+subject, approval decision, and replay nonce rows.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 312 |
+| Pytest passed cases | 312 |
+| Regression delta vs AW-PERSIST-04 baseline | +15 |
+| SQLite approval/replay tests | 15 |
+| SQLite approval/replay schema migration version | 1 |
+| SQLite approval/replay tables | 3 |
+| SQLite approval/replay explicit indexes | 3 |
+| SQLite approval/replay unique constraint classes | 3 |
+| Approval/replay public claim docs scanned | 12 |
+| DB row raw authorization material findings | 0 |
+| DB row raw replay nonce findings | 0 |
+| DB row forbidden public key findings | 0 |
+| DB row forbidden claim findings | 0 |
+| Partial approval/replay rows after rollback fixture | 0 |
+| Target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| SQLite approval/replay schema migration is idempotent | covered |
+| approval subject and approval rows round-trip as sanitized projections | covered |
+| raw authorization material in subject or text fields rejected | covered |
+| duplicate `snapshot_hash` and `approval_hash` blocked | covered |
+| duplicate `(scope_canonical, nonce_hash)` replay tombstone blocked | covered |
+| reused nonce after store restart blocked | covered |
+| fixture/synthetic approval rows blocked from SQLite durable adapter | covered |
+| tampered approval scope and snapshot linkage blocked | covered |
+| replay tombstone approval scope mismatch blocked | covered |
+| mixed SQLite store schema file blocked | covered |
+| direct non-hash record insertion blocked | covered |
+| corrupted, unavailable, partial, wrong-column, and wrong-contract schema blocked | covered |
+| relaxed approval/replay check constraint schema blocked | covered |
+| rollback leaves no partial approval/replay rows | covered |
+| public architecture/eval claim docs remain scanner-safe | covered |
+
+Interpretation: this adds a local SQLite adapter skeleton for approval/replay
+projection rows. It does not add production persistence, external provider
+outcome, target runtime outcome, generated app delivery, hosted status, or
+production-grade approval trust.

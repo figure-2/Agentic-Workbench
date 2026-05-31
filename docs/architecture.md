@@ -28,7 +28,7 @@ Verification Boundary
 
 Persistence Boundary
   sanitized in-memory repositories, file-backed replay fixture,
-  SQLite skeleton for runner/report/audit projection rows
+  SQLite skeletons for runner/report/audit and approval/replay projection rows
 ```
 
 ## Current Flow
@@ -74,9 +74,11 @@ hashes, counts, safe labels, timestamps, and sanitized summaries. It must not
 store raw planned actions, raw logs, raw file bodies, provider/runtime payloads,
 approval authorization material, secrets, or raw prompts.
 
-The SQLite adapter is a skeleton for local projection persistence. It is not a
-production database layer, trust root, hosted service, or external runtime
-result.
+The SQLite adapters are skeletons for local projection persistence. The
+runner/report/audit store is separate from the approval/replay store so
+execution evidence and admission evidence do not share one implicit trust
+boundary. These adapters are not a production database layer, trust root,
+hosted service, or external runtime result.
 
 ## Target-Only Runtime
 
@@ -93,3 +95,5 @@ complete. Those surfaces are intentionally outside the current executable path.
 - runner/provider/live paths are blocked unless their specific gates pass.
 - repository rows are checked for forbidden public keys and unsupported claims.
 - SQLite writes use constraints and transactions for sanitized projection rows.
+- SQLite approval/replay rows keep immutable subject/decision hashes and
+  replay nonce hashes only; raw authorization material is rejected.

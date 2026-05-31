@@ -24,6 +24,10 @@ traversal rejection.
 - file-backed durable replay rows must include explicit approval/run metadata;
   missing/defaulted durable rows fail closed
 
+Current follow-up state after `AW-PERSIST-05`: a separate local SQLite adapter
+skeleton now maps the same approval/replay projection contract to DB rows. The
+production and multi-host claims below remain non-current.
+
 ## Acceptance Results
 
 | Gate | Result |
@@ -58,8 +62,8 @@ python -m pytest tests -q
 
 ## Non-Current Claims
 
-- DB-backed approval storage is not implemented.
+- DB-backed approval storage beyond the local SQLite adapter skeleton is not implemented.
 - Production cryptographic signing is not implemented.
 - Production multi-host replay prevention is not implemented.
-- Real DAACS live execution is not implemented.
+- DAACS target runtime calls are not implemented.
 - Solar Pro 3 live provider calls are not implemented.

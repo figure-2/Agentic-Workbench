@@ -43,8 +43,11 @@ from .repositories import (
     validate_runner_report_audit_linkage,
 )
 from .sqlite_repositories import (
+    SQLiteApprovalReplayStore,
+    SQLiteApprovalRepository,
     SQLiteAuditEventRepository,
     SQLiteRepositoryUnavailableError,
+    SQLiteReplayNonceRepository,
     SQLiteRunnerPlanRepository,
     SQLiteRunnerReportAuditStore,
     SQLiteVerificationReportRepository,
@@ -104,6 +107,9 @@ __all__ = [
     "RunnerPlanRepository",
     "SpecApproval",
     "SQLiteAuditEventRepository",
+    "SQLiteApprovalReplayStore",
+    "SQLiteApprovalRepository",
+    "SQLiteReplayNonceRepository",
     "SQLiteRepositoryUnavailableError",
     "SQLiteRunnerPlanRepository",
     "SQLiteRunnerReportAuditStore",

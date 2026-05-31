@@ -63,6 +63,7 @@ Current implementation:
 - In-memory repository boundaries for sanitized run and artifact read models
 - In-memory repository boundaries for sanitized runner plan, verification report, and audit event read models
 - SQLite adapter skeleton for sanitized runner plan, verification report, audit event, and source artifact projection rows
+- SQLite adapter skeleton for sanitized approval subject, approval decision, and replay nonce rows
 - Public API projection for sanitized fixture responses with fixture/synthetic markers
 - Test-only DIV/DAACS source identity fixtures for parity reference
 - Fixture-based source identity smoke path from planning artifact to dry-run report
@@ -105,7 +106,7 @@ Latest documented local baseline:
 
 ```text
 Measurement date: 2026-05-31
-Pytest: 297 / 297 passed
+Pytest: 312 / 312 passed
 Live LLM calls in offline/dry-run/fake paths: 0
 Live API calls in offline/dry-run/fake paths: 0
 Provider calls/imports in the latest documented eval: 0
@@ -137,6 +138,6 @@ Do not interpret current results as:
 
 ## Status
 
-Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection, source identity golden path smoke coverage, claim-safe trace projection, hash/count repository boundaries, and SQLite projection adapter skeleton for runner/report/audit evidence.
+Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection, source identity golden path smoke coverage, claim-safe trace projection, hash/count repository boundaries, and SQLite adapter skeletons for runner/report/audit plus approval/replay evidence.
 
-Next implementation track: approval/replay DB adapter mapping or API wiring behind sanitized repository boundaries.
+Next implementation track: explicit API wiring behind sanitized repository boundaries, or boundary integration from approval/replay adapters into gated admission paths.

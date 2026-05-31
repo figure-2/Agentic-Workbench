@@ -15,6 +15,8 @@ PARITY_01B_PATH = ROOT / "docs" / "evals" / "aw-parity-01b-source-identity-golde
 PARITY_01C_PATH = ROOT / "docs" / "evals" / "aw-parity-01c-trace-claim-projection.md"
 PERSIST_03_PATH = ROOT / "docs" / "evals" / "aw-persist-03-runner-report-audit-repositories.md"
 PERSIST_04_PATH = ROOT / "docs" / "evals" / "aw-persist-04-sqlite-runner-report-audit.md"
+PERSIST_02_PATH = ROOT / "docs" / "evals" / "aw-persist-02-approval-replay-repositories.md"
+PERSIST_05_PATH = ROOT / "docs" / "evals" / "aw-persist-05-sqlite-approval-replay.md"
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -25,8 +27,10 @@ PUBLIC_CLAIM_DOCS = [
     PARITY_01A_PATH,
     PARITY_01B_PATH,
     PARITY_01C_PATH,
+    PERSIST_02_PATH,
     PERSIST_03_PATH,
     PERSIST_04_PATH,
+    PERSIST_05_PATH,
 ]
 
 
