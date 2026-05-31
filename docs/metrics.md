@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-API-03` evidence read-model API wiring.
+Current snapshot after `AW-API-04` fixture evidence persistence wiring.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache | 121 |
-| Counted code/doc files, excluding cache | 121 |
-| Project lines, excluding cache | 22,186 |
-| Python files | 56 |
-| Markdown files | 60 |
+| Project files, excluding cache | 125 |
+| Counted code/doc files, excluding cache | 123 |
+| Project lines, excluding cache | 22,726 |
+| Python files | 57 |
+| Markdown files | 61 |
 | Test files | 22 |
 | Unit test files | 18 |
 | Smoke test files | 3 |
 | Integration test files | 1 |
-| Pytest collected cases | 338 |
-| Pytest passed cases | 338 |
+| Pytest collected cases | 340 |
+| Pytest passed cases | 340 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -1120,3 +1120,39 @@ projections.
 Interpretation: this is a local read-model API for sanitized repository
 evidence. It does not execute providers, run the target runtime, generate an
 application, host an evidence service, or certify repository trust.
+
+## AW-API-04 Fixture Evidence Persistence Metrics
+
+Measured after adding an optional write path from `/api/v1/runs` fixture output
+to the configured local runner/report/audit evidence repository.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 340 |
+| Pytest passed cases | 340 |
+| Regression delta vs AW-API-03 baseline | +2 |
+| API evidence write-path integration tests | 2 |
+| Evidence write service implementation files | 1 |
+| Fixture runner plan rows persisted per configured run | 1 |
+| Fixture verification report rows persisted per configured run | 1 |
+| Fixture audit event rows persisted per configured run | 3 |
+| Fixture path durable approval/replay rows | 0 |
+| Raw prompt/log/file/provider/runtime findings in run response | 0 |
+| Raw prompt/log/file/provider/runtime findings in read-model response | 0 |
+| Local DB root path findings in public response | 0 |
+| Corrupted evidence store | blocked |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| `/api/v1/runs` persists evidence only when explicit evidence repo is configured | covered |
+| configured fixture evidence can be read back by `GET /api/v1/evidence/runs/{run_id}` | covered |
+| fixture path stays separate from durable approval/replay storage | covered |
+| corrupted evidence DB fails closed without path/raw echo | covered |
+| public response keeps provider/runtime calls at 0 | covered |
+
+Interpretation: this adds local fixture evidence persistence for sanitized
+repository projections. It does not add external provider outcome, target
+runtime outcome, generated app delivery, hosted evidence service, or repository
+trust certification.

@@ -108,6 +108,13 @@ safe summaries, and linkage fields only. It does not expose raw repository rows,
 local database paths, raw authorization material, provider payloads, logs, or
 file bodies.
 
+`AW-API-04` adds an optional write path from `/api/v1/runs` fixture output to
+the configured local runner/report/audit evidence repository. The API persists a
+fixture-derived dry-run runner plan projection, a verification report
+projection, audit event projections, and artifact linkage rows only when
+`EvidenceRepositoryConfig` is set. The fixture path remains synthetic and does
+not write durable approval/replay rows.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -135,3 +142,6 @@ complete. Those surfaces are intentionally outside the current executable path.
   marker, but never returns local database root paths.
 - evidence read-model API paths are read-only and keep provider/runtime calls at
   0.
+- fixture evidence persistence writes local projection rows only when explicitly
+  configured, and corrupted stores are reported as blocked without raw/path
+  echo.

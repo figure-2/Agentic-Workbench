@@ -298,6 +298,9 @@ def test_create_run_returns_public_projection_with_fixture_boundary_markers():
     assert data["execution_boundary"]["live_provider_call_count"] == 0
     assert data["execution_boundary"]["live_source_runtime_call_count"] == 0
     assert data["data_contract"]["workflow_session_to_dict_returned"] is False
+    assert data["evidence_persistence"]["status"] == "skipped"
+    assert data["evidence_persistence"]["repository_boundary"]["runner_report_audit_backend"] == "unconfigured"
+    assert data["evidence_persistence"]["execution_boundary"]["local_evidence_repository_write_count"] == 0
     assert payload["events"]
     assert "raw_prompt" not in serialized
     assert "API_RAW_PROMPT_SENTINEL" not in serialized
@@ -306,6 +309,124 @@ def test_create_run_returns_public_projection_with_fixture_boundary_markers():
     assert "API_KEY=secret-value" not in serialized
     assert "provider_payload" not in serialized
     assert "approval_authorization_material" not in serialized
+
+
+def test_runs_fixture_path_persists_sanitized_evidence_when_sqlite_repo_configured(tmp_path):
+    evidence_root = tmp_path / "evidence"
+    client = TestClient(create_app(evidence_repository_config=EvidenceRepositoryConfig(root=evidence_root)))
+
+    response = client.post(
+        "/api/v1/runs",
+        json={
+            "raw_prompt": "Build fixture evidence path with API_KEY=secret and API04_RAW_PROMPT_SENTINEL",
+            "target_user": "api04-owner@example.com",
+            "product_type": "fixture evidence persistence",
+            "constraints": ["never expose API04_CONSTRAINT_SENTINEL"],
+            "success_criteria": ["persist sanitized evidence"],
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    run_id = data["run"]["run_id"]
+    persistence = data["evidence_persistence"]
+
+    assert persistence["projection_version"] == "fixture-evidence-persistence-public-v1"
+    assert persistence["status"] == "persisted"
+    assert persistence["fixture_mode"] is True
+    assert persistence["durable_user_approval"] is False
+    assert persistence["repository_boundary"]["runner_report_audit_backend"] == "sqlite"
+    assert persistence["repository_boundary"]["root_path_returned"] is False
+    assert persistence["counts"]["artifact_count"] == data["artifact_count"]
+    assert persistence["counts"]["runner_plan_count"] == 1
+    assert persistence["counts"]["verification_report_count"] == 1
+    assert persistence["counts"]["audit_event_count"] == len(payload["events"]) + 1
+    assert persistence["execution_boundary"]["local_evidence_repository_write_count"] == 1
+    assert persistence["execution_boundary"]["provider_calls"] == 0
+    assert persistence["execution_boundary"]["target_runtime_calls"] == 0
+    assert (evidence_root / "agentic_workbench.sqlite3").exists()
+
+    evidence_response = client.get(f"/api/v1/evidence/runs/{run_id}")
+    assert evidence_response.status_code == 200
+    evidence_payload = evidence_response.json()
+    evidence_serialized = _serialized(evidence_payload)
+    evidence = evidence_payload["data"]
+
+    assert evidence["status"] == "passed"
+    assert evidence["counts"]["runner_plan_count"] == 1
+    assert evidence["counts"]["verification_report_count"] == 1
+    assert evidence["counts"]["audit_event_count"] == len(payload["events"]) + 1
+    assert evidence["counts"]["approval_subject_snapshot_count"] == 0
+    assert evidence["counts"]["approval_count"] == 0
+    assert evidence["counts"]["replay_nonce_count"] == 0
+    assert evidence["runner_plans"][0]["run_id"] == run_id
+    assert evidence["runner_plans"][0]["mode"] == "dry_run"
+    assert evidence["runner_plans"][0]["planned_action_count"] == 3
+    assert evidence["runner_plans"][0]["action_role_counts"]["backend"] == 1
+    assert evidence["runner_plans"][0]["action_role_counts"]["frontend"] == 1
+    assert evidence["runner_plans"][0]["action_role_counts"]["verifier"] == 1
+    assert evidence["verification_reports"][0]["mode"] == "dry_run"
+    assert evidence["verification_reports"][0]["generated_file_count"] == 0
+    assert evidence["verification_reports"][0]["runner_plan_hash"] == persistence["hashes"]["runner_plan_hash"]
+    assert evidence["execution_boundary"]["provider_calls"] == 0
+    assert evidence["execution_boundary"]["target_runtime_calls"] == 0
+    assert evidence["execution_boundary"]["solar_provider_calls"] == 0
+
+    combined = _serialized({"run_response": payload, "evidence_response": evidence_payload})
+    for forbidden in (
+        "raw_prompt",
+        "API04_RAW_PROMPT_SENTINEL",
+        "API04_CONSTRAINT_SENTINEL",
+        "api04-owner@example.com",
+        "API_KEY=secret",
+        "provider_payload",
+        "runtime_payload",
+        "file_body",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+        assert forbidden not in evidence_serialized
+        assert forbidden not in combined
+
+
+def test_runs_fixture_evidence_persistence_blocks_corrupted_sqlite_store_without_raw_echo(tmp_path):
+    corrupt_root = tmp_path / "corrupt-evidence"
+    corrupt_root.mkdir()
+    (corrupt_root / "agentic_workbench.sqlite3").write_text("not a sqlite database", encoding="utf-8")
+    client = TestClient(create_app(evidence_repository_config=EvidenceRepositoryConfig(root=corrupt_root)))
+
+    response = client.post(
+        "/api/v1/runs",
+        json={
+            "raw_prompt": "Build fixture evidence path with API04_CORRUPT_RAW_SENTINEL",
+            "target_user": "api04-corrupt-owner@example.com",
+            "product_type": "fixture evidence persistence",
+            "constraints": ["never expose corrupt store path"],
+            "success_criteria": ["block unsafe persistence"],
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    persistence = data["evidence_persistence"]
+    checks = {check["name"]: check["passed"] for check in persistence["checks"]}
+
+    assert data["runtime_mode"] == "fixture"
+    assert persistence["status"] == "blocked"
+    assert persistence["repository_boundary"]["runner_report_audit_backend"] == "sqlite"
+    assert checks["fixture_projection_persisted"] is False
+    assert persistence["counts"]["runner_plan_count"] == 0
+    assert persistence["execution_boundary"]["provider_calls"] == 0
+    assert persistence["execution_boundary"]["target_runtime_calls"] == 0
+    assert persistence["execution_boundary"]["local_evidence_repository_write_count"] == 0
+    assert "API04_CORRUPT_RAW_SENTINEL" not in serialized
+    assert "api04-corrupt-owner@example.com" not in serialized
+    assert str(corrupt_root) not in serialized
+    assert "not a sqlite database" not in serialized
 
 
 def test_evidence_read_model_api_returns_sqlite_rows_without_raw_bodies_or_auth_material(tmp_path):

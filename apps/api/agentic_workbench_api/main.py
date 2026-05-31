@@ -7,7 +7,11 @@ without live LLM, Tavily, Qdrant, or CLI agent calls.
 from __future__ import annotations
 
 from packages.core.approval_replay_factory import ApprovalReplayRepositoryConfig
-from packages.core.public_projection import public_workflow_event_payloads, public_workflow_session_payload
+from packages.core.public_projection import (
+    assert_public_projection_safe,
+    public_workflow_event_payloads,
+    public_workflow_session_payload,
+)
 from packages.core.schemas import IdeaBrief
 from .services.admission_demo import (
     AdmissionRepositoryProvider,
@@ -19,6 +23,7 @@ from .services.evidence_read_model import (
     EvidenceRepositoryProvider,
     read_run_evidence,
 )
+from .services.evidence_write_model import persist_fixture_run_evidence
 from .services.fixture_harness import create_fixture_harness
 
 try:
@@ -57,9 +62,17 @@ def create_app(
         )
         harness = create_fixture_harness()
         session = harness.run(idea)
+        events = public_workflow_event_payloads(harness.event_dicts())
+        data = public_workflow_session_payload(session)
+        data["evidence_persistence"] = persist_fixture_run_evidence(
+            session,
+            harness.event_dicts(),
+            evidence_provider=evidence_repositories,
+        )
+        assert_public_projection_safe(data)
         return {
-            "data": public_workflow_session_payload(session),
-            "events": public_workflow_event_payloads(harness.event_dicts()),
+            "data": data,
+            "events": events,
         }
 
     @app.post("/api/v1/admissions/provider/fake")
