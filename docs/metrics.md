@@ -2,7 +2,7 @@
 
 ## Measurement Date
 
-2026-05-27
+2026-05-31
 
 ## Source Project Metrics
 
@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-PERSIST-03` runner/report/audit repository boundary.
+Current snapshot after `AW-PERSIST-04` SQLite runner/report/audit adapter boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache | 108 |
-| Counted code/doc files, excluding cache | 106 |
-| Project lines, excluding cache | 16,257 |
-| Python files | 48 |
-| Markdown files | 53 |
-| Test files | 19 |
-| Unit test files | 15 |
+| Project files, excluding cache | 111 |
+| Counted code/doc files, excluding cache | 109 |
+| Project lines, excluding cache | 17,653 |
+| Python files | 50 |
+| Markdown files | 54 |
+| Test files | 20 |
+| Unit test files | 16 |
 | Smoke test files | 3 |
 | Integration test files | 1 |
-| Pytest collected cases | 280 |
-| Pytest passed cases | 280 |
+| Pytest collected cases | 297 |
+| Pytest passed cases | 297 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -849,3 +849,44 @@ verification reports, and audit events.
 Interpretation: this adds repository skeletons for sanitized runner/report/audit
 evidence. It does not add DB-backed persistence, generated app delivery, live
 runtime execution, external provider outcome, or production readiness.
+
+## AW-PERSIST-04 SQLite Runner / Report / Audit Adapter Metrics
+
+Measured after adding a SQLite adapter skeleton for sanitized runner/report/audit
+projection rows and source artifact linkage rows.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 297 |
+| Pytest passed cases | 297 |
+| Regression delta vs AW-PERSIST-03 baseline | +17 |
+| SQLite runner/report/audit tests | 16 |
+| Runner/report/audit repository tests | 17 |
+| SQLite schema migration version | 1 |
+| SQLite projection tables | 4 |
+| SQLite explicit indexes | 5 |
+| SQLite unique constraint classes | 3 |
+| Public claim docs scanned | 10 |
+| DB row raw planned payload/body findings | 0 |
+| DB row raw log/file body findings | 0 |
+| DB row provider/runtime payload findings | 0 |
+| DB row forbidden public key findings | 0 |
+| DB row forbidden claim findings | 0 |
+| Partial rows after rollback fixture | 0 |
+| Target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| SQLite schema migration is idempotent | covered |
+| corrupted, unavailable, partial, and path traversal DB setup blocked | covered |
+| duplicate plan/report/audit rows blocked by constraints | covered |
+| source artifact, runner plan, report, and audit chain linkage enforced | covered |
+| cross-run artifact/plan/report/audit linkage blocked | covered |
+| wrong-column partial schema blocked | covered |
+| rollback leaves no partial rows | covered |
+| public architecture/eval claim docs remain scanner-safe | covered |
+
+Interpretation: this adds a local SQLite adapter skeleton for sanitized
+projection rows. It does not add production persistence, target runtime
+execution, external provider outcome, generated app delivery, or production
+readiness.

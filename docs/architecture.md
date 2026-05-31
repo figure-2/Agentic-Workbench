@@ -2,96 +2,94 @@
 
 ## Conclusion
 
-`Agentic Workbench`는 `DIV -> PRDPackage -> ImplementationBrief -> Approval -> DAACS` 순서의 계층형 통합이다. 두 프로젝트를 같은 폴더에 복사하는 것이 아니라, 기획 산출물을 사람이 승인할 수 있는 명세와 DAACS가 읽을 handoff 계약으로 변환하는 harness를 만든다.
+`Agentic Workbench` is an Idea-to-App agent workflow harness. The current
+implementation connects planning contracts, approval gates, dry-run runner
+plans, verification reports, sanitized public projections, and persistence
+boundaries. Current behavior is local/dev and fixture/dry-run/fake-boundary
+only; target runtime execution remains closed.
 
-## Layers
+## Current Layers
 
 ```text
-UI Layer
-  Nova-Canvas 기반 Plan / Evidence / Code / Logs / Report 패널
+API / Harness
+  WorkflowSession, public projection, artifact registry, workflow events
 
-API Layer
-  workflow session, artifact, run event endpoint
+Planning Contracts
+  IdeaBrief, PlanningBlueprint, PRDPackage, BuildSpec, ImplementationBrief
 
-Harness Layer
-  WorkflowSession, ArtifactRegistry, WorkflowEvent, PRD/brief approval gate, retry policy
+Approval Boundary
+  SpecApproval, approval/replay contracts, provider/live admission skeletons
 
-Planning Layer
-  DIV idea / plan / research / visual graph 추출
+Runner Boundary
+  offline runner, dry-run RunnerPlan, gated fake live/provider paths
 
-Build Layer
-  DAACS orchestrator / backend subgraph / frontend subgraph
+Verification Boundary
+  VerificationReport with sanitized checks, counts, hashes, and metrics
 
-Verification Layer
-  static checks, compatibility checks, verification report
+Persistence Boundary
+  sanitized in-memory repositories, file-backed replay fixture,
+  SQLite skeleton for runner/report/audit projection rows
 ```
 
-## Data Flow
+## Current Flow
 
 ```mermaid
 sequenceDiagram
     participant User
-    participant API as Workbench API
-    participant DIV as DIV Planner
-    participant Adapter as Integration Adapter
-    participant Gate as Approval Gate
-    participant DAACS as DAACS Builder
-    participant Verify as Verifier
-    participant Store as Artifact Store
+    participant API as "Workbench API"
+    participant Planner as "Planning Contracts"
+    participant Gate as "Approval Gate"
+    participant Runner as "Dry-run Runner"
+    participant Verify as "Verifier"
+    participant Repo as "Sanitized Repositories"
 
-    User->>API: raw idea
-    API->>DIV: IdeaBrief
-    DIV-->>API: PlanningBlueprint
-    API->>Adapter: PlanningBlueprint
-    Adapter-->>API: PRDPackage
-    Adapter-->>API: BuildSpec
-    Adapter-->>API: ImplementationBrief
-    API->>Gate: PRDPackage + ImplementationBrief + BuildSpec
-    Gate-->>User: approval required or requested changes
-    User-->>Gate: approve or request changes
-    Gate->>DAACS: approved BuildSpec fields
-    DAACS-->>Verify: generated files + API/frontend spec
-    Verify-->>Store: VerificationReport
-    Store-->>User: docs + code + logs + report
+    User->>API: "idea text"
+    API->>Planner: "IdeaBrief"
+    Planner-->>API: "PlanningBlueprint / PRDPackage / ImplementationBrief"
+    API->>Gate: "hash-bound spec approval"
+    Gate-->>API: "approved fixture/synthetic boundary"
+    API->>Runner: "approved ImplementationBrief"
+    Runner-->>Verify: "RunnerPlan projection"
+    Verify-->>Repo: "VerificationReport projection"
+    Repo-->>API: "public-safe summaries"
 ```
 
 ## Core Contracts
 
-| Contract | Purpose |
+| Contract | Current purpose |
 |---|---|
-| `IdeaBrief` | 사용자 자연어 요구를 최소 구조로 정규화 |
-| `PlanningBlueprint` | DIV 계층의 문서/근거/기능 산출물 |
-| `PRDPackage` | 사용자가 검토할 PRD, 기능 요구사항, API 요구사항, 검수 기준 묶음 |
-| `ImplementationBrief` | DAACS handoff용 BuildSpec hash, 작업 요약, 제약, task manifest |
-| `SpecApproval` | 특정 implementation brief/build spec hash에 대한 사용자 승인 또는 수정 요청 |
-| `BuildSpec` | DAACS 계층이 실행할 API/frontend/backend 계약 |
-| `VerificationReport` | 생성 파일, check 결과, 오류, 정량 metric 기록 |
+| `IdeaBrief` | normalize user intent without persisting raw prompt as public evidence |
+| `PlanningBlueprint` | preserve planning, evidence, section, and visual intent |
+| `PRDPackage` | bundle PRD, feature requirements, API requirements, and acceptance criteria |
+| `ImplementationBrief` | handoff summary linked to `BuildSpec` by hash |
+| `SpecApproval` | user approval or requested changes for a specific spec/brief hash |
+| `RunnerPlan` | side-effect-free dry-run execution plan projection |
+| `VerificationReport` | sanitized check/error/file/metric projection |
+| repository records | hash/count/linkage rows that exclude raw prompt, raw body, logs, and provider payloads |
 
-## Adapter Principle
+## Persistence Boundary
 
-`Integration Adapter`는 이 프로젝트의 핵심이다. adapter가 없으면 두 프로젝트는 단순 병합이고, adapter가 있으면 하나의 AI Agent Workflow Harness가 된다.
+The repository layer stores projection rows only. It may store identifiers,
+hashes, counts, safe labels, timestamps, and sanitized summaries. It must not
+store raw planned actions, raw logs, raw file bodies, provider/runtime payloads,
+approval authorization material, secrets, or raw prompts.
 
-입력:
+The SQLite adapter is a skeleton for local projection persistence. It is not a
+production database layer, trust root, hosted service, or external runtime
+result.
 
-```text
-PlanningBlueprint(title, problem, features, evidence, visual_artifacts)
-```
+## Target-Only Runtime
 
-출력:
-
-```text
-PRDPackage(prd_markdown, feature_requirements, api_requirements, acceptance_criteria)
-ImplementationBrief(build_spec_hash, daacs_tasks, constraints, approval_required)
-BuildSpec(goal, api_spec, frontend_spec, constraints, acceptance_criteria)
-```
+Future work may connect live provider calls and runtime execution after explicit
+approval, replay protection, verifier policy, and durable persistence are
+complete. Those surfaces are intentionally outside the current executable path.
 
 ## Risk Controls
 
-- 리서치 실패는 전체 workflow 실패가 아니라 evidence 없음 상태로 격리한다.
-- 로그와 artifact는 `redact_secrets`를 통과한다.
-- public artifact에는 raw search content가 아니라 길이 제한 snippet만 저장한다.
-- README와 발표 문구는 claim boundary gate를 통과해야 한다.
-- 승인 전에는 builder/provider/DAACS runner를 호출하지 않는다.
-- `SpecApproval`은 PRD/brief 승인이고, `ApprovalRecord`는 live runner 실행 승인이다. 두 계약은 혼용하지 않는다.
-- verifier policy와 key identity는 `SpecApproval`이 아니라 provider/live 실행 승인 envelope의 신뢰 계층이다.
-- approval policy resolver, key identity registry, durable replay store는 provider/live 실행 승인 envelope의 admission boundary이며, 현재는 local skeleton이다.
+- planning/research gaps are represented as missing evidence, not workflow
+  success claims.
+- public artifacts expose sanitized summaries and hashes, not raw content.
+- fixture/synthetic approval is separate from durable user approval.
+- runner/provider/live paths are blocked unless their specific gates pass.
+- repository rows are checked for forbidden public keys and unsupported claims.
+- SQLite writes use constraints and transactions for sanitized projection rows.

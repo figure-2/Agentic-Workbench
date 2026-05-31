@@ -42,6 +42,13 @@ from .repositories import (
     replay_nonce_hash,
     validate_runner_report_audit_linkage,
 )
+from .sqlite_repositories import (
+    SQLiteAuditEventRepository,
+    SQLiteRepositoryUnavailableError,
+    SQLiteRunnerPlanRepository,
+    SQLiteRunnerReportAuditStore,
+    SQLiteVerificationReportRepository,
+)
 from .schemas import (
     Artifact,
     ArtifactKind,
@@ -96,6 +103,11 @@ __all__ = [
     "RunnerPlanRecord",
     "RunnerPlanRepository",
     "SpecApproval",
+    "SQLiteAuditEventRepository",
+    "SQLiteRepositoryUnavailableError",
+    "SQLiteRunnerPlanRepository",
+    "SQLiteRunnerReportAuditStore",
+    "SQLiteVerificationReportRepository",
     "VerificationReport",
     "VerificationReportRecord",
     "VerificationReportRepository",

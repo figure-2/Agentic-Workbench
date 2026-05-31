@@ -953,6 +953,7 @@ def validate_runner_report_audit_linkage(
                 raise ValueError("artifact run_id does not match")
     plan_hashes = {record.plan_hash for record in runner_plans}
     report_hashes = {record.report_hash for record in verification_reports}
+    report_plan_hashes = {record.report_hash: record.runner_plan_hash for record in verification_reports}
     source_artifact_references: list[str] = []
     for record in runner_plans:
         if record.run_id != run_id:
@@ -973,6 +974,9 @@ def validate_runner_report_audit_linkage(
             raise ValueError("audit event linked_plan_hash does not match")
         if record.linked_report_hash and record.linked_report_hash not in report_hashes:
             raise ValueError("audit event linked_report_hash does not match")
+        report_plan_hash = report_plan_hashes.get(record.linked_report_hash, "")
+        if record.linked_plan_hash and report_plan_hash and record.linked_plan_hash != report_plan_hash:
+            raise ValueError("audit event linked plan/report chain does not match")
         if record.source_artifact_id:
             source_artifact_references.append(record.source_artifact_id)
     if artifact_ids is not None:

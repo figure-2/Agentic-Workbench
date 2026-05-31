@@ -409,3 +409,39 @@ def test_runner_report_audit_linkage_rejects_unknown_audit_plan_hash():
             verification_reports=[],
             audit_events=[audit_record],
         )
+
+
+def test_runner_report_audit_linkage_rejects_audit_report_plan_chain_mismatch():
+    plan_a = InMemoryRunnerPlanRepository().save(_runner_plan(), source_artifact_id="artifact-plan")
+    plan_b = InMemoryRunnerPlanRepository().save(
+        {
+            "run_id": "run-persist-03",
+            "mode": "dry_run",
+            "plan_hash": "d" * 64,
+            "implementation_brief_hash": "a" * 64,
+            "build_spec_hash": "b" * 64,
+            "planned_actions": [{"role": "backend"}],
+            "artifact_manifest": [],
+            "required_approvals": [],
+            "side_effects": {"provider_calls": 0},
+        },
+        source_artifact_id="artifact-plan-b",
+    )
+    report_record = InMemoryVerificationReportRepository().save(
+        _verification_report(),
+        source_artifact_id="artifact-report",
+        runner_plan_hash=plan_a.plan_hash,
+    )
+    audit_record = InMemoryAuditEventRepository().save(
+        _audit_event(),
+        linked_plan_hash=plan_b.plan_hash,
+        linked_report_hash=report_record.report_hash,
+    )
+
+    with pytest.raises(ValueError, match="plan/report chain"):
+        validate_runner_report_audit_linkage(
+            run_id="run-persist-03",
+            runner_plans=[plan_a, plan_b],
+            verification_reports=[report_record],
+            audit_events=[audit_record],
+        )

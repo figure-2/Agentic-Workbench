@@ -8,19 +8,25 @@ ROOT = Path(__file__).resolve().parents[2]
 README_PATH = ROOT / "README.md"
 CLAIM_BOUNDARY_PATH = ROOT / "docs" / "claim-boundary.md"
 METRICS_PATH = ROOT / "docs" / "metrics.md"
+ARCHITECTURE_PATH = ROOT / "docs" / "architecture.md"
 PARITY_00_PATH = ROOT / "docs" / "evals" / "aw-parity-00-public-api-fixture-boundary.md"
 PARITY_01A_PATH = ROOT / "docs" / "evals" / "aw-parity-01a-source-identity-fixtures.md"
 PARITY_01B_PATH = ROOT / "docs" / "evals" / "aw-parity-01b-source-identity-golden-path.md"
 PARITY_01C_PATH = ROOT / "docs" / "evals" / "aw-parity-01c-trace-claim-projection.md"
+PERSIST_03_PATH = ROOT / "docs" / "evals" / "aw-persist-03-runner-report-audit-repositories.md"
+PERSIST_04_PATH = ROOT / "docs" / "evals" / "aw-persist-04-sqlite-runner-report-audit.md"
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
     CLAIM_BOUNDARY_PATH,
     METRICS_PATH,
+    ARCHITECTURE_PATH,
     PARITY_00_PATH,
     PARITY_01A_PATH,
     PARITY_01B_PATH,
     PARITY_01C_PATH,
+    PERSIST_03_PATH,
+    PERSIST_04_PATH,
 ]
 
 

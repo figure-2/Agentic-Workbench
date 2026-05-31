@@ -81,8 +81,8 @@ python -m pytest tests -q
 - Repository projections do not prove generated app delivery or production
   readiness.
 
-## Next Step
+## Follow-Up
 
-The next persistence slice should be SQLite/DB adapter design for the sanitized
-repository rows, including migrations, unique constraints, and transaction
-rollback behavior. Live DAACS and Solar Pro 3 execution should remain closed.
+`AW-PERSIST-04` follows this boundary with a SQLite adapter skeleton for the
+same sanitized projection rows, migration versioning, unique constraints, and
+transaction rollback behavior. Target runtime execution remains closed.
