@@ -30,6 +30,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     MANUAL_PROVIDER_TEST_EXECUTOR_VERSION,
     ProviderEnvelopeRepositoryConfig,
     provider_manual_test_arming_record_summary,
+    provider_manual_test_executor_dispatch_record_summary,
     provider_manual_test_executor_preflight_summary,
     provider_manual_test_execution_switch_summary,
     provider_manual_test_final_release_packet_summary,
@@ -260,6 +261,16 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
         ],
         "dispatch_requested": True,
     }
+    dispatch_record_summary = provider_manual_test_executor_dispatch_record_summary(
+        payload
+    )
+    payload["expected_dispatch_record_hash"] = dispatch_record_summary[
+        "dispatch_record_hash"
+    ]
+    payload["manual_test_executor_invocation_receipt"] = {
+        "dispatch_record_hash": dispatch_record_summary["dispatch_record_hash"],
+        "receipt_requested": True,
+    }
     return payload
 
 
@@ -422,6 +433,14 @@ def _checks(
             and dispatch_record.get("reason")
             == "executor_dispatch_record_execution_closed"
             and int(dispatch_record.get("execution_permission_count", -1)) == 0
+        )
+        invocation_receipt = provider_envelope_data.get(
+            "manual_provider_test_invocation_receipt", {}
+        )
+        checks["provider_invocation_receipt_blocked"] = (
+            invocation_receipt.get("status") == "blocked"
+            and invocation_receipt.get("reason") == "invocation_receipt_execution_closed"
+            and int(invocation_receipt.get("execution_permission_count", -1)) == 0
         )
     return checks
 
@@ -957,6 +976,45 @@ def run_demo(
                 ).get("dispatch_request_count"),
                 "executor_dispatch_record_execution_permission_count": provider_envelope_data.get(
                     "manual_provider_test_executor_dispatch_record", {}
+                ).get("execution_permission_count"),
+                "invocation_receipt_status": provider_envelope_data.get(
+                    "manual_provider_test_invocation_receipt", {}
+                ).get("status"),
+                "invocation_receipt_reason": provider_envelope_data.get(
+                    "manual_provider_test_invocation_receipt", {}
+                ).get("reason"),
+                "invocation_receipt_hash": provider_envelope_data.get(
+                    "manual_provider_test_invocation_receipt", {}
+                ).get("invocation_receipt_hash"),
+                "invocation_receipt_dispatch_record_hash": provider_envelope_data.get(
+                    "manual_provider_test_invocation_receipt", {}
+                ).get("dispatch_record_hash"),
+                "invocation_receipt_result_placeholder_hash": provider_envelope_data.get(
+                    "manual_provider_test_invocation_receipt", {}
+                ).get("result_placeholder_hash"),
+                "invocation_receipt_no_call_counters_hash": provider_envelope_data.get(
+                    "manual_provider_test_invocation_receipt", {}
+                ).get("no_call_counters_hash"),
+                "invocation_receipt_component_count": provider_envelope_data.get(
+                    "manual_provider_test_invocation_receipt", {}
+                ).get("component_count"),
+                "invocation_receipt_passed_component_count": provider_envelope_data.get(
+                    "manual_provider_test_invocation_receipt", {}
+                ).get("passed_component_count"),
+                "invocation_receipt_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_invocation_receipt", {}
+                ).get("mismatch_count"),
+                "invocation_receipt_component_hash_count": provider_envelope_data.get(
+                    "manual_provider_test_invocation_receipt", {}
+                ).get("component_hash_count"),
+                "invocation_receipt_no_call_counter_count": provider_envelope_data.get(
+                    "manual_provider_test_invocation_receipt", {}
+                ).get("no_call_counter_count"),
+                "invocation_receipt_request_count": provider_envelope_data.get(
+                    "manual_provider_test_invocation_receipt", {}
+                ).get("receipt_request_count"),
+                "invocation_receipt_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_invocation_receipt", {}
                 ).get("execution_permission_count"),
                 "review_packet_read_model_status": (
                     provider_envelope_read_data or {}

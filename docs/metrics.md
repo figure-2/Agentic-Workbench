@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-23` disabled executor dispatch record boundary.
+Current snapshot after `AW-LIVE-24` disabled invocation receipt boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 199 |
-| Counted code/doc files, excluding cache and private SoT | 199 |
-| Project lines, excluding cache and private SoT | 39,902 |
+| Project files, excluding cache and private SoT | 202 |
+| Counted code/doc files, excluding cache and private SoT | 202 |
+| Project lines, excluding cache and private SoT | 40,685 |
 | Python files | 76 |
-| Markdown files | 118 |
+| Markdown files | 121 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 438 |
-| Pytest passed cases | 438 |
+| Pytest collected cases | 441 |
+| Pytest passed cases | 441 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -2334,6 +2334,53 @@ Measured after adding the blocked disabled first-call executor dispatch record.
 | provider/runtime calls remain at 0 | covered |
 
 Interpretation: this adds a local disabled executor dispatch record for a later
+manual provider test candidate. It does not add an external call path, SDK
+integration, env value access, network access, provider response parsing,
+hosted execution, or production provider readiness.
+
+## AW-LIVE-24 Disabled Invocation Receipt Metrics
+
+Measured after adding the blocked disabled first-call invocation receipt.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 441 |
+| Pytest passed cases | 441 |
+| Regression delta vs AW-LIVE-23 baseline | +3 |
+| API invocation receipt integration tests | 3 |
+| Provider envelope API integration tests | 46 |
+| Demo provider envelope smoke tests | 1 |
+| Invocation receipt public summary fields | 13 |
+| Invocation receipt component count | 6 |
+| Invocation receipt component hash count | 3 |
+| Invocation receipt no-call counter count | 13 |
+| Receipt passed count with missing expected dispatch hash | 2 |
+| Receipt mismatch count with missing expected dispatch hash | 4 |
+| Receipt passed count without receipt payload | 3 |
+| Receipt mismatch count without receipt payload | 3 |
+| Receipt passed count with complete receipt | 6 |
+| Execution permission count with complete receipt | 0 |
+| Missing expected dispatch hash reason | expected_dispatch_record_hash_required |
+| Missing receipt payload reason | invocation_receipt_required |
+| Complete receipt reason | invocation_receipt_execution_closed |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| dispatch record hash exists before invocation receipt | covered |
+| expected dispatch record hash must match | covered |
+| invocation receipt payload is required | covered |
+| result placeholder is represented as hash/count evidence | covered |
+| public receipt exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled invocation receipt for a later
 manual provider test candidate. It does not add an external call path, SDK
 integration, env value access, network access, provider response parsing,
 hosted execution, or production provider readiness.

@@ -346,6 +346,12 @@ hashes into one status/reason/hash/count projection. The record still reports
 `executor_dispatch_record_execution_closed` and keeps
 `execution_permission_count=0`.
 
+`AW-LIVE-24` adds a disabled first-call invocation receipt. The receipt
+requires a dispatch record hash and a separate expected dispatch record hash
+match. It binds dispatch record, result placeholder, and no-call counter hashes
+into one status/reason/hash/count projection. The receipt still reports
+`invocation_receipt_execution_closed` and keeps `execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -434,3 +440,5 @@ outside the current executable path.
   only and must not grant execution permission.
 - executor dispatch records must bind to executor preflight, planned dispatch,
   and no-call counter hashes only and must not grant execution permission.
+- invocation receipts must bind to dispatch record, result placeholder, and
+  no-call counter hashes only and must not grant execution permission.
