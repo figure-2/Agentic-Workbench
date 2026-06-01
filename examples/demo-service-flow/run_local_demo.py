@@ -30,6 +30,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     MANUAL_PROVIDER_TEST_EXECUTOR_VERSION,
     ProviderEnvelopeRepositoryConfig,
     provider_manual_test_arming_record_summary,
+    provider_manual_test_closeout_record_summary,
     provider_manual_test_completion_summary,
     provider_manual_test_executor_dispatch_record_summary,
     provider_manual_test_executor_preflight_summary,
@@ -305,6 +306,20 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
         "completion_summary_hash": completion_summary["completion_summary_hash"],
         "closeout_requested": True,
     }
+    closeout_record_summary = provider_manual_test_closeout_record_summary(payload)
+    payload["expected_closeout_record_hash"] = closeout_record_summary[
+        "closeout_record_hash"
+    ]
+    payload["manual_test_operator_handback"] = {
+        "closeout_record_hash": closeout_record_summary["closeout_record_hash"],
+        "handback_requested": True,
+        "operator_review": {
+            "operator_ref": "local-demo-operator",
+            "reviewed_at": "2026-06-01T00:45:00Z",
+            "review_decision": "acknowledged",
+            "review_reason_code": "local-demo-no-call-handback-reviewed",
+        },
+    }
     return payload
 
 
@@ -500,6 +515,14 @@ def _checks(
             closeout_record.get("status") == "blocked"
             and closeout_record.get("reason") == "closeout_record_execution_closed"
             and int(closeout_record.get("execution_permission_count", -1)) == 0
+        )
+        operator_handback = provider_envelope_data.get(
+            "manual_provider_test_operator_handback", {}
+        )
+        checks["provider_operator_handback_blocked"] = (
+            operator_handback.get("status") == "blocked"
+            and operator_handback.get("reason") == "operator_handback_execution_closed"
+            and int(operator_handback.get("execution_permission_count", -1)) == 0
         )
     return checks
 
@@ -1200,6 +1223,54 @@ def run_demo(
                 ).get("closeout_request_count"),
                 "closeout_record_execution_permission_count": provider_envelope_data.get(
                     "manual_provider_test_closeout_record", {}
+                ).get("execution_permission_count"),
+                "operator_handback_status": provider_envelope_data.get(
+                    "manual_provider_test_operator_handback", {}
+                ).get("status"),
+                "operator_handback_reason": provider_envelope_data.get(
+                    "manual_provider_test_operator_handback", {}
+                ).get("reason"),
+                "operator_handback_hash": provider_envelope_data.get(
+                    "manual_provider_test_operator_handback", {}
+                ).get("operator_handback_hash"),
+                "operator_handback_closeout_record_hash": provider_envelope_data.get(
+                    "manual_provider_test_operator_handback", {}
+                ).get("closeout_record_hash"),
+                "operator_handback_operator_review_hash": provider_envelope_data.get(
+                    "manual_provider_test_operator_handback", {}
+                ).get("operator_review_hash"),
+                "operator_handback_claim_boundary_hash": provider_envelope_data.get(
+                    "manual_provider_test_operator_handback", {}
+                ).get("claim_boundary_hash"),
+                "operator_handback_no_call_counters_hash": provider_envelope_data.get(
+                    "manual_provider_test_operator_handback", {}
+                ).get("no_call_counters_hash"),
+                "operator_handback_component_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_handback", {}
+                ).get("component_count"),
+                "operator_handback_passed_component_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_handback", {}
+                ).get("passed_component_count"),
+                "operator_handback_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_handback", {}
+                ).get("mismatch_count"),
+                "operator_handback_component_hash_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_handback", {}
+                ).get("component_hash_count"),
+                "operator_handback_no_call_counter_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_handback", {}
+                ).get("no_call_counter_count"),
+                "operator_handback_claim_boundary_check_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_handback", {}
+                ).get("claim_boundary_check_count"),
+                "operator_handback_operator_review_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_handback", {}
+                ).get("operator_review_count"),
+                "operator_handback_request_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_handback", {}
+                ).get("handback_request_count"),
+                "operator_handback_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_handback", {}
                 ).get("execution_permission_count"),
                 "review_packet_read_model_status": (
                     provider_envelope_read_data or {}

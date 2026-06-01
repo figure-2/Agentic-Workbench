@@ -372,6 +372,13 @@ It binds completion summary, claim-boundary, and no-call counter hashes into
 one status/reason/hash/count projection. The record still reports
 `closeout_record_execution_closed` and keeps `execution_permission_count=0`.
 
+`AW-LIVE-28` adds a disabled first-call operator handback. The handback
+requires a closeout record hash and a separate expected closeout record hash
+match. It binds closeout, operator-review, claim-boundary, and no-call counter
+hashes into one status/reason/hash/count projection. The handback still
+reports `operator_handback_execution_closed` and keeps
+`execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -468,3 +475,5 @@ outside the current executable path.
   no-call counter hashes only and must not grant execution permission.
 - closeout records must bind to completion summary, claim-boundary, and
   no-call counter hashes only and must not grant execution permission.
+- operator handbacks must bind to closeout, operator-review, claim-boundary,
+  and no-call counter hashes only and must not grant execution permission.

@@ -112,6 +112,9 @@ MANUAL_PROVIDER_TEST_COMPLETION_SUMMARY_VERSION = (
 MANUAL_PROVIDER_TEST_CLOSEOUT_RECORD_VERSION = (
     "manual-provider-test-disabled-first-call-closeout-record-v1"
 )
+MANUAL_PROVIDER_TEST_OPERATOR_HANDBACK_VERSION = (
+    "manual-provider-test-disabled-first-call-operator-handback-v1"
+)
 
 EXECUTOR_PREFLIGHT_NO_CALL_COUNTER_FIELDS = (
     "live_llm_calls",
@@ -731,6 +734,29 @@ def _manual_provider_test_closeout_record_blocked(reason: str) -> JsonDict:
             "no_call_counter_count": 0,
             "claim_boundary_check_count": 0,
             "closeout_request_count": 0,
+            "execution_permission_count": 0,
+        }
+    )
+
+
+def _manual_provider_test_operator_handback_blocked(reason: str) -> JsonDict:
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "operator_handback_hash": "",
+            "closeout_record_hash": "",
+            "operator_review_hash": "",
+            "claim_boundary_hash": "",
+            "no_call_counters_hash": "",
+            "component_count": 0,
+            "passed_component_count": 0,
+            "mismatch_count": 1,
+            "component_hash_count": 0,
+            "no_call_counter_count": 0,
+            "claim_boundary_check_count": 0,
+            "operator_review_count": 0,
+            "handback_request_count": 0,
             "execution_permission_count": 0,
         }
     )
@@ -2617,6 +2643,171 @@ def _manual_provider_test_closeout_record_projection(
     )
 
 
+def _manual_provider_test_operator_handback_projection(
+    *,
+    payload: dict[str, Any],
+    closeout_record: JsonDict,
+    execution_boundary: JsonDict,
+) -> JsonDict:
+    closeout_record_hash = str(
+        closeout_record.get("closeout_record_hash", "")
+    ).strip()
+    expected_closeout_record_hash = str(
+        payload.get("expected_closeout_record_hash", "")
+    ).strip()
+    handback_payload = (
+        payload.get("manual_test_operator_handback")
+        if isinstance(payload.get("manual_test_operator_handback"), dict)
+        else {}
+    )
+    supplied_closeout_record_hash = str(
+        handback_payload.get("closeout_record_hash", "")
+    ).strip()
+    operator_review = (
+        handback_payload.get("operator_review")
+        if isinstance(handback_payload.get("operator_review"), dict)
+        else {}
+    )
+    operator_review_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": MANUAL_PROVIDER_TEST_OPERATOR_HANDBACK_VERSION,
+                "review_decision": str(
+                    operator_review.get("review_decision", "")
+                ).strip(),
+                "review_reason_code": str(
+                    operator_review.get("review_reason_code", "")
+                ).strip(),
+                "reviewed_at": str(operator_review.get("reviewed_at", "")).strip(),
+                "operator_ref_hash": stable_contract_hash(
+                    {
+                        "operator_ref": str(
+                            operator_review.get("operator_ref", "")
+                        ).strip()
+                    }
+                )
+                if str(operator_review.get("operator_ref", "")).strip()
+                else "",
+            }
+        )
+        if operator_review
+        else ""
+    )
+    handback_requested = handback_payload.get("handback_requested") is True
+    claim_boundary = _provider_envelope_claim_boundary_projection()
+    claim_boundary_closed = (
+        claim_boundary.get("external_provider_outcome") is False
+        and claim_boundary.get("target_runtime_outcome") is False
+        and claim_boundary.get("production_trust_claim") is False
+    )
+    claim_boundary_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": MANUAL_PROVIDER_TEST_OPERATOR_HANDBACK_VERSION,
+                "claim_boundary": claim_boundary,
+            }
+        )
+        if claim_boundary_closed
+        else ""
+    )
+    no_call_counters = _executor_preflight_no_call_counters(execution_boundary)
+    no_call_counters_closed = all(value == 0 for value in no_call_counters.values())
+    no_call_counters_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": MANUAL_PROVIDER_TEST_OPERATOR_HANDBACK_VERSION,
+                "no_call_counters": no_call_counters,
+            }
+        )
+        if no_call_counters_closed
+        else ""
+    )
+    component_checks = [
+        str(closeout_record.get("status", "")) == "blocked"
+        and str(closeout_record.get("reason", ""))
+        == "closeout_record_execution_closed"
+        and bool(closeout_record_hash),
+        bool(expected_closeout_record_hash)
+        and expected_closeout_record_hash == closeout_record_hash,
+        bool(handback_payload),
+        bool(supplied_closeout_record_hash)
+        and supplied_closeout_record_hash == closeout_record_hash,
+        bool(operator_review_hash),
+        handback_requested,
+        claim_boundary_closed,
+        no_call_counters_closed,
+    ]
+    component_count = len(component_checks)
+    passed_component_count = sum(1 for check in component_checks if check)
+    mismatch_count = component_count - passed_component_count
+    component_hash_count = sum(
+        1
+        for value in (
+            closeout_record_hash,
+            operator_review_hash,
+            claim_boundary_hash,
+            no_call_counters_hash,
+        )
+        if value
+    )
+
+    if not component_checks[0]:
+        reason = "closeout_record_missing_or_mismatched"
+    elif not expected_closeout_record_hash:
+        reason = "expected_closeout_record_hash_required"
+    elif expected_closeout_record_hash != closeout_record_hash:
+        reason = "closeout_record_hash_mismatch"
+    elif not component_checks[2]:
+        reason = "operator_handback_required"
+    elif not component_checks[3]:
+        reason = "operator_handback_closeout_hash_mismatch"
+    elif not component_checks[4]:
+        reason = "operator_handback_review_required"
+    elif not component_checks[5]:
+        reason = "operator_handback_request_required"
+    elif not component_checks[6]:
+        reason = "operator_handback_claim_boundary_mismatch"
+    elif not component_checks[7]:
+        reason = "operator_handback_no_call_counters_mismatch"
+    else:
+        reason = "operator_handback_execution_closed"
+
+    operator_handback_hash = ""
+    if mismatch_count == 0:
+        operator_handback_hash = stable_contract_hash(
+            {
+                "projection_version": MANUAL_PROVIDER_TEST_OPERATOR_HANDBACK_VERSION,
+                "closeout_record_hash": closeout_record_hash,
+                "operator_review_hash": operator_review_hash,
+                "claim_boundary_hash": claim_boundary_hash,
+                "no_call_counters_hash": no_call_counters_hash,
+                "component_count": component_count,
+                "execution_permission": "closed",
+            }
+        )
+
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "operator_handback_hash": operator_handback_hash,
+            "closeout_record_hash": closeout_record_hash,
+            "operator_review_hash": operator_review_hash,
+            "claim_boundary_hash": claim_boundary_hash,
+            "no_call_counters_hash": no_call_counters_hash,
+            "component_count": component_count,
+            "passed_component_count": passed_component_count,
+            "mismatch_count": mismatch_count,
+            "component_hash_count": component_hash_count,
+            "no_call_counter_count": len(no_call_counters),
+            "claim_boundary_check_count": 3,
+            "operator_review_count": 1 if operator_review_hash else 0,
+            "handback_request_count": 1 if handback_requested else 0,
+            "execution_permission_count": 0,
+        }
+    )
+
+
 def _manual_test_proposal_projection(
     *,
     payload: dict[str, Any],
@@ -3075,6 +3266,18 @@ def provider_manual_test_closeout_record_summary(
     )
 
 
+def provider_manual_test_operator_handback_summary(
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the public no-call first-call operator handback projection."""
+    closeout_record = provider_manual_test_closeout_record_summary(payload)
+    return _manual_provider_test_operator_handback_projection(
+        payload=payload,
+        closeout_record=closeout_record,
+        execution_boundary=_zero_execution_boundary(),
+    )
+
+
 def _review_packet_export_from_read_model(read_model: JsonDict) -> JsonDict:
     if str(read_model.get("status", "")) == "blocked":
         return _manual_provider_test_review_packet_export_blocked(
@@ -3205,6 +3408,7 @@ def _blocked_projection(
     manual_provider_test_post_invocation_audit: JsonDict | None = None,
     manual_provider_test_completion_summary: JsonDict | None = None,
     manual_provider_test_closeout_record: JsonDict | None = None,
+    manual_provider_test_operator_handback: JsonDict | None = None,
 ) -> dict[str, Any]:
     selected_operator_approval = operator_approval_envelope or _operator_approval_missing_projection()
     selected_dry_admission = live_provider_dry_admission or _live_provider_dry_admission_checklist(
@@ -3329,6 +3533,12 @@ def _blocked_projection(
             "completion_summary_not_evaluated"
         )
     )
+    selected_operator_handback = (
+        manual_provider_test_operator_handback
+        or _manual_provider_test_operator_handback_blocked(
+            "closeout_record_not_evaluated"
+        )
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -3379,6 +3589,7 @@ def _blocked_projection(
             ),
             "manual_provider_test_completion_summary": selected_completion_summary,
             "manual_provider_test_closeout_record": selected_closeout_record,
+            "manual_provider_test_operator_handback": selected_operator_handback,
             "provider_envelope_read_model": read_model or {},
             "checks": [{"name": check_name, "passed": False}],
             "errors": [message],
@@ -3772,6 +3983,11 @@ def _projection_from_result(
         completion_summary=completion_summary,
         execution_boundary=execution_boundary,
     )
+    operator_handback = _manual_provider_test_operator_handback_projection(
+        payload=payload,
+        closeout_record=closeout_record,
+        execution_boundary=execution_boundary,
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -3814,6 +4030,7 @@ def _projection_from_result(
             "manual_provider_test_post_invocation_audit": post_invocation_audit,
             "manual_provider_test_completion_summary": completion_summary,
             "manual_provider_test_closeout_record": closeout_record,
+            "manual_provider_test_operator_handback": operator_handback,
             "provider_envelope_read_model": read_model,
             "checks": _check_map(result.checks),
             "errors": [str(error) for error in result.errors],
@@ -4325,6 +4542,11 @@ def read_provider_envelope_precheck(
                     "completion_summary_missing_or_mismatched"
                 )
             ),
+            "manual_provider_test_operator_handback": (
+                _manual_provider_test_operator_handback_blocked(
+                    "closeout_record_missing_or_mismatched"
+                )
+            ),
             "provider_envelope_read_model": read_model,
             "checks": [{"name": "provider_envelope_read_model_available", "passed": True}],
             "errors": [],
@@ -4369,6 +4591,7 @@ __all__ = [
     "MANUAL_PROVIDER_TEST_POST_INVOCATION_AUDIT_VERSION",
     "MANUAL_PROVIDER_TEST_COMPLETION_SUMMARY_VERSION",
     "MANUAL_PROVIDER_TEST_CLOSEOUT_RECORD_VERSION",
+    "MANUAL_PROVIDER_TEST_OPERATOR_HANDBACK_VERSION",
     "provider_manual_test_proposal_summary",
     "provider_manual_test_preflight_summary",
     "provider_manual_test_review_packet_summary",
@@ -4385,6 +4608,7 @@ __all__ = [
     "provider_manual_test_post_invocation_audit_summary",
     "provider_manual_test_completion_summary",
     "provider_manual_test_closeout_record_summary",
+    "provider_manual_test_operator_handback_summary",
     "provider_precheck_operator_policy_summary",
     "read_provider_envelope_precheck",
     "run_provider_envelope_precheck",

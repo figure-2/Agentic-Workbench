@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-27` disabled closeout record boundary.
+Current snapshot after `AW-LIVE-28` disabled operator handback boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 211 |
-| Counted code/doc files, excluding cache and private SoT | 211 |
-| Project lines, excluding cache and private SoT | 43,068 |
+| Project files, excluding cache and private SoT | 214 |
+| Counted code/doc files, excluding cache and private SoT | 214 |
+| Project lines, excluding cache and private SoT | 43,964 |
 | Python files | 76 |
-| Markdown files | 130 |
+| Markdown files | 133 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 450 |
-| Pytest passed cases | 450 |
+| Pytest collected cases | 453 |
+| Pytest passed cases | 453 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -2528,3 +2528,52 @@ Interpretation: this adds a local disabled closeout record for a later manual
 provider test candidate. It does not add an external call path, SDK
 integration, env value access, network access, provider response parsing,
 hosted execution, or production provider readiness.
+
+## AW-LIVE-28 Disabled Operator Handback Metrics
+
+Measured after adding the blocked disabled first-call operator handback.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 453 |
+| Pytest passed cases | 453 |
+| Regression delta vs AW-LIVE-27 baseline | +3 |
+| API operator handback integration tests | 3 |
+| Provider envelope API integration tests | 58 |
+| Demo provider envelope smoke tests | 1 |
+| Operator handback public summary fields | 16 |
+| Operator handback component count | 8 |
+| Operator handback component hash count | 4 |
+| Operator handback no-call counter count | 13 |
+| Claim-boundary check count | 3 |
+| Handback passed count with missing expected closeout hash | 3 |
+| Handback mismatch count with missing expected closeout hash | 5 |
+| Handback passed count without handback payload | 4 |
+| Handback mismatch count without handback payload | 4 |
+| Handback passed count with complete handback | 8 |
+| Execution permission count with complete handback | 0 |
+| Missing expected closeout hash reason | expected_closeout_record_hash_required |
+| Missing handback payload reason | operator_handback_required |
+| Complete handback reason | operator_handback_execution_closed |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| closeout record hash exists before operator handback | covered |
+| expected closeout record hash must match | covered |
+| operator handback payload is required | covered |
+| operator review is represented as hash/count evidence | covered |
+| claim boundary is represented as hash/count evidence | covered |
+| public handback exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled operator handback for a later manual
+provider test candidate. It does not add an external call path, SDK
+integration, env value access, network access, provider response parsing,
+hosted execution, live operator approval, or production provider readiness.
