@@ -57,6 +57,7 @@ OPERATOR_POLICY_SUMMARY_VERSION = "provider-precheck-operator-policy-summary-v1"
 OPERATOR_APPROVAL_ENVELOPE_VERSION = "provider-precheck-operator-approval-envelope-v1"
 LIVE_PROVIDER_DRY_ADMISSION_VERSION = "live-provider-dry-admission-checklist-v1"
 MANUAL_PROVIDER_TEST_PROPOSAL_VERSION = "manual-provider-test-proposal-gate-v1"
+MANUAL_PROVIDER_TEST_EXECUTOR_VERSION = "manual-provider-test-executor-boundary-v1"
 
 
 @dataclass(slots=True)
@@ -303,6 +304,44 @@ def _manual_provider_test_proposal_not_applicable(run_id: str) -> JsonDict:
     )
 
 
+def _manual_provider_test_executor_projection(
+    *,
+    request: ProviderRequest,
+    manual_provider_test_proposal: JsonDict,
+    executor_enable_requested: bool,
+) -> JsonDict:
+    proposal_status = str(manual_provider_test_proposal.get("status", "blocked"))
+    proposal_hash = str(manual_provider_test_proposal.get("proposal_hash", ""))
+    planned_call_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": MANUAL_PROVIDER_TEST_EXECUTOR_VERSION,
+                "run_id": request.run_id,
+                "prompt_contract_hash": request.prompt_contract_hash,
+                "provider_name": request.provider_name,
+                "model_name": request.model_name,
+                "proposal_hash": proposal_hash,
+                "executor_enable_requested": bool(executor_enable_requested),
+            }
+        )
+        if proposal_hash
+        else ""
+    )
+    if proposal_status != "approved_disabled":
+        reason = "manual_provider_test_proposal_required"
+    elif not executor_enable_requested:
+        reason = "executor_enable_required"
+    else:
+        reason = "executor_disabled_by_default"
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "planned_call_hash": planned_call_hash,
+        }
+    )
+
+
 def _manual_test_proposal_policy(policy: SolarCostTimeoutPolicy) -> JsonDict:
     return {
         "request_timeout_seconds": int(policy.request_timeout_seconds or 0),
@@ -509,6 +548,7 @@ def _blocked_projection(
     operator_approval_envelope: JsonDict | None = None,
     live_provider_dry_admission: JsonDict | None = None,
     manual_provider_test_proposal: JsonDict | None = None,
+    manual_provider_test_executor: JsonDict | None = None,
 ) -> dict[str, Any]:
     selected_operator_approval = operator_approval_envelope or _operator_approval_missing_projection()
     selected_dry_admission = live_provider_dry_admission or _live_provider_dry_admission_checklist(
@@ -519,6 +559,11 @@ def _blocked_projection(
     selected_manual_proposal = (
         manual_provider_test_proposal or _manual_provider_test_proposal_not_applicable(run_id)
     )
+    selected_manual_executor = manual_provider_test_executor or {
+        "status": "blocked",
+        "reason": "manual_provider_test_proposal_required",
+        "planned_call_hash": "",
+    }
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -543,6 +588,7 @@ def _blocked_projection(
             "operator_approval_envelope": selected_operator_approval,
             "live_provider_dry_admission": selected_dry_admission,
             "manual_provider_test_proposal": selected_manual_proposal,
+            "manual_provider_test_executor": selected_manual_executor,
             "provider_envelope_read_model": read_model or {},
             "checks": [{"name": check_name, "passed": False}],
             "errors": [message],
@@ -813,6 +859,7 @@ def _projection_from_result(
     operator_approval_envelope: JsonDict,
     live_provider_dry_admission: JsonDict,
     manual_provider_test_proposal: JsonDict,
+    manual_provider_test_executor: JsonDict,
 ) -> dict[str, Any]:
     metrics = dict(result.metrics)
     request_hash = ""
@@ -848,6 +895,7 @@ def _projection_from_result(
             "operator_approval_envelope": operator_approval_envelope,
             "live_provider_dry_admission": live_provider_dry_admission,
             "manual_provider_test_proposal": manual_provider_test_proposal,
+            "manual_provider_test_executor": manual_provider_test_executor,
             "provider_envelope_read_model": read_model,
             "checks": _check_map(result.checks),
             "errors": [str(error) for error in result.errors],
@@ -910,6 +958,11 @@ def run_provider_envelope_precheck(
         request=request,
         policy=policy,
     )
+    manual_provider_test_executor = _manual_provider_test_executor_projection(
+        request=request,
+        manual_provider_test_proposal=manual_provider_test_proposal,
+        executor_enable_requested=payload.get("manual_test_executor_enable") is True,
+    )
     if operator_errors:
         return _blocked_projection(
             run_id=request.run_id,
@@ -920,6 +973,7 @@ def run_provider_envelope_precheck(
             operator_approval_envelope=operator_approval,
             live_provider_dry_admission=live_provider_dry_admission,
             manual_provider_test_proposal=manual_provider_test_proposal,
+            manual_provider_test_executor=manual_provider_test_executor,
         )
 
     if not selected_provider.configured:
@@ -932,6 +986,7 @@ def run_provider_envelope_precheck(
             operator_approval_envelope=operator_approval,
             live_provider_dry_admission=live_provider_dry_admission,
             manual_provider_test_proposal=manual_provider_test_proposal,
+            manual_provider_test_executor=manual_provider_test_executor,
         )
 
     request_result = build_solar_request_contract_fixture(request, policy)
@@ -953,6 +1008,7 @@ def run_provider_envelope_precheck(
             operator_approval_envelope=operator_approval,
             live_provider_dry_admission=live_provider_dry_admission,
             manual_provider_test_proposal=manual_provider_test_proposal,
+            manual_provider_test_executor=manual_provider_test_executor,
         )
 
     try:
@@ -967,6 +1023,7 @@ def run_provider_envelope_precheck(
             operator_approval_envelope=operator_approval,
             live_provider_dry_admission=live_provider_dry_admission,
             manual_provider_test_proposal=manual_provider_test_proposal,
+            manual_provider_test_executor=manual_provider_test_executor,
         )
 
     service = ProviderEnvelopeAdmissionService(repository)
@@ -993,6 +1050,7 @@ def run_provider_envelope_precheck(
         operator_approval_envelope=operator_approval,
         live_provider_dry_admission=live_provider_dry_admission,
         manual_provider_test_proposal=manual_provider_test_proposal,
+        manual_provider_test_executor=manual_provider_test_executor,
     )
 
 
@@ -1066,6 +1124,11 @@ def read_provider_envelope_precheck(
             "manual_provider_test_proposal": _manual_provider_test_proposal_not_applicable(
                 run_id
             ),
+            "manual_provider_test_executor": {
+                "status": "blocked",
+                "reason": "manual_provider_test_proposal_required",
+                "planned_call_hash": "",
+            },
             "provider_envelope_read_model": read_model,
             "checks": [{"name": "provider_envelope_read_model_available", "passed": True}],
             "errors": [],
@@ -1091,6 +1154,7 @@ __all__ = [
     "ProviderEnvelopeRepositoryProvider",
     "LIVE_PROVIDER_DRY_ADMISSION_VERSION",
     "MANUAL_PROVIDER_TEST_PROPOSAL_VERSION",
+    "MANUAL_PROVIDER_TEST_EXECUTOR_VERSION",
     "provider_manual_test_proposal_summary",
     "provider_precheck_operator_policy_summary",
     "read_provider_envelope_precheck",

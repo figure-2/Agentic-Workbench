@@ -85,6 +85,7 @@ Current implementation:
 - Operator approval envelope for provider precheck policy summary hash binding
 - Live provider dry-admission checklist and manual runbook projection
 - Manual provider test proposal gate that remains disabled by default
+- Disabled manual provider test executor boundary
 - Test-only DIV/DAACS source identity fixtures for parity reference
 - Fixture-based source identity smoke path from planning artifact to dry-run report
 - Source-to-target trace and portfolio-safe claim projection for parity evidence
@@ -167,6 +168,7 @@ Allowed public summary:
 - Local no-call operator approval envelope for provider precheck policy summaries
 - Local dry-admission checklist and manual runbook for future provider test proposals
 - Local manual provider test proposal gate with execution disabled by default
+- Disabled local executor boundary for manual provider test proposals
 - Public output designed around sanitized summaries and correlation hashes
 
 Do not interpret current results as:
@@ -184,11 +186,12 @@ Do not interpret current results as:
 - Operator approval envelope as production operator identity, provider execution permission, or external provider outcome
 - Dry-admission checklist as live permission, provider behavior evidence, hosted approval authority, or production provider readiness
 - Manual provider test proposal gate as provider execution permission, provider behavior evidence, hosted approval authority, or production provider readiness
+- Disabled manual provider test executor boundary as provider execution, provider behavior evidence, hosted execution, or production provider readiness
 
 ## Status
 
-Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection, source identity golden path smoke coverage, claim-safe trace projection, hash/count repository boundaries, SQLite adapter skeletons for runner/report/audit evidence, approval/replay evidence, canonical run/artifact rows, and provider envelope evidence, canonical approval persistence service wiring before replay claim, sanitized fake admission API demo paths, explicit SQLite-backed fake admission API wiring, sanitized evidence read-model API skeleton, optional fixture evidence persistence, canonical run/artifact read APIs, composed canonical run/evidence read API, local service-shaped demo script, minimal Markdown/CLI run status surface, static HTML UI shell, disabled Solar Pro 3 provider adapter skeleton, no-call Solar Pro 3 contract fixtures, provider envelope read-model projection, provider envelope admission service, provider envelope admission API/read-model hook, operator approval envelope for local no-call provider precheck evidence, dry-admission checklist/runbook projection, and manual provider test proposal gate.
+Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection, source identity golden path smoke coverage, claim-safe trace projection, hash/count repository boundaries, SQLite adapter skeletons for runner/report/audit evidence, approval/replay evidence, canonical run/artifact rows, and provider envelope evidence, canonical approval persistence service wiring before replay claim, sanitized fake admission API demo paths, explicit SQLite-backed fake admission API wiring, sanitized evidence read-model API skeleton, optional fixture evidence persistence, canonical run/artifact read APIs, composed canonical run/evidence read API, local service-shaped demo script, minimal Markdown/CLI run status surface, static HTML UI shell, disabled Solar Pro 3 provider adapter skeleton, no-call Solar Pro 3 contract fixtures, provider envelope read-model projection, provider envelope admission service, provider envelope admission API/read-model hook, operator approval envelope for local no-call provider precheck evidence, dry-admission checklist/runbook projection, manual provider test proposal gate, and disabled manual provider test executor boundary.
 
 Current status also includes a fail-closed live-open policy gate. A passing policy decision can only mark a future surface as eligible for a separate implementation unit; it does not grant execution permission.
 
-Next implementation track: disabled manual provider test executor boundary. It must still keep external calls closed until a later explicit opt-in task.
+Next implementation track: explicit one-shot live call permission contract. It must still keep external calls closed by default until a later explicit opt-in task.

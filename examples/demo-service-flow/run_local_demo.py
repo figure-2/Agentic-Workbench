@@ -332,6 +332,15 @@ def run_demo(
                 )
                 .get("proposal_fields", {})
                 .get("abort_criteria_count"),
+                "manual_test_executor_status": provider_envelope_data.get(
+                    "manual_provider_test_executor", {}
+                ).get("status"),
+                "manual_test_executor_reason": provider_envelope_data.get(
+                    "manual_provider_test_executor", {}
+                ).get("reason"),
+                "manual_test_executor_planned_call_hash": provider_envelope_data.get(
+                    "manual_provider_test_executor", {}
+                ).get("planned_call_hash"),
                 "read_model_status": (
                     provider_envelope_read_data or {}
                 ).get("status"),

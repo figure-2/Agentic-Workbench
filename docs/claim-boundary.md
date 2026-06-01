@@ -37,6 +37,7 @@ Agentic Workbench is a local/dev AI agent workflow harness prototype. It may cla
 - Local dry-admission checklist for future provider test proposals, with
   execution permission closed
 - Local manual provider test proposal gate that remains disabled by default
+- Disabled local executor boundary for manual provider test proposals
 - Sanitized public summaries and correlation hashes
 - Fixture-based smoke tests and local regression tests
 
@@ -98,6 +99,8 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
 - manual provider test proposal gate described as external provider behavior,
   execution permission, hosted approval authority, or production provider
   readiness
+- disabled manual provider test executor boundary described as external
+  provider behavior, hosted execution, or production provider readiness
 
 ## Public Artifact Rules
 
@@ -141,3 +144,4 @@ Allowed replacements:
 | Operator Approval Envelope Gate | Provider precheck requires a local operator approval bound to a sanitized policy summary hash |
 | Dry-Admission Checklist Gate | Provider precheck exposes manual conditions while keeping execution permission closed |
 | Manual Proposal Gate | First provider test proposal requires exact proposal-hash approval and remains disabled |
+| Disabled Executor Gate | Manual provider test executor remains blocked and exposes only status/reason/hash |

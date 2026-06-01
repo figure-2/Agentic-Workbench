@@ -76,6 +76,7 @@ sequenceDiagram
 | `operator_approval_envelope` | local operator approval projection bound to a provider precheck policy summary hash |
 | `live_provider_dry_admission` | local checklist projection showing manual preconditions and closed execution permission |
 | `manual_provider_test_proposal` | local proposal gate with proposal hash, approval hash match, and execution disabled by default |
+| `manual_provider_test_executor` | disabled executor projection with status, reason, and planned call hash only |
 
 ## Persistence Boundary
 
@@ -235,6 +236,14 @@ approval must reference that exact proposal hash. A matching approval can only
 produce `status=approved_disabled`; it still reports `allowed_to_execute=false`
 and keeps external calls closed.
 
+`AW-LIVE-09` adds a disabled manual provider test executor boundary. The
+executor projection is intentionally narrow and returns only `status`, `reason`,
+and `planned_call_hash`. An accepted proposal without an executor flag reports
+`executor_enable_required`. An accepted proposal with the flag still reports
+`executor_disabled_by_default`. Both states keep provider SDK imports, env
+value reads, network calls, external API calls, and DAACS target runtime calls
+closed.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -301,3 +310,5 @@ outside the current executable path.
   provider/runtime counters at 0.
 - manual provider test proposal gates must bind proposal approval by hash and
   must stay disabled by default even when the proposal is accepted.
+- manual provider test executor projections must stay blocked and must expose
+  only status, reason, and planned call hash.

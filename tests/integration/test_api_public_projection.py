@@ -98,6 +98,7 @@ def _provider_envelope_precheck_payload(
     approved_policy_summary_hash: str | None = None,
     include_manual_test_proposal: bool = False,
     include_manual_test_operator_approval: bool = True,
+    manual_test_executor_enable: bool = False,
 ) -> dict:
     payload = {
         "run_id": run_id,
@@ -174,6 +175,8 @@ def _provider_envelope_precheck_payload(
                 "approved_proposal_hash": proposal_summary["proposal_hash"],
                 "authorization_material": "API08_MANUAL_TEST_AUTH_SENTINEL",
             }
+    if manual_test_executor_enable:
+        payload["manual_test_executor_enable"] = True
     return payload
 
 
@@ -1275,6 +1278,7 @@ def test_provider_envelope_precheck_api_persists_hash_read_model_without_externa
     operator_approval = data["operator_approval_envelope"]
     dry_admission = data["live_provider_dry_admission"]
     manual_proposal = data["manual_provider_test_proposal"]
+    manual_executor = data["manual_provider_test_executor"]
     checklist_by_id = {item["id"]: item for item in dry_admission["checklist"]}
 
     assert data["projection_version"] == "provider-envelope-admission-api-public-v1"
@@ -1332,6 +1336,10 @@ def test_provider_envelope_precheck_api_persists_hash_read_model_without_externa
     assert manual_proposal["execution_boundary"]["api_calls"] == 0
     assert manual_proposal["execution_boundary"]["network_calls"] == 0
     assert manual_proposal["execution_boundary"]["solar_provider_calls"] == 0
+    assert set(manual_executor) == {"status", "reason", "planned_call_hash"}
+    assert manual_executor["status"] == "blocked"
+    assert manual_executor["reason"] == "manual_provider_test_proposal_required"
+    assert manual_executor["planned_call_hash"] == ""
     assert data["repository_boundary"]["provider_envelope_backend"] == "sqlite"
     assert data["repository_boundary"]["root_path_returned"] is False
     assert data["execution_boundary"]["adapter_invocation_count"] == 1
@@ -1450,6 +1458,7 @@ def test_provider_envelope_precheck_api_accepts_manual_test_proposal_but_keeps_e
     serialized = _serialized(payload)
     data = payload["data"]
     manual_proposal = data["manual_provider_test_proposal"]
+    manual_executor = data["manual_provider_test_executor"]
     checks = {check["name"]: check["passed"] for check in manual_proposal["checks"]}
 
     assert manual_proposal["status"] == "approved_disabled"
@@ -1477,8 +1486,65 @@ def test_provider_envelope_precheck_api_accepts_manual_test_proposal_but_keeps_e
     assert manual_proposal["execution_boundary"]["network_calls"] == 0
     assert manual_proposal["execution_boundary"]["solar_provider_calls"] == 0
     assert manual_proposal["execution_boundary"]["target_runtime_calls"] == 0
+    assert set(manual_executor) == {"status", "reason", "planned_call_hash"}
+    assert manual_executor["status"] == "blocked"
+    assert manual_executor["reason"] == "executor_enable_required"
+    assert manual_executor["planned_call_hash"]
     assert data["execution_boundary"]["provider_calls"] == 0
     assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API08_ABORT_CRITERIA_SENTINEL",
+        "API08_MANUAL_TEST_AUTH_SENTINEL",
+        "authorization_material",
+        "raw_prompt",
+        "provider_payload",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_manual_executor_even_when_enable_requested(tmp_path):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-manual-executor",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+    )
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    manual_proposal = data["manual_provider_test_proposal"]
+    manual_executor = data["manual_provider_test_executor"]
+
+    assert manual_proposal["status"] == "approved_disabled"
+    assert set(manual_executor) == {"status", "reason", "planned_call_hash"}
+    assert manual_executor["status"] == "blocked"
+    assert manual_executor["reason"] == "executor_disabled_by_default"
+    assert manual_executor["planned_call_hash"]
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["live_api_calls"] == 0
+    assert data["execution_boundary"]["live_llm_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["provider_envelope_env_value_reads"] == 0
     assert data["execution_boundary"]["solar_live_api_calls"] == 0
 
     for forbidden in (

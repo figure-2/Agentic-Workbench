@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-08` manual provider test proposal gate.
+Current snapshot after `AW-LIVE-09` disabled manual provider test executor boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 158 |
-| Counted code/doc files, excluding cache and private SoT | 155 |
-| Project lines, excluding cache and private SoT | 29,775 |
+| Project files, excluding cache and private SoT | 161 |
+| Counted code/doc files, excluding cache and private SoT | 158 |
+| Project lines, excluding cache and private SoT | 30,165 |
 | Python files | 76 |
-| Markdown files | 73 |
+| Markdown files | 76 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 399 |
-| Pytest passed cases | 399 |
+| Pytest collected cases | 400 |
+| Pytest passed cases | 400 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -1700,3 +1700,40 @@ Interpretation: this adds a local proposal gate for a later first provider test
 discussion. It does not add an executor, SDK integration, env value access,
 network access, provider response parsing, hosted execution, or production
 provider readiness.
+
+## AW-LIVE-09 Disabled Manual Provider Test Executor Metrics
+
+Measured after adding the disabled manual provider test executor boundary.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 400 |
+| Pytest passed cases | 400 |
+| Regression delta vs AW-LIVE-08 baseline | +1 |
+| API disabled executor integration tests | 1 |
+| Provider envelope API integration tests | 7 |
+| Demo provider envelope smoke tests | 1 |
+| Executor public projection fields | 3 |
+| Executor status with approved proposal and no flag | blocked |
+| Executor reason with approved proposal and no flag | executor_enable_required |
+| Executor status with approved proposal and enable flag | blocked |
+| Executor reason with approved proposal and enable flag | executor_disabled_by_default |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| approved proposal still leaves executor blocked | covered |
+| missing executor flag blocked | covered |
+| executor flag present still blocked | covered |
+| executor projection narrowed to status/reason/planned_call_hash | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a disabled local executor boundary. It does not add
+an external call path, SDK integration, env value access, network access,
+provider response parsing, hosted execution, or production provider readiness.
