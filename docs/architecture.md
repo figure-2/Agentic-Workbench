@@ -366,6 +366,12 @@ counter hashes into one status/reason/hash/count projection. The summary still
 reports `completion_summary_execution_closed` and keeps
 `execution_permission_count=0`.
 
+`AW-LIVE-27` adds a disabled first-call closeout record. The record requires a
+completion summary hash and a separate expected completion summary hash match.
+It binds completion summary, claim-boundary, and no-call counter hashes into
+one status/reason/hash/count projection. The record still reports
+`closeout_record_execution_closed` and keeps `execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -459,4 +465,6 @@ outside the current executable path.
 - post-invocation audits must bind to invocation receipt, claim-boundary, and
   no-call counter hashes only and must not grant execution permission.
 - completion summaries must bind to post-invocation audit, claim-boundary, and
+  no-call counter hashes only and must not grant execution permission.
+- closeout records must bind to completion summary, claim-boundary, and
   no-call counter hashes only and must not grant execution permission.

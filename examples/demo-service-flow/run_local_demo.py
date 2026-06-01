@@ -30,6 +30,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     MANUAL_PROVIDER_TEST_EXECUTOR_VERSION,
     ProviderEnvelopeRepositoryConfig,
     provider_manual_test_arming_record_summary,
+    provider_manual_test_completion_summary,
     provider_manual_test_executor_dispatch_record_summary,
     provider_manual_test_executor_preflight_summary,
     provider_manual_test_execution_switch_summary,
@@ -296,6 +297,14 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
         "post_invocation_audit_hash": post_invocation_audit_hash,
         "summary_requested": True,
     }
+    completion_summary = provider_manual_test_completion_summary(payload)
+    payload["expected_completion_summary_hash"] = completion_summary[
+        "completion_summary_hash"
+    ]
+    payload["manual_test_closeout_record"] = {
+        "completion_summary_hash": completion_summary["completion_summary_hash"],
+        "closeout_requested": True,
+    }
     return payload
 
 
@@ -483,6 +492,14 @@ def _checks(
             completion_summary.get("status") == "blocked"
             and completion_summary.get("reason") == "completion_summary_execution_closed"
             and int(completion_summary.get("execution_permission_count", -1)) == 0
+        )
+        closeout_record = provider_envelope_data.get(
+            "manual_provider_test_closeout_record", {}
+        )
+        checks["provider_closeout_record_blocked"] = (
+            closeout_record.get("status") == "blocked"
+            and closeout_record.get("reason") == "closeout_record_execution_closed"
+            and int(closeout_record.get("execution_permission_count", -1)) == 0
         )
     return checks
 
@@ -1141,6 +1158,48 @@ def run_demo(
                 ).get("summary_request_count"),
                 "completion_summary_execution_permission_count": provider_envelope_data.get(
                     "manual_provider_test_completion_summary", {}
+                ).get("execution_permission_count"),
+                "closeout_record_status": provider_envelope_data.get(
+                    "manual_provider_test_closeout_record", {}
+                ).get("status"),
+                "closeout_record_reason": provider_envelope_data.get(
+                    "manual_provider_test_closeout_record", {}
+                ).get("reason"),
+                "closeout_record_hash": provider_envelope_data.get(
+                    "manual_provider_test_closeout_record", {}
+                ).get("closeout_record_hash"),
+                "closeout_record_completion_summary_hash": provider_envelope_data.get(
+                    "manual_provider_test_closeout_record", {}
+                ).get("completion_summary_hash"),
+                "closeout_record_claim_boundary_hash": provider_envelope_data.get(
+                    "manual_provider_test_closeout_record", {}
+                ).get("claim_boundary_hash"),
+                "closeout_record_no_call_counters_hash": provider_envelope_data.get(
+                    "manual_provider_test_closeout_record", {}
+                ).get("no_call_counters_hash"),
+                "closeout_record_component_count": provider_envelope_data.get(
+                    "manual_provider_test_closeout_record", {}
+                ).get("component_count"),
+                "closeout_record_passed_component_count": provider_envelope_data.get(
+                    "manual_provider_test_closeout_record", {}
+                ).get("passed_component_count"),
+                "closeout_record_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_closeout_record", {}
+                ).get("mismatch_count"),
+                "closeout_record_component_hash_count": provider_envelope_data.get(
+                    "manual_provider_test_closeout_record", {}
+                ).get("component_hash_count"),
+                "closeout_record_no_call_counter_count": provider_envelope_data.get(
+                    "manual_provider_test_closeout_record", {}
+                ).get("no_call_counter_count"),
+                "closeout_record_claim_boundary_check_count": provider_envelope_data.get(
+                    "manual_provider_test_closeout_record", {}
+                ).get("claim_boundary_check_count"),
+                "closeout_record_request_count": provider_envelope_data.get(
+                    "manual_provider_test_closeout_record", {}
+                ).get("closeout_request_count"),
+                "closeout_record_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_closeout_record", {}
                 ).get("execution_permission_count"),
                 "review_packet_read_model_status": (
                     provider_envelope_read_data or {}

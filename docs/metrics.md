@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-26` disabled completion summary boundary.
+Current snapshot after `AW-LIVE-27` disabled closeout record boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 208 |
-| Counted code/doc files, excluding cache and private SoT | 208 |
-| Project lines, excluding cache and private SoT | 42,267 |
+| Project files, excluding cache and private SoT | 211 |
+| Counted code/doc files, excluding cache and private SoT | 211 |
+| Project lines, excluding cache and private SoT | 43,068 |
 | Python files | 76 |
-| Markdown files | 127 |
+| Markdown files | 130 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 447 |
-| Pytest passed cases | 447 |
+| Pytest collected cases | 450 |
+| Pytest passed cases | 450 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -2478,5 +2478,53 @@ Measured after adding the blocked disabled first-call completion summary.
 
 Interpretation: this adds a local disabled completion summary for a later
 manual provider test candidate. It does not add an external call path, SDK
+integration, env value access, network access, provider response parsing,
+hosted execution, or production provider readiness.
+
+## AW-LIVE-27 Disabled Closeout Record Metrics
+
+Measured after adding the blocked disabled first-call closeout record.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 450 |
+| Pytest passed cases | 450 |
+| Regression delta vs AW-LIVE-26 baseline | +3 |
+| API closeout record integration tests | 3 |
+| Provider envelope API integration tests | 55 |
+| Demo provider envelope smoke tests | 1 |
+| Closeout record public summary fields | 14 |
+| Closeout record component count | 7 |
+| Closeout record component hash count | 3 |
+| Closeout record no-call counter count | 13 |
+| Claim-boundary check count | 3 |
+| Closeout passed count with missing expected summary hash | 3 |
+| Closeout mismatch count with missing expected summary hash | 4 |
+| Closeout passed count without closeout payload | 4 |
+| Closeout mismatch count without closeout payload | 3 |
+| Closeout passed count with complete record | 7 |
+| Execution permission count with complete closeout | 0 |
+| Missing expected summary hash reason | expected_completion_summary_hash_required |
+| Missing closeout payload reason | closeout_record_required |
+| Complete closeout reason | closeout_record_execution_closed |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| completion summary hash exists before closeout record | covered |
+| expected completion summary hash must match | covered |
+| closeout record payload is required | covered |
+| claim boundary is represented as hash/count evidence | covered |
+| public closeout exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled closeout record for a later manual
+provider test candidate. It does not add an external call path, SDK
 integration, env value access, network access, provider response parsing,
 hosted execution, or production provider readiness.
