@@ -30,6 +30,8 @@ Agentic Workbench is a local/dev AI agent workflow harness prototype. It may cla
   and provider calls kept at 0
 - No-call Solar Pro 3 request/response contract fixtures with sanitized
   summary/hash projection and policy checks
+- Sanitized provider envelope read model for no-call contract hashes, counts,
+  and status
 - Sanitized public summaries and correlation hashes
 - Fixture-based smoke tests and local regression tests
 
@@ -76,6 +78,8 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
   outcome, model-quality proof, SDK integration, or production provider path
 - Solar Pro 3 contract fixture described as an external call, provider outcome,
   model-quality proof, live response parser, or production provider readiness
+- provider envelope read model described as provider outcome, hosted
+  observability, live response parser, or production provider readiness
 
 ## Public Artifact Rules
 
@@ -113,3 +117,4 @@ Allowed replacements:
 | Claim Copy Gate | Unsupported public claims are blocked by scan/review |
 | No-Live-Call Gate | Current paths are not described as live-provider or live-runtime success |
 | Non-Dummy Test Gate | Schema, adapter, redaction, pathing, approval, runner, and smoke tests remain executable |
+| Provider Envelope Read Gate | No-call provider envelope evidence exposes hashes, counts, and status only |

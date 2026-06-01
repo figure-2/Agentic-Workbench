@@ -30,6 +30,17 @@ from .solar_contracts import (
     build_solar_request_contract_fixture,
     build_solar_response_projection_fixture,
 )
+from .provider_envelope_store import (
+    InMemoryProviderEnvelopeRepository,
+    ProviderEnvelopeRecord,
+    ProviderEnvelopeRepository,
+    ProviderEnvelopeStoreUnavailableError,
+    SQLiteProviderEnvelopeRepository,
+    SQLiteProviderEnvelopeStore,
+    provider_envelope_public_read_model,
+    provider_envelope_public_read_model_from_sqlite,
+    provider_envelope_record_from_contract_result,
+)
 from .runner_provider import (
     ApprovalRecord,
     OfflineRunnerProvider,
@@ -51,8 +62,12 @@ __all__ = [
     "DisabledSolarPro3LiveAdapter",
     "DryRunRunnerProvider",
     "FakeLiveRuntime",
+    "InMemoryProviderEnvelopeRepository",
     "LiveRunnerProvider",
     "OfflineRunnerProvider",
+    "ProviderEnvelopeRecord",
+    "ProviderEnvelopeRepository",
+    "ProviderEnvelopeStoreUnavailableError",
     "ProviderAdapterRegistry",
     "RunnerPlan",
     "RunnerPolicy",
@@ -64,6 +79,8 @@ __all__ = [
     "SolarPro3LiveAdapterConfig",
     "SolarRequestContractFixture",
     "SolarResponseProjectionFixture",
+    "SQLiteProviderEnvelopeRepository",
+    "SQLiteProviderEnvelopeStore",
     "attach_solar_response_projection_fixture",
     "build_spec_to_daacs_initial_state",
     "build_solar_request_contract_fixture",
@@ -75,4 +92,7 @@ __all__ = [
     "find_blocked_operation_attempts",
     "implementation_brief_from_prd_package",
     "planning_to_build_spec",
+    "provider_envelope_public_read_model",
+    "provider_envelope_public_read_model_from_sqlite",
+    "provider_envelope_record_from_contract_result",
 ]

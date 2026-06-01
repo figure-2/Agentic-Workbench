@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-DEMO-02` minimal run status surface.
+Current snapshot after `AW-LIVE-03` provider envelope read model.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 117 |
-| Counted code/doc files, excluding cache and private SoT | 117 |
-| Project lines, excluding cache and private SoT | 25,707 |
-| Python files | 63 |
-| Markdown files | 49 |
-| Test files | 25 |
-| Unit test files | 19 |
-| Smoke test files | 5 |
+| Project files, excluding cache and private SoT | 139 |
+| Counted code/doc files, excluding cache and private SoT | 139 |
+| Project lines, excluding cache and private SoT | 25,897 |
+| Python files | 73 |
+| Markdown files | 61 |
+| Test files | 30 |
+| Unit test files | 23 |
+| Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 354 |
-| Pytest passed cases | 354 |
+| Pytest collected cases | 384 |
+| Pytest passed cases | 384 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -1470,3 +1470,41 @@ Interpretation: this adds no-call contract fixtures for a future Solar Pro 3
 provider path. It does not add SDK integration, provider response parsing,
 external provider outcome, model-quality proof, live cost metering, hosted
 execution, or production provider readiness.
+
+## AW-LIVE-03 Provider Envelope Persistence and Read Model Metrics
+
+Measured after adding hash-only provider envelope persistence and public read
+model projection for no-call Solar contract evidence.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 384 |
+| Pytest passed cases | 384 |
+| Regression delta vs AW-LIVE-02 baseline | +8 |
+| Provider envelope unit tests | 8 |
+| Provider envelope SQLite tables | 2 |
+| Public read-model envelope field count | 9 |
+| Raw prompt/provider body/provider payload DB findings | 0 |
+| Forbidden public key findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| request contract hash stored | covered |
+| response contract hash stored | covered |
+| DB rows exclude raw prompt/provider body/provider payload | covered |
+| public read model returns hash/count/status fields only | covered |
+| corrupted SQLite store blocked | covered |
+| unavailable SQLite store blocked | covered |
+| wrong-schema SQLite store blocked | covered |
+| escaping SQLite filename blocked | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds no-call provider envelope evidence storage and read
+model projection. It does not add SDK integration, provider response parsing,
+external provider outcome, model-quality proof, hosted execution, or production
+provider readiness.

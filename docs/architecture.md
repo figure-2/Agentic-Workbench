@@ -29,7 +29,7 @@ Verification Boundary
 Persistence Boundary
   sanitized in-memory repositories, file-backed replay fixture,
   SQLite skeletons for runner/report/audit, approval/replay, and canonical
-  run/artifact projection rows
+  run/artifact projection rows, plus provider envelope evidence rows
 ```
 
 ## Current Flow
@@ -70,6 +70,7 @@ sequenceDiagram
 | `RunnerPlan` | side-effect-free dry-run execution plan projection |
 | `VerificationReport` | sanitized check/error/file/metric projection |
 | repository records | hash/count/linkage rows that exclude raw prompt, raw body, logs, and provider payloads |
+| `ProviderEnvelopeRecord` | no-call provider envelope evidence with contract hashes, counts, and status |
 
 ## Persistence Boundary
 
@@ -186,6 +187,13 @@ summary text and correlation hashes only. Raw input text, source body,
 provider body, SDK imports, env value reads, network calls, and API calls remain
 outside the contract path.
 
+`AW-LIVE-03` adds provider envelope persistence and a public read model for
+no-call Solar contract evidence. The SQLite store persists request and response
+contract hashes, prompt/content hashes, counts, status, safe labels, and a
+sanitized summary. The public read model narrows that to hashes, counts,
+status, repository boundary state, and zero-call counters. Corrupted,
+unavailable, or wrong-schema stores are blocked.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -239,3 +247,5 @@ outside the current executable path.
   at 0.
 - Solar Pro 3 contract fixtures must be no-call projections and must not carry
   raw input text, source body, provider body, or authorization material.
+- provider envelope read models must expose hashes, counts, and status only;
+  corrupted or unavailable stores must be blocked without path or raw row echo.

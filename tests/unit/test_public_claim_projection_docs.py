@@ -29,6 +29,7 @@ LIVE_00_PATH = ROOT / "docs" / "evals" / "aw-live-00-live-open-policy-gate.md"
 DEMO_03_PATH = ROOT / "docs" / "evals" / "aw-demo-03-static-ui-shell.md"
 LIVE_01_PATH = ROOT / "docs" / "evals" / "aw-live-01-disabled-solar-provider-adapter.md"
 LIVE_02_PATH = ROOT / "docs" / "evals" / "aw-live-02-solar-contract-fixtures.md"
+LIVE_03_PATH = ROOT / "docs" / "evals" / "aw-live-03-provider-envelope-read-model.md"
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -55,6 +56,7 @@ PUBLIC_CLAIM_DOCS = [
     DEMO_03_PATH,
     LIVE_01_PATH,
     LIVE_02_PATH,
+    LIVE_03_PATH,
 ]
 
 
