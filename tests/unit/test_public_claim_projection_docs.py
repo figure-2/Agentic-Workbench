@@ -109,6 +109,11 @@ LIVE_21_WORK_ORDER_PATH = ROOT / "docs" / "work-orders" / "aw-live-21-execution-
 LIVE_22_PATH = ROOT / "docs" / "evals" / "aw-live-22-executor-preflight.md"
 LIVE_22_RUNBOOK_PATH = ROOT / "docs" / "runbooks" / "aw-live-22-executor-preflight.md"
 LIVE_22_WORK_ORDER_PATH = ROOT / "docs" / "work-orders" / "aw-live-22-executor-preflight.md"
+LIVE_23_PATH = ROOT / "docs" / "evals" / "aw-live-23-executor-dispatch-record.md"
+LIVE_23_RUNBOOK_PATH = ROOT / "docs" / "runbooks" / "aw-live-23-executor-dispatch-record.md"
+LIVE_23_WORK_ORDER_PATH = (
+    ROOT / "docs" / "work-orders" / "aw-live-23-executor-dispatch-record.md"
+)
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -187,6 +192,9 @@ PUBLIC_CLAIM_DOCS = [
     LIVE_22_PATH,
     LIVE_22_RUNBOOK_PATH,
     LIVE_22_WORK_ORDER_PATH,
+    LIVE_23_PATH,
+    LIVE_23_RUNBOOK_PATH,
+    LIVE_23_WORK_ORDER_PATH,
 ]
 
 

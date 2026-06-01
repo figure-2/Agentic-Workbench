@@ -339,6 +339,13 @@ hashes into one status/reason/hash/count projection. The preflight still
 reports `executor_preflight_execution_closed` and keeps
 `execution_permission_count=0`.
 
+`AW-LIVE-23` adds a disabled first-call executor dispatch record. The record
+requires an executor preflight hash and a separate expected executor preflight
+hash match. It binds executor preflight, planned dispatch, and no-call counter
+hashes into one status/reason/hash/count projection. The record still reports
+`executor_dispatch_record_execution_closed` and keeps
+`execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -425,3 +432,5 @@ outside the current executable path.
   only and must not grant execution permission.
 - executor preflights must bind to execution switch and no-call counter hashes
   only and must not grant execution permission.
+- executor dispatch records must bind to executor preflight, planned dispatch,
+  and no-call counter hashes only and must not grant execution permission.

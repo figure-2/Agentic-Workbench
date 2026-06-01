@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-22` disabled executor preflight boundary.
+Current snapshot after `AW-LIVE-23` disabled executor dispatch record boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 196 |
-| Counted code/doc files, excluding cache and private SoT | 196 |
-| Project lines, excluding cache and private SoT | 39,113 |
+| Project files, excluding cache and private SoT | 199 |
+| Counted code/doc files, excluding cache and private SoT | 199 |
+| Project lines, excluding cache and private SoT | 39,902 |
 | Python files | 76 |
-| Markdown files | 115 |
+| Markdown files | 118 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 435 |
-| Pytest passed cases | 435 |
+| Pytest collected cases | 438 |
+| Pytest passed cases | 438 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -2288,5 +2288,52 @@ Measured after adding the blocked disabled first-call executor preflight.
 
 Interpretation: this adds a local disabled executor preflight for a later manual
 provider test candidate. It does not add an external call path, SDK
+integration, env value access, network access, provider response parsing,
+hosted execution, or production provider readiness.
+
+## AW-LIVE-23 Disabled Executor Dispatch Record Metrics
+
+Measured after adding the blocked disabled first-call executor dispatch record.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 438 |
+| Pytest passed cases | 438 |
+| Regression delta vs AW-LIVE-22 baseline | +3 |
+| API executor dispatch record integration tests | 3 |
+| Provider envelope API integration tests | 43 |
+| Demo provider envelope smoke tests | 1 |
+| Executor dispatch record public summary fields | 13 |
+| Executor dispatch record component count | 6 |
+| Executor dispatch record component hash count | 3 |
+| Executor dispatch record no-call counter count | 13 |
+| Dispatch record passed count with missing expected preflight hash | 2 |
+| Dispatch record mismatch count with missing expected preflight hash | 4 |
+| Dispatch record passed count without dispatch payload | 3 |
+| Dispatch record mismatch count without dispatch payload | 3 |
+| Dispatch record passed count with complete dispatch record | 6 |
+| Execution permission count with complete dispatch record | 0 |
+| Missing expected preflight hash reason | expected_executor_preflight_hash_required |
+| Missing dispatch payload reason | executor_dispatch_record_required |
+| Complete dispatch record reason | executor_dispatch_record_execution_closed |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| executor preflight hash exists before dispatch record | covered |
+| expected executor preflight hash must match | covered |
+| dispatch record payload is required | covered |
+| planned dispatch is represented as hash/count evidence | covered |
+| public dispatch record exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled executor dispatch record for a later
+manual provider test candidate. It does not add an external call path, SDK
 integration, env value access, network access, provider response parsing,
 hosted execution, or production provider readiness.

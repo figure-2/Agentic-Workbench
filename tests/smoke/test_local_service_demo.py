@@ -265,6 +265,24 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert envelope["executor_preflight_component_hash_count"] == 3
     assert envelope["executor_preflight_no_call_counter_count"] == 13
     assert envelope["executor_preflight_execution_permission_count"] == 0
+    assert envelope["executor_dispatch_record_status"] == "blocked"
+    assert (
+        envelope["executor_dispatch_record_reason"]
+        == "executor_dispatch_record_execution_closed"
+    )
+    assert envelope["executor_dispatch_record_hash"]
+    assert envelope["executor_dispatch_record_executor_preflight_hash"] == envelope[
+        "executor_preflight_hash"
+    ]
+    assert envelope["executor_dispatch_record_planned_dispatch_hash"]
+    assert envelope["executor_dispatch_record_no_call_counters_hash"]
+    assert envelope["executor_dispatch_record_component_count"] == 6
+    assert envelope["executor_dispatch_record_passed_component_count"] == 6
+    assert envelope["executor_dispatch_record_mismatch_count"] == 0
+    assert envelope["executor_dispatch_record_component_hash_count"] == 3
+    assert envelope["executor_dispatch_record_no_call_counter_count"] == 13
+    assert envelope["executor_dispatch_record_dispatch_request_count"] == 1
+    assert envelope["executor_dispatch_record_execution_permission_count"] == 0
     assert envelope["review_packet_read_model_status"] == "available"
     assert envelope["review_packet_read_export_hash"] == envelope["review_packet_hash"]
     assert envelope["review_packet_read_export_count"] == 1
@@ -284,6 +302,7 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert checks["provider_final_release_packet_blocked"] is True
     assert checks["provider_execution_switch_blocked"] is True
     assert checks["provider_executor_preflight_blocked"] is True
+    assert checks["provider_executor_dispatch_record_blocked"] is True
     assert envelope["execution_boundary"]["provider_calls"] == 0
     assert envelope["execution_boundary"]["network_calls"] == 0
     assert envelope["execution_boundary"]["solar_live_api_calls"] == 0

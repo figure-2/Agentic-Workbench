@@ -30,6 +30,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     MANUAL_PROVIDER_TEST_EXECUTOR_VERSION,
     ProviderEnvelopeRepositoryConfig,
     provider_manual_test_arming_record_summary,
+    provider_manual_test_executor_preflight_summary,
     provider_manual_test_execution_switch_summary,
     provider_manual_test_final_release_packet_summary,
     provider_manual_test_release_proposal_summary,
@@ -247,6 +248,18 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
     payload["manual_test_executor_preflight"] = {
         "execution_switch_hash": execution_switch_summary["execution_switch_hash"],
     }
+    executor_preflight_summary = provider_manual_test_executor_preflight_summary(
+        payload
+    )
+    payload["expected_executor_preflight_hash"] = executor_preflight_summary[
+        "executor_preflight_hash"
+    ]
+    payload["manual_test_executor_dispatch_record"] = {
+        "executor_preflight_hash": executor_preflight_summary[
+            "executor_preflight_hash"
+        ],
+        "dispatch_requested": True,
+    }
     return payload
 
 
@@ -400,6 +413,15 @@ def _checks(
             executor_preflight.get("status") == "blocked"
             and executor_preflight.get("reason") == "executor_preflight_execution_closed"
             and int(executor_preflight.get("execution_permission_count", -1)) == 0
+        )
+        dispatch_record = provider_envelope_data.get(
+            "manual_provider_test_executor_dispatch_record", {}
+        )
+        checks["provider_executor_dispatch_record_blocked"] = (
+            dispatch_record.get("status") == "blocked"
+            and dispatch_record.get("reason")
+            == "executor_dispatch_record_execution_closed"
+            and int(dispatch_record.get("execution_permission_count", -1)) == 0
         )
     return checks
 
@@ -896,6 +918,45 @@ def run_demo(
                 ).get("no_call_counter_count"),
                 "executor_preflight_execution_permission_count": provider_envelope_data.get(
                     "manual_provider_test_executor_preflight", {}
+                ).get("execution_permission_count"),
+                "executor_dispatch_record_status": provider_envelope_data.get(
+                    "manual_provider_test_executor_dispatch_record", {}
+                ).get("status"),
+                "executor_dispatch_record_reason": provider_envelope_data.get(
+                    "manual_provider_test_executor_dispatch_record", {}
+                ).get("reason"),
+                "executor_dispatch_record_hash": provider_envelope_data.get(
+                    "manual_provider_test_executor_dispatch_record", {}
+                ).get("dispatch_record_hash"),
+                "executor_dispatch_record_executor_preflight_hash": provider_envelope_data.get(
+                    "manual_provider_test_executor_dispatch_record", {}
+                ).get("executor_preflight_hash"),
+                "executor_dispatch_record_planned_dispatch_hash": provider_envelope_data.get(
+                    "manual_provider_test_executor_dispatch_record", {}
+                ).get("planned_dispatch_hash"),
+                "executor_dispatch_record_no_call_counters_hash": provider_envelope_data.get(
+                    "manual_provider_test_executor_dispatch_record", {}
+                ).get("no_call_counters_hash"),
+                "executor_dispatch_record_component_count": provider_envelope_data.get(
+                    "manual_provider_test_executor_dispatch_record", {}
+                ).get("component_count"),
+                "executor_dispatch_record_passed_component_count": provider_envelope_data.get(
+                    "manual_provider_test_executor_dispatch_record", {}
+                ).get("passed_component_count"),
+                "executor_dispatch_record_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_executor_dispatch_record", {}
+                ).get("mismatch_count"),
+                "executor_dispatch_record_component_hash_count": provider_envelope_data.get(
+                    "manual_provider_test_executor_dispatch_record", {}
+                ).get("component_hash_count"),
+                "executor_dispatch_record_no_call_counter_count": provider_envelope_data.get(
+                    "manual_provider_test_executor_dispatch_record", {}
+                ).get("no_call_counter_count"),
+                "executor_dispatch_record_dispatch_request_count": provider_envelope_data.get(
+                    "manual_provider_test_executor_dispatch_record", {}
+                ).get("dispatch_request_count"),
+                "executor_dispatch_record_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_executor_dispatch_record", {}
                 ).get("execution_permission_count"),
                 "review_packet_read_model_status": (
                     provider_envelope_read_data or {}
