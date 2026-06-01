@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-40` disabled execution capsule authorization export/read-model boundary.
+Current snapshot after `AW-LIVE-41` disabled execution capsule authorization handoff packet boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 250 |
-| Counted code/doc files, excluding cache and private SoT | 250 |
-| Project lines, excluding cache and private SoT | 56,067 |
+| Project files, excluding cache and private SoT | 253 |
+| Counted code/doc files, excluding cache and private SoT | 253 |
+| Project lines, excluding cache and private SoT | 57,086 |
 | Python files | 76 |
-| Markdown files | 169 |
+| Markdown files | 172 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 489 |
-| Pytest passed cases | 489 |
+| Pytest collected cases | 492 |
+| Pytest passed cases | 492 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -3189,3 +3189,54 @@ export/read-model for a later manual provider test candidate. It does not add
 an external call path, SDK integration, env value access, network access,
 provider response parsing, hosted execution, live operator approval, or
 production provider readiness.
+
+## AW-LIVE-41 Disabled Execution Capsule Authz Handoff Packet Metrics
+
+Measured after adding the blocked disabled first-call execution capsule
+authorization handoff packet boundary.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 492 |
+| Pytest passed cases | 492 |
+| Regression delta vs AW-LIVE-40 baseline | +3 |
+| API execution capsule authz handoff integration tests | 3 |
+| Provider envelope API integration tests | 96 |
+| Demo provider envelope smoke tests | 1 |
+| Execution capsule authz handoff public summary fields | 17 |
+| Execution capsule authz handoff component count | 8 |
+| Execution capsule authz handoff component hash count | 4 |
+| Execution capsule authz handoff no-call counter count | 13 |
+| Claim-boundary check count | 3 |
+| Handoff passed count with missing expected authz export hash | 7 |
+| Handoff mismatch count with missing expected authz export hash | 1 |
+| Handoff passed count without handoff payload | 5 |
+| Handoff mismatch count without handoff payload | 3 |
+| Handoff passed count with complete handoff packet | 8 |
+| Execution permission count with complete handoff packet | 0 |
+| Missing expected authz export hash reason | expected_execution_capsule_authz_export_hash_required |
+| Missing handoff payload reason | execution_capsule_authz_handoff_packet_required |
+| Complete handoff packet reason | execution_capsule_authz_handoff_packet_execution_closed |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| execution capsule authz export hash exists before handoff | covered |
+| expected execution capsule authz export hash must match | covered |
+| execution capsule authz handoff packet payload is required | covered |
+| authz export read-model latest hash matches export hash | covered |
+| claim boundary is represented as hash/count evidence | covered |
+| public authz handoff exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled execution capsule authorization
+handoff packet for a later manual provider test candidate. It does not add an
+external call path, SDK integration, env value access, network access, provider
+response parsing, hosted execution, live operator approval, or production
+provider readiness.

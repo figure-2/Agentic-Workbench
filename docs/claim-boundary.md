@@ -106,6 +106,9 @@ Agentic Workbench is a local/dev AI agent workflow harness prototype. It may cla
 - Disabled first-call execution capsule authorization export/read-model over
   final authz, export metadata, claim-boundary, and no-call counter hashes, with
   execution permission closed
+- Disabled first-call execution capsule authorization handoff packet over authz
+  export, authz read-model, claim-boundary, and no-call counter hashes, with
+  execution permission closed
 - Sanitized public summaries and correlation hashes
 - Fixture-based smoke tests and local regression tests
 
@@ -245,6 +248,9 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
 - execution capsule authorization export/read-model described as external
   provider behavior, provider result, live operator approval, execution
   permission, hosted execution, or production provider readiness
+- execution capsule authorization handoff packet described as external provider
+  behavior, provider result, live operator approval, execution permission,
+  hosted execution, or production provider readiness
 
 ## Public Artifact Rules
 
@@ -299,3 +305,4 @@ Allowed replacements:
 | Execution Capsule Operator Decision Gate | Execution capsule operator decision binds operator review, operator-decision, claim-boundary, and no-call counter hashes but remains execution-closed |
 | Execution Capsule Final Authorization Gate | Execution capsule final authorization binds release seal, final-authorization material, claim-boundary, and no-call counter hashes but remains execution-closed |
 | Execution Capsule Authorization Export Gate | Execution capsule authorization export/read-model binds final authz, export metadata, claim-boundary, and no-call counter hashes but remains execution-closed |
+| Execution Capsule Authorization Handoff Gate | Execution capsule authorization handoff packet binds authz export, authz read-model, claim-boundary, and no-call counter hashes but remains execution-closed |

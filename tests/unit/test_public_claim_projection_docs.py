@@ -251,6 +251,18 @@ LIVE_40_WORK_ORDER_PATH = (
     / "work-orders"
     / "aw-live-40-execution-capsule-authz-export-read-model.md"
 )
+LIVE_41_PATH = (
+    ROOT / "docs" / "evals" / "aw-live-41-execution-capsule-authz-handoff-packet.md"
+)
+LIVE_41_RUNBOOK_PATH = (
+    ROOT / "docs" / "runbooks" / "aw-live-41-execution-capsule-authz-handoff-packet.md"
+)
+LIVE_41_WORK_ORDER_PATH = (
+    ROOT
+    / "docs"
+    / "work-orders"
+    / "aw-live-41-execution-capsule-authz-handoff-packet.md"
+)
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -383,6 +395,9 @@ PUBLIC_CLAIM_DOCS = [
     LIVE_40_PATH,
     LIVE_40_RUNBOOK_PATH,
     LIVE_40_WORK_ORDER_PATH,
+    LIVE_41_PATH,
+    LIVE_41_RUNBOOK_PATH,
+    LIVE_41_WORK_ORDER_PATH,
 ]
 
 
