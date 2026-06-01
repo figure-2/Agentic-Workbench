@@ -51,6 +51,19 @@ run state, artifact chain, DIV identity signals, DAACS identity signals,
 evidence summary, execution boundary, claim boundary, checks, and next action.
 It does not read repository tables directly and does not open live execution.
 
+## Static UI Shell
+
+For a local HTML shell over the same public summary:
+
+```powershell
+python examples/demo-service-flow/render_static_ui_shell.py --output .local/aw-demo-03-static-ui.html
+```
+
+The shell renders run status, artifact chain, DIV/DAACS identity signals,
+evidence counts, execution boundary counters, and the live-open policy state.
+It consumes the public demo summary only. It does not read repository tables,
+load `.env` values, call Solar Pro 3, or run the DAACS target runtime.
+
 ## Expected Signals
 
 - DIV identity is represented by planning and PRD artifacts.
@@ -58,3 +71,4 @@ It does not read repository tables directly and does not open live execution.
   RunnerPlan evidence, and VerificationReport evidence.
 - The composed read model remains local and fixture-based.
 - Provider and target runtime call counts remain `0`.
+- The static UI marks live policy as `closed / eligible only`.

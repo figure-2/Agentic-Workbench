@@ -166,6 +166,12 @@ and audit projection controls. A passing decision is only
 `eligible_for_separate_live_implementation`; it keeps execution permission
 false and all provider/runtime counters at 0.
 
+`AW-DEMO-03` adds a static HTML UI shell over the same sanitized public summary
+used by the local demo and Markdown status surface. The shell renders run
+overview, artifact chain, DIV/DAACS identity signals, evidence counts,
+execution boundary counters, and the live-open policy state. It does not read
+repository tables, start a server, call providers, or run target runtime code.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -212,3 +218,5 @@ outside the current executable path.
   not become a second source of truth.
 - live-open policy decisions must stay side-effect-free, keep
   `allowed_to_execute=false`, and never read env values.
+- static UI shells must consume public summaries only and keep provider/runtime
+  counters at 0.

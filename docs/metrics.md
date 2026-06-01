@@ -1366,3 +1366,37 @@ Interpretation: this adds a local readiness policy gate for future
 provider/runtime work. It does not add Solar Pro 3 integration, DAACS target
 runtime execution, generated app delivery, hosted execution, production signing,
 production key registry, or production sandbox enforcement.
+
+## AW-DEMO-03 Static UI Shell Metrics
+
+Measured after adding the local static HTML shell over the public demo summary.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 362 |
+| Pytest passed cases | 362 |
+| Regression delta vs AW-LIVE-00 baseline | +2 |
+| Static UI scripts | 1 |
+| Static UI smoke tests | 2 |
+| Static UI sections | 7 |
+| Public summary input path | covered |
+| Raw prompt findings | 0 |
+| Raw artifact body findings | 0 |
+| Raw provider/runtime payload findings | 0 |
+| Raw approval authorization findings | 0 |
+| Local path findings | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| `render_static_ui_shell(summary)` returns complete HTML | covered |
+| HTML marks `public-summary-only` projection | covered |
+| HTML displays live policy as `closed / eligible only` | covered |
+| HTML keeps execution permission closed | covered |
+| HTML can be written only through explicit `--output` | covered |
+| public response keeps provider/runtime calls at 0 | covered |
+
+Interpretation: this adds a local static UI shell for the fixture/dry-run demo.
+It does not add a hosted dashboard, production UI, browser runtime integration,
+external provider outcome, target runtime outcome, or generated app delivery.

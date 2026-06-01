@@ -25,6 +25,7 @@ Agentic Workbench is a local/dev AI agent workflow harness prototype. It may cla
 - Minimal Markdown/CLI run status surface over local fixture/dry-run projections
 - Fail-closed live-open readiness policy gate with provider/runtime calls kept
   at 0 and execution permission not granted
+- Static local UI shell over sanitized fixture/dry-run projections
 - Sanitized public summaries and correlation hashes
 - Fixture-based smoke tests and local regression tests
 
@@ -65,6 +66,8 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
 - Markdown/CLI status surface described as web dashboard, hosted observability, live runtime monitor, or production UI
 - live-open readiness policy described as provider integration, runtime
   integration, production execution permission, or external model quality proof
+- static local UI shell described as hosted dashboard, production UI, live
+  monitor, generated app delivery, provider outcome, or target runtime outcome
 
 ## Public Artifact Rules
 
