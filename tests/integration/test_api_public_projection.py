@@ -8,6 +8,7 @@ from apps.api.agentic_workbench_api.services.canonical_run_store import RunArtif
 from apps.api.agentic_workbench_api.services.evidence_read_model import EvidenceRepositoryConfig
 from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     ProviderEnvelopeRepositoryConfig,
+    provider_manual_test_proposal_summary,
     provider_precheck_operator_policy_summary,
 )
 from packages.core.approval_replay_factory import ApprovalReplayRepositoryConfig
@@ -95,6 +96,8 @@ def _provider_envelope_precheck_payload(
     prompt_contract_hash: str | None = None,
     include_operator_approval: bool = True,
     approved_policy_summary_hash: str | None = None,
+    include_manual_test_proposal: bool = False,
+    include_manual_test_operator_approval: bool = True,
 ) -> dict:
     payload = {
         "run_id": run_id,
@@ -145,6 +148,32 @@ def _provider_envelope_precheck_payload(
             ),
             "authorization_material": "API06_OPERATOR_AUTH_SENTINEL",
         }
+    if include_manual_test_proposal:
+        payload["manual_test_proposal"] = {
+            "proposal_id": f"proposal-{run_id}",
+            "run_id": run_id,
+            "prompt_contract_hash": payload["prompt_contract_hash"],
+            "provider_name": "solar-pro-3",
+            "model_name": "solar-pro-3",
+            "request_timeout_seconds": 30,
+            "max_cost_units": 1,
+            "max_live_api_calls": 1,
+            "max_output_unit_budget": 512,
+            "rollback_plan_id": f"rollback-{run_id}",
+            "abort_criteria": [
+                "API08_ABORT_CRITERIA_SENTINEL",
+                "stop on timeout, quota, or unexpected provider error",
+            ],
+        }
+        if include_manual_test_operator_approval:
+            proposal_summary = provider_manual_test_proposal_summary(payload)
+            payload["manual_test_operator_approval"] = {
+                "operator_ref": "local-operator",
+                "approved_at": "2026-06-01T00:05:00Z",
+                "decision": "approved",
+                "approved_proposal_hash": proposal_summary["proposal_hash"],
+                "authorization_material": "API08_MANUAL_TEST_AUTH_SENTINEL",
+            }
     return payload
 
 
@@ -1245,6 +1274,7 @@ def test_provider_envelope_precheck_api_persists_hash_read_model_without_externa
     operator_policy = data["operator_policy_summary"]
     operator_approval = data["operator_approval_envelope"]
     dry_admission = data["live_provider_dry_admission"]
+    manual_proposal = data["manual_provider_test_proposal"]
     checklist_by_id = {item["id"]: item for item in dry_admission["checklist"]}
 
     assert data["projection_version"] == "provider-envelope-admission-api-public-v1"
@@ -1292,6 +1322,16 @@ def test_provider_envelope_precheck_api_persists_hash_read_model_without_externa
     assert dry_admission["execution_boundary"]["network_calls"] == 0
     assert dry_admission["execution_boundary"]["solar_provider_calls"] == 0
     assert dry_admission["execution_boundary"]["target_runtime_calls"] == 0
+    assert manual_proposal["projection_version"] == "manual-provider-test-proposal-gate-v1"
+    assert manual_proposal["status"] == "blocked"
+    assert manual_proposal["proposal_present"] is False
+    assert manual_proposal["operator_approval_present"] is False
+    assert manual_proposal["live_ready"] is False
+    assert manual_proposal["allowed_to_execute"] is False
+    assert manual_proposal["disabled_by_default"] is True
+    assert manual_proposal["execution_boundary"]["api_calls"] == 0
+    assert manual_proposal["execution_boundary"]["network_calls"] == 0
+    assert manual_proposal["execution_boundary"]["solar_provider_calls"] == 0
     assert data["repository_boundary"]["provider_envelope_backend"] == "sqlite"
     assert data["repository_boundary"]["root_path_returned"] is False
     assert data["execution_boundary"]["adapter_invocation_count"] == 1
@@ -1387,6 +1427,75 @@ def test_provider_envelope_precheck_api_blocks_missing_operator_approval_before_
     assert "signature_id" not in serialized
     assert "signed_contract_hash" not in serialized
     assert "nonce" not in serialized
+
+
+def test_provider_envelope_precheck_api_accepts_manual_test_proposal_but_keeps_execution_disabled(tmp_path):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-manual-proposal",
+        include_manual_test_proposal=True,
+    )
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    manual_proposal = data["manual_provider_test_proposal"]
+    checks = {check["name"]: check["passed"] for check in manual_proposal["checks"]}
+
+    assert manual_proposal["status"] == "approved_disabled"
+    assert manual_proposal["proposal_present"] is True
+    assert manual_proposal["operator_approval_present"] is True
+    assert manual_proposal["proposal_hash"]
+    assert manual_proposal["proposal_fields"]["run_id_match"] is True
+    assert manual_proposal["proposal_fields"]["prompt_contract_hash_match"] is True
+    assert manual_proposal["proposal_fields"]["policy_limits_match"] is True
+    assert manual_proposal["proposal_fields"]["rollback_plan_present"] is True
+    assert manual_proposal["proposal_fields"]["abort_criteria_count"] == 2
+    assert manual_proposal["proposal_fields"]["abort_criteria_hash"]
+    assert manual_proposal["operator_approval"]["status"] == "approved"
+    assert manual_proposal["operator_approval"]["proposal_hash_match"] is True
+    assert manual_proposal["operator_approval"]["auth_material_returned"] is False
+    assert manual_proposal["live_ready"] is False
+    assert manual_proposal["allowed_to_execute"] is False
+    assert manual_proposal["disabled_by_default"] is True
+    assert checks["manual_test_proposal_present"] is True
+    assert checks["manual_test_operator_approval_proposal_hash_match"] is True
+    assert checks["manual_test_execution_disabled_by_default"] is True
+    assert manual_proposal["execution_boundary"]["sdk_imports"] == 0
+    assert manual_proposal["execution_boundary"]["env_value_reads"] == 0
+    assert manual_proposal["execution_boundary"]["api_calls"] == 0
+    assert manual_proposal["execution_boundary"]["network_calls"] == 0
+    assert manual_proposal["execution_boundary"]["solar_provider_calls"] == 0
+    assert manual_proposal["execution_boundary"]["target_runtime_calls"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API08_ABORT_CRITERIA_SENTINEL",
+        "API08_MANUAL_TEST_AUTH_SENTINEL",
+        "authorization_material",
+        "raw_prompt",
+        "provider_payload",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
 
 
 def test_provider_envelope_precheck_api_blocks_missing_store_before_adapter():

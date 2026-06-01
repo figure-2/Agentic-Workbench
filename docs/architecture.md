@@ -75,6 +75,7 @@ sequenceDiagram
 | `ProviderEnvelopeRepositoryProvider` | API/demo repository selector for optional provider envelope precheck projections |
 | `operator_approval_envelope` | local operator approval projection bound to a provider precheck policy summary hash |
 | `live_provider_dry_admission` | local checklist projection showing manual preconditions and closed execution permission |
+| `manual_provider_test_proposal` | local proposal gate with proposal hash, approval hash match, and execution disabled by default |
 
 ## Persistence Boundary
 
@@ -227,6 +228,13 @@ closed execution permission into a public response. It always reports
 opening provider SDK imports, env value reads, network calls, external API
 calls, or DAACS target runtime calls.
 
+`AW-LIVE-08` adds a manual provider test proposal gate. The gate hashes a
+proposal containing run id, prompt contract hash, cost, timeout, API quota,
+output budget, rollback id, and abort criteria hash/count. A separate operator
+approval must reference that exact proposal hash. A matching approval can only
+produce `status=approved_disabled`; it still reports `allowed_to_execute=false`
+and keeps external calls closed.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -291,3 +299,5 @@ outside the current executable path.
 - dry-admission checklist projections must show manual preconditions while
   keeping `live_ready=false`, `allowed_to_execute=false`, and all
   provider/runtime counters at 0.
+- manual provider test proposal gates must bind proposal approval by hash and
+  must stay disabled by default even when the proposal is accepted.

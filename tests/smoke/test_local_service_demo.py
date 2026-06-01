@@ -114,6 +114,11 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert envelope["allowed_to_execute"] is False
     assert envelope["manual_required_count"] == 2
     assert envelope["checklist_item_count"] >= 8
+    assert envelope["manual_test_proposal_status"] == "approved_disabled"
+    assert envelope["manual_test_proposal_hash"]
+    assert envelope["manual_test_allowed_to_execute"] is False
+    assert envelope["manual_test_disabled_by_default"] is True
+    assert envelope["manual_test_abort_criteria_count"] == 2
     assert envelope["read_model_status"] == "available"
     assert checks["provider_envelope_precheck_recorded"] is True
     assert checks["provider_envelope_adapter_reached_disabled_path"] is True

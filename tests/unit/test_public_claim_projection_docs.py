@@ -38,6 +38,11 @@ LIVE_07_RUNBOOK_PATH = ROOT / "docs" / "runbooks" / "aw-live-07-live-provider-dr
 LIVE_07_WORK_ORDER_PATH = (
     ROOT / "docs" / "work-orders" / "aw-live-07-live-provider-dry-admission-runbook.md"
 )
+LIVE_08_PATH = ROOT / "docs" / "evals" / "aw-live-08-manual-provider-test-proposal.md"
+LIVE_08_RUNBOOK_PATH = ROOT / "docs" / "runbooks" / "aw-live-08-manual-provider-test-proposal.md"
+LIVE_08_WORK_ORDER_PATH = (
+    ROOT / "docs" / "work-orders" / "aw-live-08-manual-provider-test-proposal.md"
+)
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -71,6 +76,9 @@ PUBLIC_CLAIM_DOCS = [
     LIVE_07_PATH,
     LIVE_07_RUNBOOK_PATH,
     LIVE_07_WORK_ORDER_PATH,
+    LIVE_08_PATH,
+    LIVE_08_RUNBOOK_PATH,
+    LIVE_08_WORK_ORDER_PATH,
 ]
 
 

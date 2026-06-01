@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-07` live provider dry-admission runbook.
+Current snapshot after `AW-LIVE-08` manual provider test proposal gate.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 155 |
-| Counted code/doc files, excluding cache and private SoT | 152 |
-| Project lines, excluding cache and private SoT | 29,097 |
+| Project files, excluding cache and private SoT | 158 |
+| Counted code/doc files, excluding cache and private SoT | 155 |
+| Project lines, excluding cache and private SoT | 29,775 |
 | Python files | 76 |
-| Markdown files | 70 |
+| Markdown files | 73 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 398 |
-| Pytest passed cases | 398 |
+| Pytest collected cases | 399 |
+| Pytest passed cases | 399 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -1661,3 +1661,42 @@ Interpretation: this adds a local checklist and manual runbook for future
 provider test proposals. It does not add provider execution, SDK integration,
 env value access, network access, provider response parsing, hosted execution,
 or production provider readiness.
+
+## AW-LIVE-08 Manual Provider Test Proposal Gate Metrics
+
+Measured after adding the manual provider test proposal gate.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 399 |
+| Pytest passed cases | 399 |
+| Regression delta vs AW-LIVE-07 baseline | +1 |
+| API manual proposal integration tests | 1 |
+| Provider envelope API integration tests | 6 |
+| Demo provider envelope smoke tests | 1 |
+| Manual proposal required fields | 8 |
+| Proposal status with matching approval | approved_disabled |
+| Proposal `allowed_to_execute` | false |
+| Proposal `disabled_by_default` | true |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| missing proposal approval blocked | covered |
+| proposal run id / prompt contract hash binding | covered |
+| cost / timeout / quota proposal fields | covered |
+| rollback id and abort criteria hash/count | covered |
+| proposal approval hash match | covered |
+| proposal accepted but execution disabled | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local proposal gate for a later first provider test
+discussion. It does not add an executor, SDK integration, env value access,
+network access, provider response parsing, hosted execution, or production
+provider readiness.

@@ -28,6 +28,7 @@ from apps.api.agentic_workbench_api.services.evidence_read_model import (
 )
 from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     ProviderEnvelopeRepositoryConfig,
+    provider_manual_test_proposal_summary,
     provider_precheck_operator_policy_summary,
 )
 from packages.core.live_open_policy import LIVE_OPEN_REQUIRED_CONTROLS
@@ -126,6 +127,29 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
         "approved_at": "2026-06-01T00:00:00Z",
         "decision": "approved",
         "approved_policy_summary_hash": policy_summary["policy_summary_hash"],
+    }
+    payload["manual_test_proposal"] = {
+        "proposal_id": f"proposal-{run_id}",
+        "run_id": run_id,
+        "prompt_contract_hash": prompt_contract_hash,
+        "provider_name": "solar-pro-3",
+        "model_name": "solar-pro-3",
+        "request_timeout_seconds": 30,
+        "max_cost_units": 1,
+        "max_live_api_calls": 1,
+        "max_output_unit_budget": 512,
+        "rollback_plan_id": f"rollback-{run_id}",
+        "abort_criteria": [
+            "stop on timeout or quota breach",
+            "stop on unexpected provider error",
+        ],
+    }
+    proposal_summary = provider_manual_test_proposal_summary(payload)
+    payload["manual_test_operator_approval"] = {
+        "operator_ref": "local-demo-operator",
+        "approved_at": "2026-06-01T00:05:00Z",
+        "decision": "approved",
+        "approved_proposal_hash": proposal_summary["proposal_hash"],
     }
     return payload
 
@@ -291,6 +315,23 @@ def run_demo(
                 "checklist_item_count": provider_envelope_data.get(
                     "live_provider_dry_admission", {}
                 ).get("checklist_item_count"),
+                "manual_test_proposal_status": provider_envelope_data.get(
+                    "manual_provider_test_proposal", {}
+                ).get("status"),
+                "manual_test_proposal_hash": provider_envelope_data.get(
+                    "manual_provider_test_proposal", {}
+                ).get("proposal_hash"),
+                "manual_test_allowed_to_execute": provider_envelope_data.get(
+                    "manual_provider_test_proposal", {}
+                ).get("allowed_to_execute"),
+                "manual_test_disabled_by_default": provider_envelope_data.get(
+                    "manual_provider_test_proposal", {}
+                ).get("disabled_by_default"),
+                "manual_test_abort_criteria_count": provider_envelope_data.get(
+                    "manual_provider_test_proposal", {}
+                )
+                .get("proposal_fields", {})
+                .get("abort_criteria_count"),
                 "read_model_status": (
                     provider_envelope_read_data or {}
                 ).get("status"),
