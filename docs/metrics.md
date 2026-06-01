@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-38` disabled execution capsule release seal boundary.
+Current snapshot after `AW-LIVE-39` disabled execution capsule final authorization boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 244 |
-| Counted code/doc files, excluding cache and private SoT | 244 |
-| Project lines, excluding cache and private SoT | 53,831 |
+| Project files, excluding cache and private SoT | 247 |
+| Counted code/doc files, excluding cache and private SoT | 247 |
+| Project lines, excluding cache and private SoT | 54,897 |
 | Python files | 76 |
-| Markdown files | 163 |
+| Markdown files | 166 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 483 |
-| Pytest passed cases | 483 |
+| Pytest collected cases | 486 |
+| Pytest passed cases | 486 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -3084,3 +3084,54 @@ Interpretation: this adds a local disabled execution capsule release seal for
 a later manual provider test candidate. It does not add an external call path,
 SDK integration, env value access, network access, provider response parsing,
 hosted execution, live operator approval, or production provider readiness.
+
+## AW-LIVE-39 Disabled Execution Capsule Final Authorization Metrics
+
+Measured after adding the blocked disabled first-call execution capsule final
+authorization boundary.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 486 |
+| Pytest passed cases | 486 |
+| Regression delta vs AW-LIVE-38 baseline | +3 |
+| API execution capsule final authorization integration tests | 3 |
+| Provider envelope API integration tests | 90 |
+| Demo provider envelope smoke tests | 1 |
+| Execution capsule final authorization public summary fields | 16 |
+| Execution capsule final authorization component count | 8 |
+| Execution capsule final authorization component hash count | 4 |
+| Execution capsule final authorization no-call counter count | 13 |
+| Claim-boundary check count | 3 |
+| Authorization passed count with missing expected release seal hash | 7 |
+| Authorization mismatch count with missing expected release seal hash | 1 |
+| Authorization passed count without authorization payload | 4 |
+| Authorization mismatch count without authorization payload | 4 |
+| Authorization passed count with complete authorization | 8 |
+| Execution permission count with complete authorization | 0 |
+| Missing expected release seal hash reason | expected_execution_capsule_release_seal_hash_required |
+| Missing authorization payload reason | execution_capsule_final_authz_required |
+| Complete authorization reason | execution_capsule_final_authz_execution_closed |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| execution capsule release seal hash exists before final authorization | covered |
+| expected execution capsule release seal hash must match | covered |
+| execution capsule final authorization payload is required | covered |
+| final authorization material is represented as hash/count evidence | covered |
+| claim boundary is represented as hash/count evidence | covered |
+| public final authorization exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled execution capsule final
+authorization for a later manual provider test candidate. It does not add an
+external call path, SDK integration, env value access, network access, provider
+response parsing, hosted execution, live operator approval, or production
+provider readiness.

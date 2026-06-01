@@ -92,6 +92,7 @@ sequenceDiagram
 | `manual_provider_test_execution_capsule_operator_decision` | local disabled execution capsule operator decision over operator review, operator-decision, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_release_attestation` | local disabled execution capsule release attestation over operator decision, release-attestation, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_release_seal` | local disabled execution capsule release seal over release-attestation, seal-material, claim-boundary, and no-call counter hashes |
+| `manual_provider_test_execution_capsule_final_authz` | local disabled execution capsule final authorization over release seal, final authorization, claim-boundary, and no-call counter hashes |
 
 ## Persistence Boundary
 
@@ -465,6 +466,15 @@ status/reason/hash/count projection. The seal still reports
 `execution_capsule_release_seal_execution_closed` and keeps
 `execution_permission_count=0`.
 
+`AW-LIVE-39` adds a disabled first-call execution capsule final authorization.
+The authorization requires an execution capsule release seal hash and a separate
+expected release seal hash match. It binds release-seal, final-authorization,
+claim-boundary, and no-call counter hashes into one status/reason/hash/count
+projection. Public field names use `final_authz` to preserve the sanitizer
+boundary. The authorization still reports
+`execution_capsule_final_authz_execution_closed` and keeps
+`execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -593,3 +603,6 @@ outside the current executable path.
 - execution capsule release seals must bind to execution capsule release
   attestation, seal-material, claim-boundary, and no-call counter hashes only
   and must not grant execution permission.
+- execution capsule final authorization must bind to execution capsule release
+  seal, final-authorization material, claim-boundary, and no-call counter hashes
+  only and must not grant execution permission.
