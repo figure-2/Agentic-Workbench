@@ -65,6 +65,8 @@ Agentic Workbench is a local/dev AI agent workflow harness prototype. It may cla
   placeholder, and no-call counter hashes, with execution permission closed
 - Disabled first-call post-invocation audit over invocation receipt,
   claim-boundary, and no-call counter hashes, with execution permission closed
+- Disabled first-call completion summary over post-invocation audit,
+  claim-boundary, and no-call counter hashes, with execution permission closed
 - Sanitized public summaries and correlation hashes
 - Fixture-based smoke tests and local regression tests
 
@@ -161,6 +163,8 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
 - post-invocation audit described as external provider behavior, provider
   result, execution permission, hosted execution, or production provider
   readiness
+- completion summary described as external provider behavior, provider result,
+  execution permission, hosted execution, or production provider readiness
 
 ## Public Artifact Rules
 

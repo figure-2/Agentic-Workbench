@@ -38,6 +38,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     provider_manual_test_release_proposal_summary,
     provider_manual_test_handoff_packet_summary,
     provider_manual_test_operator_opt_in_summary,
+    provider_manual_test_post_invocation_audit_summary,
     provider_manual_test_preflight_summary,
     provider_manual_test_proposal_summary,
     provider_manual_test_sealed_pre_execution_packet_summary,
@@ -284,6 +285,17 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
         ],
         "audit_requested": True,
     }
+    post_invocation_audit_summary = provider_manual_test_post_invocation_audit_summary(
+        payload
+    )
+    post_invocation_audit_hash = post_invocation_audit_summary[
+        "post_invocation_audit_hash"
+    ]
+    payload["expected_post_invocation_audit_hash"] = post_invocation_audit_hash
+    payload["manual_test_completion_summary"] = {
+        "post_invocation_audit_hash": post_invocation_audit_hash,
+        "summary_requested": True,
+    }
     return payload
 
 
@@ -463,6 +475,14 @@ def _checks(
             and post_invocation_audit.get("reason")
             == "post_invocation_audit_execution_closed"
             and int(post_invocation_audit.get("execution_permission_count", -1)) == 0
+        )
+        completion_summary = provider_envelope_data.get(
+            "manual_provider_test_completion_summary", {}
+        )
+        checks["provider_completion_summary_blocked"] = (
+            completion_summary.get("status") == "blocked"
+            and completion_summary.get("reason") == "completion_summary_execution_closed"
+            and int(completion_summary.get("execution_permission_count", -1)) == 0
         )
     return checks
 
@@ -1079,6 +1099,48 @@ def run_demo(
                 ).get("audit_request_count"),
                 "post_invocation_audit_execution_permission_count": provider_envelope_data.get(
                     "manual_provider_test_post_invocation_audit", {}
+                ).get("execution_permission_count"),
+                "completion_summary_status": provider_envelope_data.get(
+                    "manual_provider_test_completion_summary", {}
+                ).get("status"),
+                "completion_summary_reason": provider_envelope_data.get(
+                    "manual_provider_test_completion_summary", {}
+                ).get("reason"),
+                "completion_summary_hash": provider_envelope_data.get(
+                    "manual_provider_test_completion_summary", {}
+                ).get("completion_summary_hash"),
+                "completion_summary_post_invocation_audit_hash": provider_envelope_data.get(
+                    "manual_provider_test_completion_summary", {}
+                ).get("post_invocation_audit_hash"),
+                "completion_summary_claim_boundary_hash": provider_envelope_data.get(
+                    "manual_provider_test_completion_summary", {}
+                ).get("claim_boundary_hash"),
+                "completion_summary_no_call_counters_hash": provider_envelope_data.get(
+                    "manual_provider_test_completion_summary", {}
+                ).get("no_call_counters_hash"),
+                "completion_summary_component_count": provider_envelope_data.get(
+                    "manual_provider_test_completion_summary", {}
+                ).get("component_count"),
+                "completion_summary_passed_component_count": provider_envelope_data.get(
+                    "manual_provider_test_completion_summary", {}
+                ).get("passed_component_count"),
+                "completion_summary_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_completion_summary", {}
+                ).get("mismatch_count"),
+                "completion_summary_component_hash_count": provider_envelope_data.get(
+                    "manual_provider_test_completion_summary", {}
+                ).get("component_hash_count"),
+                "completion_summary_no_call_counter_count": provider_envelope_data.get(
+                    "manual_provider_test_completion_summary", {}
+                ).get("no_call_counter_count"),
+                "completion_summary_claim_boundary_check_count": provider_envelope_data.get(
+                    "manual_provider_test_completion_summary", {}
+                ).get("claim_boundary_check_count"),
+                "completion_summary_request_count": provider_envelope_data.get(
+                    "manual_provider_test_completion_summary", {}
+                ).get("summary_request_count"),
+                "completion_summary_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_completion_summary", {}
                 ).get("execution_permission_count"),
                 "review_packet_read_model_status": (
                     provider_envelope_read_data or {}

@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-25` disabled post-invocation audit boundary.
+Current snapshot after `AW-LIVE-26` disabled completion summary boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 205 |
-| Counted code/doc files, excluding cache and private SoT | 205 |
-| Project lines, excluding cache and private SoT | 41,457 |
+| Project files, excluding cache and private SoT | 208 |
+| Counted code/doc files, excluding cache and private SoT | 208 |
+| Project lines, excluding cache and private SoT | 42,267 |
 | Python files | 76 |
-| Markdown files | 124 |
+| Markdown files | 127 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 444 |
-| Pytest passed cases | 444 |
+| Pytest collected cases | 447 |
+| Pytest passed cases | 447 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -2429,6 +2429,54 @@ Measured after adding the blocked disabled first-call post-invocation audit.
 | provider/runtime calls remain at 0 | covered |
 
 Interpretation: this adds a local disabled post-invocation audit for a later
+manual provider test candidate. It does not add an external call path, SDK
+integration, env value access, network access, provider response parsing,
+hosted execution, or production provider readiness.
+
+## AW-LIVE-26 Disabled Completion Summary Metrics
+
+Measured after adding the blocked disabled first-call completion summary.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 447 |
+| Pytest passed cases | 447 |
+| Regression delta vs AW-LIVE-25 baseline | +3 |
+| API completion summary integration tests | 3 |
+| Provider envelope API integration tests | 52 |
+| Demo provider envelope smoke tests | 1 |
+| Completion summary public summary fields | 14 |
+| Completion summary component count | 7 |
+| Completion summary component hash count | 3 |
+| Completion summary no-call counter count | 13 |
+| Claim-boundary check count | 3 |
+| Summary passed count with missing expected audit hash | 3 |
+| Summary mismatch count with missing expected audit hash | 4 |
+| Summary passed count without summary payload | 4 |
+| Summary mismatch count without summary payload | 3 |
+| Summary passed count with complete summary | 7 |
+| Execution permission count with complete summary | 0 |
+| Missing expected audit hash reason | expected_post_invocation_audit_hash_required |
+| Missing summary payload reason | completion_summary_required |
+| Complete summary reason | completion_summary_execution_closed |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| post-invocation audit hash exists before completion summary | covered |
+| expected post-invocation audit hash must match | covered |
+| completion summary payload is required | covered |
+| claim boundary is represented as hash/count evidence | covered |
+| public summary exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled completion summary for a later
 manual provider test candidate. It does not add an external call path, SDK
 integration, env value access, network access, provider response parsing,
 hosted execution, or production provider readiness.

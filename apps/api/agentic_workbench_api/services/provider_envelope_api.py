@@ -106,6 +106,9 @@ MANUAL_PROVIDER_TEST_INVOCATION_RECEIPT_VERSION = (
 MANUAL_PROVIDER_TEST_POST_INVOCATION_AUDIT_VERSION = (
     "manual-provider-test-disabled-first-call-post-invocation-audit-v1"
 )
+MANUAL_PROVIDER_TEST_COMPLETION_SUMMARY_VERSION = (
+    "manual-provider-test-disabled-first-call-completion-summary-v1"
+)
 
 EXECUTOR_PREFLIGHT_NO_CALL_COUNTER_FIELDS = (
     "live_llm_calls",
@@ -683,6 +686,27 @@ def _manual_provider_test_post_invocation_audit_blocked(reason: str) -> JsonDict
             "no_call_counter_count": 0,
             "claim_boundary_check_count": 0,
             "audit_request_count": 0,
+            "execution_permission_count": 0,
+        }
+    )
+
+
+def _manual_provider_test_completion_summary_blocked(reason: str) -> JsonDict:
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "completion_summary_hash": "",
+            "post_invocation_audit_hash": "",
+            "claim_boundary_hash": "",
+            "no_call_counters_hash": "",
+            "component_count": 0,
+            "passed_component_count": 0,
+            "mismatch_count": 1,
+            "component_hash_count": 0,
+            "no_call_counter_count": 0,
+            "claim_boundary_check_count": 0,
+            "summary_request_count": 0,
             "execution_permission_count": 0,
         }
     )
@@ -2313,6 +2337,134 @@ def _manual_provider_test_post_invocation_audit_projection(
     )
 
 
+def _manual_provider_test_completion_summary_projection(
+    *,
+    payload: dict[str, Any],
+    post_invocation_audit: JsonDict,
+    execution_boundary: JsonDict,
+) -> JsonDict:
+    post_invocation_audit_hash = str(
+        post_invocation_audit.get("post_invocation_audit_hash", "")
+    ).strip()
+    expected_post_invocation_audit_hash = str(
+        payload.get("expected_post_invocation_audit_hash", "")
+    ).strip()
+    completion_payload = (
+        payload.get("manual_test_completion_summary")
+        if isinstance(payload.get("manual_test_completion_summary"), dict)
+        else {}
+    )
+    supplied_post_invocation_audit_hash = str(
+        completion_payload.get("post_invocation_audit_hash", "")
+    ).strip()
+    summary_requested = completion_payload.get("summary_requested") is True
+    claim_boundary = _provider_envelope_claim_boundary_projection()
+    claim_boundary_closed = (
+        claim_boundary.get("external_provider_outcome") is False
+        and claim_boundary.get("target_runtime_outcome") is False
+        and claim_boundary.get("production_trust_claim") is False
+    )
+    claim_boundary_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": MANUAL_PROVIDER_TEST_COMPLETION_SUMMARY_VERSION,
+                "claim_boundary": claim_boundary,
+            }
+        )
+        if claim_boundary_closed
+        else ""
+    )
+    no_call_counters = _executor_preflight_no_call_counters(execution_boundary)
+    no_call_counters_closed = all(value == 0 for value in no_call_counters.values())
+    no_call_counters_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": MANUAL_PROVIDER_TEST_COMPLETION_SUMMARY_VERSION,
+                "no_call_counters": no_call_counters,
+            }
+        )
+        if no_call_counters_closed
+        else ""
+    )
+    component_checks = [
+        str(post_invocation_audit.get("status", "")) == "blocked"
+        and str(post_invocation_audit.get("reason", ""))
+        == "post_invocation_audit_execution_closed"
+        and bool(post_invocation_audit_hash),
+        bool(expected_post_invocation_audit_hash)
+        and expected_post_invocation_audit_hash == post_invocation_audit_hash,
+        bool(completion_payload),
+        bool(supplied_post_invocation_audit_hash)
+        and supplied_post_invocation_audit_hash == post_invocation_audit_hash,
+        summary_requested,
+        claim_boundary_closed,
+        no_call_counters_closed,
+    ]
+    component_count = len(component_checks)
+    passed_component_count = sum(1 for check in component_checks if check)
+    mismatch_count = component_count - passed_component_count
+    component_hash_count = sum(
+        1
+        for value in (
+            post_invocation_audit_hash,
+            claim_boundary_hash,
+            no_call_counters_hash,
+        )
+        if value
+    )
+
+    if not component_checks[0]:
+        reason = "post_invocation_audit_missing_or_mismatched"
+    elif not expected_post_invocation_audit_hash:
+        reason = "expected_post_invocation_audit_hash_required"
+    elif expected_post_invocation_audit_hash != post_invocation_audit_hash:
+        reason = "post_invocation_audit_hash_mismatch"
+    elif not component_checks[2]:
+        reason = "completion_summary_required"
+    elif not component_checks[3]:
+        reason = "completion_summary_audit_hash_mismatch"
+    elif not component_checks[4]:
+        reason = "completion_summary_request_required"
+    elif not component_checks[5]:
+        reason = "completion_summary_claim_boundary_mismatch"
+    elif not component_checks[6]:
+        reason = "completion_summary_no_call_counters_mismatch"
+    else:
+        reason = "completion_summary_execution_closed"
+
+    completion_summary_hash = ""
+    if mismatch_count == 0:
+        completion_summary_hash = stable_contract_hash(
+            {
+                "projection_version": MANUAL_PROVIDER_TEST_COMPLETION_SUMMARY_VERSION,
+                "post_invocation_audit_hash": post_invocation_audit_hash,
+                "claim_boundary_hash": claim_boundary_hash,
+                "no_call_counters_hash": no_call_counters_hash,
+                "component_count": component_count,
+                "execution_permission": "closed",
+            }
+        )
+
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "completion_summary_hash": completion_summary_hash,
+            "post_invocation_audit_hash": post_invocation_audit_hash,
+            "claim_boundary_hash": claim_boundary_hash,
+            "no_call_counters_hash": no_call_counters_hash,
+            "component_count": component_count,
+            "passed_component_count": passed_component_count,
+            "mismatch_count": mismatch_count,
+            "component_hash_count": component_hash_count,
+            "no_call_counter_count": len(no_call_counters),
+            "claim_boundary_check_count": 3,
+            "summary_request_count": 1 if summary_requested else 0,
+            "execution_permission_count": 0,
+        }
+    )
+
+
 def _manual_test_proposal_projection(
     *,
     payload: dict[str, Any],
@@ -2747,6 +2899,18 @@ def provider_manual_test_post_invocation_audit_summary(
     )
 
 
+def provider_manual_test_completion_summary(payload: dict[str, Any]) -> dict[str, Any]:
+    """Build the public no-call first-call completion summary projection."""
+    post_invocation_audit = provider_manual_test_post_invocation_audit_summary(
+        payload
+    )
+    return _manual_provider_test_completion_summary_projection(
+        payload=payload,
+        post_invocation_audit=post_invocation_audit,
+        execution_boundary=_zero_execution_boundary(),
+    )
+
+
 def _review_packet_export_from_read_model(read_model: JsonDict) -> JsonDict:
     if str(read_model.get("status", "")) == "blocked":
         return _manual_provider_test_review_packet_export_blocked(
@@ -2875,6 +3039,7 @@ def _blocked_projection(
     manual_provider_test_executor_dispatch_record: JsonDict | None = None,
     manual_provider_test_invocation_receipt: JsonDict | None = None,
     manual_provider_test_post_invocation_audit: JsonDict | None = None,
+    manual_provider_test_completion_summary: JsonDict | None = None,
 ) -> dict[str, Any]:
     selected_operator_approval = operator_approval_envelope or _operator_approval_missing_projection()
     selected_dry_admission = live_provider_dry_admission or _live_provider_dry_admission_checklist(
@@ -2987,6 +3152,12 @@ def _blocked_projection(
             "invocation_receipt_not_evaluated"
         )
     )
+    selected_completion_summary = (
+        manual_provider_test_completion_summary
+        or _manual_provider_test_completion_summary_blocked(
+            "post_invocation_audit_not_evaluated"
+        )
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -3035,6 +3206,7 @@ def _blocked_projection(
             "manual_provider_test_post_invocation_audit": (
                 selected_post_invocation_audit
             ),
+            "manual_provider_test_completion_summary": selected_completion_summary,
             "provider_envelope_read_model": read_model or {},
             "checks": [{"name": check_name, "passed": False}],
             "errors": [message],
@@ -3418,6 +3590,11 @@ def _projection_from_result(
         invocation_receipt=invocation_receipt,
         execution_boundary=execution_boundary,
     )
+    completion_summary = _manual_provider_test_completion_summary_projection(
+        payload=payload,
+        post_invocation_audit=post_invocation_audit,
+        execution_boundary=execution_boundary,
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -3458,6 +3635,7 @@ def _projection_from_result(
             "manual_provider_test_executor_dispatch_record": executor_dispatch_record,
             "manual_provider_test_invocation_receipt": invocation_receipt,
             "manual_provider_test_post_invocation_audit": post_invocation_audit,
+            "manual_provider_test_completion_summary": completion_summary,
             "provider_envelope_read_model": read_model,
             "checks": _check_map(result.checks),
             "errors": [str(error) for error in result.errors],
@@ -3959,6 +4137,11 @@ def read_provider_envelope_precheck(
                     "invocation_receipt_missing_or_mismatched"
                 )
             ),
+            "manual_provider_test_completion_summary": (
+                _manual_provider_test_completion_summary_blocked(
+                    "post_invocation_audit_missing_or_mismatched"
+                )
+            ),
             "provider_envelope_read_model": read_model,
             "checks": [{"name": "provider_envelope_read_model_available", "passed": True}],
             "errors": [],
@@ -4001,6 +4184,7 @@ __all__ = [
     "MANUAL_PROVIDER_TEST_EXECUTOR_DISPATCH_VERSION",
     "MANUAL_PROVIDER_TEST_INVOCATION_RECEIPT_VERSION",
     "MANUAL_PROVIDER_TEST_POST_INVOCATION_AUDIT_VERSION",
+    "MANUAL_PROVIDER_TEST_COMPLETION_SUMMARY_VERSION",
     "provider_manual_test_proposal_summary",
     "provider_manual_test_preflight_summary",
     "provider_manual_test_review_packet_summary",
@@ -4015,6 +4199,7 @@ __all__ = [
     "provider_manual_test_executor_dispatch_record_summary",
     "provider_manual_test_invocation_receipt_summary",
     "provider_manual_test_post_invocation_audit_summary",
+    "provider_manual_test_completion_summary",
     "provider_precheck_operator_policy_summary",
     "read_provider_envelope_precheck",
     "run_provider_envelope_precheck",

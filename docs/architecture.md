@@ -359,6 +359,13 @@ hashes into one status/reason/hash/count projection. The audit still reports
 `post_invocation_audit_execution_closed` and keeps
 `execution_permission_count=0`.
 
+`AW-LIVE-26` adds a disabled first-call completion summary. The summary
+requires a post-invocation audit hash and a separate expected post-invocation
+audit hash match. It binds post-invocation audit, claim-boundary, and no-call
+counter hashes into one status/reason/hash/count projection. The summary still
+reports `completion_summary_execution_closed` and keeps
+`execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -450,4 +457,6 @@ outside the current executable path.
 - invocation receipts must bind to dispatch record, result placeholder, and
   no-call counter hashes only and must not grant execution permission.
 - post-invocation audits must bind to invocation receipt, claim-boundary, and
+  no-call counter hashes only and must not grant execution permission.
+- completion summaries must bind to post-invocation audit, claim-boundary, and
   no-call counter hashes only and must not grant execution permission.

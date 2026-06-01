@@ -124,6 +124,11 @@ LIVE_25_RUNBOOK_PATH = ROOT / "docs" / "runbooks" / "aw-live-25-post-invocation-
 LIVE_25_WORK_ORDER_PATH = (
     ROOT / "docs" / "work-orders" / "aw-live-25-post-invocation-audit.md"
 )
+LIVE_26_PATH = ROOT / "docs" / "evals" / "aw-live-26-completion-summary.md"
+LIVE_26_RUNBOOK_PATH = ROOT / "docs" / "runbooks" / "aw-live-26-completion-summary.md"
+LIVE_26_WORK_ORDER_PATH = (
+    ROOT / "docs" / "work-orders" / "aw-live-26-completion-summary.md"
+)
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -211,6 +216,9 @@ PUBLIC_CLAIM_DOCS = [
     LIVE_25_PATH,
     LIVE_25_RUNBOOK_PATH,
     LIVE_25_WORK_ORDER_PATH,
+    LIVE_26_PATH,
+    LIVE_26_RUNBOOK_PATH,
+    LIVE_26_WORK_ORDER_PATH,
 ]
 
 
