@@ -259,6 +259,12 @@ def _checks(
             readiness.get("status") == "blocked"
             and readiness.get("reason") == "readiness_execution_closed"
         )
+        review_packet = provider_envelope_data.get("manual_provider_test_review_packet", {})
+        checks["provider_review_packet_blocked"] = (
+            review_packet.get("status") == "blocked"
+            and review_packet.get("reason") == "review_packet_execution_closed"
+            and int(review_packet.get("execution_permission_count", -1)) == 0
+        )
     return checks
 
 
@@ -445,6 +451,30 @@ def run_demo(
                 ).get("mismatch_count"),
                 "readiness_execution_permission_count": provider_envelope_data.get(
                     "manual_provider_test_readiness_decision", {}
+                ).get("execution_permission_count"),
+                "review_packet_status": provider_envelope_data.get(
+                    "manual_provider_test_review_packet", {}
+                ).get("status"),
+                "review_packet_reason": provider_envelope_data.get(
+                    "manual_provider_test_review_packet", {}
+                ).get("reason"),
+                "review_packet_hash": provider_envelope_data.get(
+                    "manual_provider_test_review_packet", {}
+                ).get("review_packet_hash"),
+                "review_packet_component_count": provider_envelope_data.get(
+                    "manual_provider_test_review_packet", {}
+                ).get("component_count"),
+                "review_packet_passed_component_count": provider_envelope_data.get(
+                    "manual_provider_test_review_packet", {}
+                ).get("passed_component_count"),
+                "review_packet_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_review_packet", {}
+                ).get("mismatch_count"),
+                "review_packet_component_hash_count": provider_envelope_data.get(
+                    "manual_provider_test_review_packet", {}
+                ).get("component_hash_count"),
+                "review_packet_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_review_packet", {}
                 ).get("execution_permission_count"),
                 "read_model_status": (
                     provider_envelope_read_data or {}

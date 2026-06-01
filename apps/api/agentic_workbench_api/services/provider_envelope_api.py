@@ -65,6 +65,9 @@ MANUAL_PROVIDER_TEST_PREFLIGHT_AUDIT_VERSION = (
 MANUAL_PROVIDER_TEST_READINESS_DECISION_VERSION = (
     "manual-provider-test-readiness-decision-record-v1"
 )
+MANUAL_PROVIDER_TEST_REVIEW_PACKET_VERSION = (
+    "manual-provider-test-review-packet-v1"
+)
 
 
 @dataclass(slots=True)
@@ -392,6 +395,21 @@ def _manual_provider_test_readiness_decision_blocked(reason: str) -> JsonDict:
     )
 
 
+def _manual_provider_test_review_packet_blocked(reason: str) -> JsonDict:
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "review_packet_hash": "",
+            "component_count": 0,
+            "passed_component_count": 0,
+            "mismatch_count": 1,
+            "component_hash_count": 0,
+            "execution_permission_count": 0,
+        }
+    )
+
+
 def _manual_test_proposal_policy(policy: SolarCostTimeoutPolicy) -> JsonDict:
     return {
         "request_timeout_seconds": int(policy.request_timeout_seconds or 0),
@@ -677,6 +695,69 @@ def _manual_provider_test_readiness_decision_projection(
     )
 
 
+def _manual_provider_test_review_packet_projection(
+    *,
+    operator_policy_summary: JsonDict,
+    preflight_audit: JsonDict,
+    readiness_decision: JsonDict,
+) -> JsonDict:
+    policy_hash = str(operator_policy_summary.get("policy_summary_hash", "")).strip()
+    preflight_hash = str(preflight_audit.get("preflight_audit_hash", "")).strip()
+    decision_hash = str(readiness_decision.get("readiness_decision_hash", "")).strip()
+    execution_permission_count = _coerce_int(
+        readiness_decision.get("execution_permission_count", 0)
+    )
+    component_checks = [
+        bool(policy_hash),
+        str(preflight_audit.get("status", "")) == "blocked"
+        and str(preflight_audit.get("reason", "")) == "preflight_execution_closed"
+        and bool(preflight_hash),
+        str(readiness_decision.get("status", "")) == "blocked"
+        and bool(decision_hash)
+        and execution_permission_count == 0,
+    ]
+    component_hash_count = sum(
+        1 for value in (policy_hash, preflight_hash, decision_hash) if value
+    )
+    component_count = len(component_checks)
+    passed_component_count = sum(1 for check in component_checks if check)
+    mismatch_count = component_count - passed_component_count
+    if not component_checks[0]:
+        reason = "policy_summary_missing_or_mismatched"
+    elif not component_checks[1]:
+        reason = "preflight_component_missing_or_mismatched"
+    elif not component_checks[2]:
+        reason = "readiness_decision_missing_or_mismatched"
+    else:
+        reason = "review_packet_execution_closed"
+
+    review_packet_hash = ""
+    if mismatch_count == 0:
+        review_packet_hash = stable_contract_hash(
+            {
+                "projection_version": MANUAL_PROVIDER_TEST_REVIEW_PACKET_VERSION,
+                "policy_summary_hash": policy_hash,
+                "preflight_audit_hash": preflight_hash,
+                "readiness_decision_hash": decision_hash,
+                "component_count": component_count,
+                "execution_permission": "closed",
+            }
+        )
+
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "review_packet_hash": review_packet_hash,
+            "component_count": component_count,
+            "passed_component_count": passed_component_count,
+            "mismatch_count": mismatch_count,
+            "component_hash_count": component_hash_count,
+            "execution_permission_count": 0,
+        }
+    )
+
+
 def _manual_test_proposal_projection(
     *,
     payload: dict[str, Any],
@@ -906,6 +987,28 @@ def provider_manual_test_preflight_summary(payload: dict[str, Any]) -> dict[str,
     )
 
 
+def provider_manual_test_review_packet_summary(payload: dict[str, Any]) -> dict[str, Any]:
+    """Build the public manual provider test review packet projection."""
+    request = _request_from_payload(payload)
+    policy = _policy_from_payload(payload)
+    live_open_decision = _ready_live_open_decision(payload, request.run_id)
+    operator_policy_summary = _operator_policy_summary(
+        request=request,
+        policy=policy,
+        live_open_decision=live_open_decision,
+    )
+    preflight_audit = provider_manual_test_preflight_summary(payload)
+    readiness_decision = _manual_provider_test_readiness_decision_projection(
+        payload=payload,
+        preflight_audit=preflight_audit,
+    )
+    return _manual_provider_test_review_packet_projection(
+        operator_policy_summary=operator_policy_summary,
+        preflight_audit=preflight_audit,
+        readiness_decision=readiness_decision,
+    )
+
+
 def _blocked_projection(
     *,
     run_id: str,
@@ -921,6 +1024,7 @@ def _blocked_projection(
     manual_provider_test_executor: JsonDict | None = None,
     one_shot_live_permission: JsonDict | None = None,
     manual_provider_test_readiness_decision: JsonDict | None = None,
+    manual_provider_test_review_packet: JsonDict | None = None,
 ) -> dict[str, Any]:
     selected_operator_approval = operator_approval_envelope or _operator_approval_missing_projection()
     selected_dry_admission = live_provider_dry_admission or _live_provider_dry_admission_checklist(
@@ -955,6 +1059,14 @@ def _blocked_projection(
             "readiness_decision_required"
         )
     )
+    selected_review_packet = (
+        manual_provider_test_review_packet
+        or _manual_provider_test_review_packet_projection(
+            operator_policy_summary=operator_policy_summary or {},
+            preflight_audit=selected_preflight_audit,
+            readiness_decision=selected_readiness_decision,
+        )
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -983,6 +1095,7 @@ def _blocked_projection(
             "one_shot_live_permission": selected_one_shot_permission,
             "manual_provider_test_preflight_audit": selected_preflight_audit,
             "manual_provider_test_readiness_decision": selected_readiness_decision,
+            "manual_provider_test_review_packet": selected_review_packet,
             "provider_envelope_read_model": read_model or {},
             "checks": [{"name": check_name, "passed": False}],
             "errors": [message],
@@ -1288,6 +1401,11 @@ def _projection_from_result(
         payload=payload,
         preflight_audit=preflight_audit,
     )
+    review_packet = _manual_provider_test_review_packet_projection(
+        operator_policy_summary=operator_policy_summary,
+        preflight_audit=preflight_audit,
+        readiness_decision=readiness_decision,
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -1312,6 +1430,7 @@ def _projection_from_result(
             "one_shot_live_permission": one_shot_live_permission,
             "manual_provider_test_preflight_audit": preflight_audit,
             "manual_provider_test_readiness_decision": readiness_decision,
+            "manual_provider_test_review_packet": review_packet,
             "provider_envelope_read_model": read_model,
             "checks": _check_map(result.checks),
             "errors": [str(error) for error in result.errors],
@@ -1392,6 +1511,11 @@ def run_provider_envelope_precheck(
             preflight_audit=preflight_audit_for_decision,
         )
     )
+    manual_provider_test_review_packet = _manual_provider_test_review_packet_projection(
+        operator_policy_summary=operator_policy_summary,
+        preflight_audit=preflight_audit_for_decision,
+        readiness_decision=manual_provider_test_readiness_decision,
+    )
     if operator_errors:
         return _blocked_projection(
             run_id=request.run_id,
@@ -1405,6 +1529,7 @@ def run_provider_envelope_precheck(
             manual_provider_test_executor=manual_provider_test_executor,
             one_shot_live_permission=one_shot_live_permission,
             manual_provider_test_readiness_decision=manual_provider_test_readiness_decision,
+            manual_provider_test_review_packet=manual_provider_test_review_packet,
         )
 
     if not selected_provider.configured:
@@ -1420,6 +1545,7 @@ def run_provider_envelope_precheck(
             manual_provider_test_executor=manual_provider_test_executor,
             one_shot_live_permission=one_shot_live_permission,
             manual_provider_test_readiness_decision=manual_provider_test_readiness_decision,
+            manual_provider_test_review_packet=manual_provider_test_review_packet,
         )
 
     request_result = build_solar_request_contract_fixture(request, policy)
@@ -1444,6 +1570,7 @@ def run_provider_envelope_precheck(
             manual_provider_test_executor=manual_provider_test_executor,
             one_shot_live_permission=one_shot_live_permission,
             manual_provider_test_readiness_decision=manual_provider_test_readiness_decision,
+            manual_provider_test_review_packet=manual_provider_test_review_packet,
         )
 
     try:
@@ -1461,6 +1588,7 @@ def run_provider_envelope_precheck(
             manual_provider_test_executor=manual_provider_test_executor,
             one_shot_live_permission=one_shot_live_permission,
             manual_provider_test_readiness_decision=manual_provider_test_readiness_decision,
+            manual_provider_test_review_packet=manual_provider_test_review_packet,
         )
 
     service = ProviderEnvelopeAdmissionService(repository)
@@ -1577,6 +1705,9 @@ def read_provider_envelope_precheck(
             "manual_provider_test_readiness_decision": _manual_provider_test_readiness_decision_blocked(
                 "readiness_decision_required"
             ),
+            "manual_provider_test_review_packet": _manual_provider_test_review_packet_blocked(
+                "policy_summary_missing_or_mismatched"
+            ),
             "provider_envelope_read_model": read_model,
             "checks": [{"name": "provider_envelope_read_model_available", "passed": True}],
             "errors": [],
@@ -1606,8 +1737,10 @@ __all__ = [
     "ONE_SHOT_LIVE_PERMISSION_VERSION",
     "MANUAL_PROVIDER_TEST_PREFLIGHT_AUDIT_VERSION",
     "MANUAL_PROVIDER_TEST_READINESS_DECISION_VERSION",
+    "MANUAL_PROVIDER_TEST_REVIEW_PACKET_VERSION",
     "provider_manual_test_proposal_summary",
     "provider_manual_test_preflight_summary",
+    "provider_manual_test_review_packet_summary",
     "provider_precheck_operator_policy_summary",
     "read_provider_envelope_precheck",
     "run_provider_envelope_precheck",

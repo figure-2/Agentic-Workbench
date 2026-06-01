@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-12` readiness decision record.
+Current snapshot after `AW-LIVE-13` review packet.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 168 |
-| Counted code/doc files, excluding cache and private SoT | 166 |
-| Project lines, excluding cache and private SoT | 31,651 |
+| Project files, excluding cache and private SoT | 171 |
+| Counted code/doc files, excluding cache and private SoT | 169 |
+| Project lines, excluding cache and private SoT | 32,171 |
 | Python files | 76 |
-| Markdown files | 85 |
+| Markdown files | 88 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 405 |
-| Pytest passed cases | 405 |
+| Pytest collected cases | 407 |
+| Pytest passed cases | 407 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -1853,5 +1853,45 @@ Measured after adding the blocked readiness decision record.
 
 Interpretation: this adds a blocked local readiness decision record for a later
 manual provider test candidate. It does not add an external call path, SDK
+integration, env value access, network access, provider response parsing,
+hosted execution, or production provider readiness.
+
+## AW-LIVE-13 Review Packet Metrics
+
+Measured after adding the blocked manual provider test review packet.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 407 |
+| Pytest passed cases | 407 |
+| Regression delta vs AW-LIVE-12 baseline | +2 |
+| API review packet integration tests | 2 |
+| Provider envelope API integration tests | 13 |
+| Demo provider envelope smoke tests | 1 |
+| Review packet public projection fields | 8 |
+| Review packet component count | 3 |
+| Execution permission count with approve decision | 0 |
+| Packet reason with complete local candidate | review_packet_execution_closed |
+| Packet reason with readiness mismatch | readiness_decision_missing_or_mismatched |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| policy summary hash included in packet hash input | covered |
+| preflight audit hash included in packet hash input | covered |
+| readiness decision hash included in packet hash input | covered |
+| approve decision still leaves execution permission at 0 | covered |
+| missing or mismatched component blocked | covered |
+| projection narrowed to status/reason/hash/count fields | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a blocked local review packet for a later manual
+provider test candidate. It does not add an external call path, SDK
 integration, env value access, network access, provider response parsing,
 hosted execution, or production provider readiness.

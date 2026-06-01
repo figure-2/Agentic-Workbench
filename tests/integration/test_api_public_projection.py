@@ -1330,6 +1330,7 @@ def test_provider_envelope_precheck_api_persists_hash_read_model_without_externa
     one_shot_permission = data["one_shot_live_permission"]
     preflight_audit = data["manual_provider_test_preflight_audit"]
     readiness_decision = data["manual_provider_test_readiness_decision"]
+    review_packet = data["manual_provider_test_review_packet"]
     checklist_by_id = {item["id"]: item for item in dry_admission["checklist"]}
 
     assert data["projection_version"] == "provider-envelope-admission-api-public-v1"
@@ -1434,6 +1435,24 @@ def test_provider_envelope_precheck_api_persists_hash_read_model_without_externa
     assert readiness_decision["readiness_decision_hash"] == ""
     assert readiness_decision["decision_count"] == 0
     assert readiness_decision["execution_permission_count"] == 0
+    assert set(review_packet) == {
+        "status",
+        "reason",
+        "review_packet_hash",
+        "component_count",
+        "passed_component_count",
+        "mismatch_count",
+        "component_hash_count",
+        "execution_permission_count",
+    }
+    assert review_packet["status"] == "blocked"
+    assert review_packet["reason"] == "preflight_component_missing_or_mismatched"
+    assert review_packet["review_packet_hash"] == ""
+    assert review_packet["component_count"] == 3
+    assert review_packet["passed_component_count"] == 1
+    assert review_packet["mismatch_count"] >= 1
+    assert review_packet["component_hash_count"] == 1
+    assert review_packet["execution_permission_count"] == 0
     assert data["repository_boundary"]["provider_envelope_backend"] == "sqlite"
     assert data["repository_boundary"]["root_path_returned"] is False
     assert data["execution_boundary"]["adapter_invocation_count"] == 1
@@ -1873,6 +1892,84 @@ def test_provider_envelope_precheck_api_records_readiness_decision_without_execu
         assert forbidden not in serialized
 
 
+def test_provider_envelope_precheck_api_builds_review_packet_without_execution(tmp_path):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-review-packet",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+    )
+    request_payload["manual_test_review_packet"] = {
+        "authorization_material": "API13_REVIEW_AUTH_SENTINEL",
+        "provider_payload": "API13_REVIEW_PROVIDER_PAYLOAD_SENTINEL",
+        "provider_body": "API13_REVIEW_PROVIDER_BODY_SENTINEL",
+    }
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    review_packet = data["manual_provider_test_review_packet"]
+
+    assert review_packet["status"] == "blocked"
+    assert review_packet["reason"] == "review_packet_execution_closed"
+    assert set(review_packet) == {
+        "status",
+        "reason",
+        "review_packet_hash",
+        "component_count",
+        "passed_component_count",
+        "mismatch_count",
+        "component_hash_count",
+        "execution_permission_count",
+    }
+    assert review_packet["review_packet_hash"]
+    assert review_packet["component_count"] == 3
+    assert review_packet["passed_component_count"] == 3
+    assert review_packet["mismatch_count"] == 0
+    assert review_packet["component_hash_count"] == 3
+    assert review_packet["execution_permission_count"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["live_api_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["provider_envelope_env_value_reads"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API08_ABORT_CRITERIA_SENTINEL",
+        "API08_MANUAL_TEST_AUTH_SENTINEL",
+        "API10_PERMISSION_AUTH_SENTINEL",
+        "API10_PERMISSION_PROVIDER_PAYLOAD_SENTINEL",
+        "API12_READINESS_AUTH_SENTINEL",
+        "API12_READINESS_PROVIDER_PAYLOAD_SENTINEL",
+        "API13_REVIEW_AUTH_SENTINEL",
+        "API13_REVIEW_PROVIDER_PAYLOAD_SENTINEL",
+        "API13_REVIEW_PROVIDER_BODY_SENTINEL",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
 def test_provider_envelope_precheck_api_blocks_readiness_decision_hash_mismatch(tmp_path):
     client = TestClient(
         create_app(
@@ -1906,6 +2003,67 @@ def test_provider_envelope_precheck_api_blocks_readiness_decision_hash_mismatch(
     assert readiness_decision["approve_decision_count"] == 1
     assert readiness_decision["mismatch_count"] >= 1
     assert readiness_decision["execution_permission_count"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["live_api_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["provider_envelope_env_value_reads"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API08_ABORT_CRITERIA_SENTINEL",
+        "API08_MANUAL_TEST_AUTH_SENTINEL",
+        "API10_PERMISSION_AUTH_SENTINEL",
+        "API10_PERMISSION_PROVIDER_PAYLOAD_SENTINEL",
+        "API12_READINESS_AUTH_SENTINEL",
+        "API12_READINESS_PROVIDER_PAYLOAD_SENTINEL",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_review_packet_when_readiness_mismatched(tmp_path):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-review-packet-mismatch",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+        readiness_preflight_hash_override="mismatched-preflight-hash",
+    )
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    review_packet = data["manual_provider_test_review_packet"]
+
+    assert review_packet["status"] == "blocked"
+    assert review_packet["reason"] == "readiness_decision_missing_or_mismatched"
+    assert review_packet["review_packet_hash"] == ""
+    assert review_packet["component_count"] == 3
+    assert review_packet["passed_component_count"] == 2
+    assert review_packet["mismatch_count"] == 1
+    assert review_packet["component_hash_count"] == 2
+    assert review_packet["execution_permission_count"] == 0
     assert data["execution_boundary"]["provider_calls"] == 0
     assert data["execution_boundary"]["live_api_calls"] == 0
     assert data["execution_boundary"]["network_calls"] == 0

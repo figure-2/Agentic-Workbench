@@ -267,6 +267,13 @@ status, reason, hash, and counts. Even an approve decision reports
 `readiness_execution_closed`, keeps `execution_permission_count=0`, and does
 not open provider or target runtime paths.
 
+`AW-LIVE-13` adds a blocked review packet. The packet binds the policy summary
+hash, preflight audit hash, and readiness decision hash into one local
+operator-facing projection. Public output remains limited to status, reason,
+hash, and counts. Even when the readiness decision is approve, the packet
+reports `review_packet_execution_closed` and keeps
+`execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit

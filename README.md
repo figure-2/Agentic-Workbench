@@ -86,6 +86,7 @@ Current implementation:
 - Live provider dry-admission checklist and manual runbook projection
 - Manual provider test proposal gate that remains disabled by default
 - Disabled manual provider test executor boundary
+- Blocked manual provider test review packet for policy/preflight/readiness hashes
 - Test-only DIV/DAACS source identity fixtures for parity reference
 - Fixture-based source identity smoke path from planning artifact to dry-run report
 - Source-to-target trace and portfolio-safe claim projection for parity evidence
@@ -128,7 +129,7 @@ Latest documented local baseline:
 
 ```text
 Measurement date: 2026-06-01
-Pytest: 398 / 398 passed
+Pytest: 407 / 407 passed
 Live LLM calls in offline/dry-run/fake paths: 0
 Live API calls in offline/dry-run/fake paths: 0
 Provider calls/imports in the latest documented eval: 0
@@ -169,6 +170,7 @@ Allowed public summary:
 - Local dry-admission checklist and manual runbook for future provider test proposals
 - Local manual provider test proposal gate with execution disabled by default
 - Disabled local executor boundary for manual provider test proposals
+- Blocked local review packet for manual provider test policy, preflight, and readiness hashes
 - Public output designed around sanitized summaries and correlation hashes
 
 Do not interpret current results as:
@@ -190,11 +192,12 @@ Do not interpret current results as:
 - One-shot permission contract as provider execution permission, provider behavior evidence, hosted execution, or production provider readiness
 - Preflight audit bundle as provider execution permission, provider behavior evidence, hosted execution, or production provider readiness
 - Readiness decision record as provider execution permission, provider behavior evidence, hosted execution, or production provider readiness
+- Review packet as provider execution permission, provider behavior evidence, hosted execution, or production provider readiness
 
 ## Status
 
-Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection, source identity golden path smoke coverage, claim-safe trace projection, hash/count repository boundaries, SQLite adapter skeletons for runner/report/audit evidence, approval/replay evidence, canonical run/artifact rows, and provider envelope evidence, canonical approval persistence service wiring before replay claim, sanitized fake admission API demo paths, explicit SQLite-backed fake admission API wiring, sanitized evidence read-model API skeleton, optional fixture evidence persistence, canonical run/artifact read APIs, composed canonical run/evidence read API, local service-shaped demo script, minimal Markdown/CLI run status surface, static HTML UI shell, disabled Solar Pro 3 provider adapter skeleton, no-call Solar Pro 3 contract fixtures, provider envelope read-model projection, provider envelope admission service, provider envelope admission API/read-model hook, operator approval envelope for local no-call provider precheck evidence, dry-admission checklist/runbook projection, manual provider test proposal gate, disabled manual provider test executor boundary, blocked one-shot permission contract projection, blocked manual provider test preflight audit bundle, and blocked readiness decision record.
+Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection, source identity golden path smoke coverage, claim-safe trace projection, hash/count repository boundaries, SQLite adapter skeletons for runner/report/audit evidence, approval/replay evidence, canonical run/artifact rows, and provider envelope evidence, canonical approval persistence service wiring before replay claim, sanitized fake admission API demo paths, explicit SQLite-backed fake admission API wiring, sanitized evidence read-model API skeleton, optional fixture evidence persistence, canonical run/artifact read APIs, composed canonical run/evidence read API, local service-shaped demo script, minimal Markdown/CLI run status surface, static HTML UI shell, disabled Solar Pro 3 provider adapter skeleton, no-call Solar Pro 3 contract fixtures, provider envelope read-model projection, provider envelope admission service, provider envelope admission API/read-model hook, operator approval envelope for local no-call provider precheck evidence, dry-admission checklist/runbook projection, manual provider test proposal gate, disabled manual provider test executor boundary, blocked one-shot permission contract projection, blocked manual provider test preflight audit bundle, blocked readiness decision record, and blocked manual provider test review packet.
 
 Current status also includes a fail-closed live-open policy gate. A passing policy decision can only mark a future surface as eligible for a separate implementation unit; it does not grant execution permission.
 
-Next implementation track: no-call manual provider test review packet. It must still keep external calls closed by default until a later explicit opt-in task.
+Next implementation track: manual provider test review packet export/read-model. It must still keep external calls closed by default until a later explicit opt-in task.
