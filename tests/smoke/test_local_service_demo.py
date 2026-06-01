@@ -88,3 +88,41 @@ def test_local_service_demo_structural_counts_are_repeatable_with_fresh_stores(t
     )
     assert first["execution_boundary"]["solar_provider_calls"] == 0
     assert second["execution_boundary"]["solar_provider_calls"] == 0
+
+
+def test_local_service_demo_can_include_provider_envelope_precheck_without_calls(tmp_path):
+    module = _load_demo_module()
+
+    summary = module.run_demo(
+        tmp_path / "demo-store",
+        include_provider_precheck=True,
+    )
+
+    serialized = _serialized(summary)
+    checks = summary["checks"]
+    envelope = summary["provider_envelope_admission"]
+
+    assert summary["status"] == "passed"
+    assert envelope["status"] == "blocked"
+    assert envelope["admission_status"] == "admitted"
+    assert envelope["adapter_reached"] is True
+    assert envelope["counts"]["provider_envelope_count"] == 1
+    assert envelope["read_model_status"] == "available"
+    assert checks["provider_envelope_precheck_recorded"] is True
+    assert checks["provider_envelope_adapter_reached_disabled_path"] is True
+    assert checks["provider_envelope_calls_zero"] is True
+    assert envelope["execution_boundary"]["provider_calls"] == 0
+    assert envelope["execution_boundary"]["network_calls"] == 0
+    assert envelope["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "raw_prompt",
+        "provider_payload",
+        "provider_body",
+        "signature_id",
+        "signed_contract_hash",
+        "sig-",
+        "nonce-",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized

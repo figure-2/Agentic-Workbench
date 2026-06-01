@@ -26,7 +26,12 @@ from apps.api.agentic_workbench_api.services.canonical_run_store import (
 from apps.api.agentic_workbench_api.services.evidence_read_model import (
     EvidenceRepositoryConfig,
 )
+from apps.api.agentic_workbench_api.services.provider_envelope_api import (
+    ProviderEnvelopeRepositoryConfig,
+)
+from packages.core.live_open_policy import LIVE_OPEN_REQUIRED_CONTROLS
 from packages.core.public_projection import assert_public_projection_safe
+from packages.core.schemas import stable_contract_hash
 
 
 DEMO_PAYLOAD = {
@@ -50,7 +55,12 @@ DEMO_PAYLOAD = {
 }
 
 
-def _client(store_root: Path) -> TestClient:
+def _client(store_root: Path, *, include_provider_precheck: bool = False) -> TestClient:
+    provider_envelope_config = (
+        ProviderEnvelopeRepositoryConfig(root=store_root / "provider-envelope-evidence")
+        if include_provider_precheck
+        else None
+    )
     return TestClient(
         create_app(
             run_repository_config=RunArtifactRepositoryConfig(
@@ -59,6 +69,7 @@ def _client(store_root: Path) -> TestClient:
             evidence_repository_config=EvidenceRepositoryConfig(
                 root=store_root / "runner-report-audit-evidence",
             ),
+            provider_envelope_repository_config=provider_envelope_config,
         )
     )
 
@@ -75,16 +86,70 @@ def _get_data(client: TestClient, path: str) -> dict[str, Any]:
     return response.json()["data"]
 
 
+def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) -> dict[str, Any]:
+    return {
+        "run_id": run_id,
+        "prompt_contract_hash": prompt_contract_hash,
+        "runtime_mode": "live_admission_precheck",
+        "response_summary": "sanitized local demo provider envelope precheck projection",
+        "policy": {
+            "request_timeout_seconds": 30,
+            "max_cost_units": 1,
+            "max_live_api_calls": 1,
+            "max_output_tokens": 512,
+            "retry_count": 0,
+        },
+        "live_open_controls": {field_name: True for field_name in LIVE_OPEN_REQUIRED_CONTROLS},
+        "approval": {
+            "approved_by": "local-user",
+            "approved_at": "2026-06-01T00:00:00Z",
+            "run_id": run_id,
+            "provider_name": "solar-pro-3",
+            "model_name": "solar-pro-3",
+            "mode": "live",
+            "env_key_name": "UPSTAGE_API_KEY",
+            "max_live_api_calls": 1,
+            "max_live_llm_calls": 1,
+            "expires_at": "2099-01-01T00:00:00Z",
+            "audit_log_id": f"audit-{run_id}",
+            "signature_id": f"sig-{run_id}",
+            "signed_contract_hash": stable_contract_hash(
+                {"run_id": run_id, "purpose": "local demo provider envelope precheck"}
+            ),
+            "nonce": f"nonce-{run_id}",
+        },
+    }
+
+
+def _post_provider_envelope_precheck(
+    client: TestClient,
+    *,
+    run_id: str,
+    prompt_contract_hash: str,
+) -> dict[str, Any]:
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=_provider_envelope_precheck_payload(run_id, prompt_contract_hash),
+    )
+    response.raise_for_status()
+    return response.json()["data"]
+
+
 def _artifact_kinds(artifacts: list[dict[str, Any]]) -> set[str]:
     return {str(artifact.get("kind") or "") for artifact in artifacts}
 
 
-def _checks(create_data: dict[str, Any], run_data: dict[str, Any]) -> dict[str, bool]:
+def _checks(
+    create_data: dict[str, Any],
+    run_data: dict[str, Any],
+    *,
+    provider_envelope_data: dict[str, Any] | None = None,
+) -> dict[str, bool]:
     artifact_kinds = _artifact_kinds(run_data.get("artifacts", []))
     evidence_summary = run_data.get("evidence_summary", {})
     evidence_counts = evidence_summary.get("counts", {})
     execution_boundary = run_data.get("execution_boundary", {})
-    return {
+    checks = {
         "created_run": bool(create_data.get("run", {}).get("run_id")),
         "canonical_persisted": create_data.get("canonical_persistence", {}).get("status") == "persisted",
         "evidence_persisted": create_data.get("evidence_persistence", {}).get("status") == "persisted",
@@ -102,19 +167,50 @@ def _checks(create_data: dict[str, Any], run_data: dict[str, Any]) -> dict[str, 
         "solar_provider_calls_zero": int(execution_boundary.get("solar_provider_calls", -1)) == 0,
         "target_runtime_calls_zero": int(execution_boundary.get("target_runtime_calls", -1)) == 0,
     }
+    if provider_envelope_data is None:
+        checks["provider_envelope_precheck_optional"] = True
+    else:
+        envelope = provider_envelope_data.get("provider_envelope_admission", {})
+        envelope_execution = provider_envelope_data.get("execution_boundary", {})
+        checks["provider_envelope_precheck_recorded"] = envelope.get("status") == "admitted"
+        checks["provider_envelope_adapter_reached_disabled_path"] = (
+            envelope.get("adapter_reached") is True
+        )
+        checks["provider_envelope_calls_zero"] = (
+            int(envelope_execution.get("provider_calls", -1)) == 0
+            and int(envelope_execution.get("network_calls", -1)) == 0
+            and int(envelope_execution.get("solar_live_api_calls", -1)) == 0
+        )
+    return checks
 
 
-def run_demo(store_root: str | Path | None = None) -> dict[str, Any]:
+def run_demo(
+    store_root: str | Path | None = None,
+    *,
+    include_provider_precheck: bool = False,
+) -> dict[str, Any]:
     selected_root = Path(store_root) if store_root else Path(__file__).resolve().parent / ".local"
     selected_root.mkdir(parents=True, exist_ok=True)
-    client = _client(selected_root)
+    client = _client(selected_root, include_provider_precheck=include_provider_precheck)
 
     create_data = _post_run(client)
     run_id = str(create_data["run"]["run_id"])
     run_data = _get_data(client, f"/api/v1/runs/{run_id}")
     artifact_data = _get_data(client, f"/api/v1/runs/{run_id}/artifacts")
+    provider_envelope_data = None
+    provider_envelope_read_data = None
+    if include_provider_precheck:
+        provider_envelope_data = _post_provider_envelope_precheck(
+            client,
+            run_id=run_id,
+            prompt_contract_hash=str(create_data["run"]["prompt_contract_hash"]),
+        )
+        provider_envelope_read_data = _get_data(
+            client,
+            f"/api/v1/admissions/provider/envelopes/{run_id}",
+        )
 
-    checks = _checks(create_data, run_data)
+    checks = _checks(create_data, run_data, provider_envelope_data=provider_envelope_data)
     artifact_kinds = sorted(_artifact_kinds(run_data.get("artifacts", [])))
     evidence_summary = run_data.get("evidence_summary", {})
     summary = {
@@ -153,6 +249,32 @@ def run_demo(store_root: str | Path | None = None) -> dict[str, Any]:
             "projection_version": artifact_data.get("projection_version"),
             "artifact_count": artifact_data.get("counts", {}).get("artifact_count", 0),
         },
+        "provider_envelope_admission": (
+            {
+                "status": provider_envelope_data.get("status"),
+                "admission_status": provider_envelope_data.get(
+                    "provider_envelope_admission", {}
+                ).get("status"),
+                "adapter_reached": provider_envelope_data.get(
+                    "provider_envelope_admission", {}
+                ).get("adapter_reached"),
+                "counts": provider_envelope_data.get("provider_envelope_admission", {}).get(
+                    "counts", {}
+                ),
+                "read_model_status": (
+                    provider_envelope_read_data or {}
+                ).get("status"),
+                "execution_boundary": provider_envelope_data.get("execution_boundary", {}),
+                "claim_boundary": provider_envelope_data.get("claim_boundary", {}),
+            }
+            if provider_envelope_data is not None
+            else {
+                "status": "skipped",
+                "reason": "optional precheck not requested",
+                "external_provider_outcome": False,
+                "target_runtime_outcome": False,
+            }
+        ),
         "checks": checks,
     }
     assert_public_projection_safe(summary)
@@ -166,9 +288,14 @@ def main() -> None:
         default=None,
         help="Optional local store root. Defaults to examples/demo-service-flow/.local.",
     )
+    parser.add_argument(
+        "--include-provider-precheck",
+        action="store_true",
+        help="Also run the no-call provider envelope admission precheck.",
+    )
     args = parser.parse_args()
 
-    summary = run_demo(args.store_root)
+    summary = run_demo(args.store_root, include_provider_precheck=args.include_provider_precheck)
     rendered = json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True)
     print(rendered)
 

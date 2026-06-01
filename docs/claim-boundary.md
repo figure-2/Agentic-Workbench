@@ -84,6 +84,9 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
   observability, live response parser, or production provider readiness
 - provider envelope admission service described as provider execution,
   model-quality proof, hosted provider service, or production provider readiness
+- provider envelope API/read-model hook described as external provider
+  behavior, hosted provider service, provider quality proof, or production
+  provider readiness
 
 ## Public Artifact Rules
 
@@ -123,3 +126,4 @@ Allowed replacements:
 | Non-Dummy Test Gate | Schema, adapter, redaction, pathing, approval, runner, and smoke tests remain executable |
 | Provider Envelope Read Gate | No-call provider envelope evidence exposes hashes, counts, and status only |
 | Provider Envelope Admission Gate | Disabled adapter path is reachable only after no-call envelope evidence is saved and read back |
+| Provider Envelope API Hook Gate | Local API/demo precheck exposes status, hashes, and counts only |

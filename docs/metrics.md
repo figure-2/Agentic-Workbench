@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-04` provider envelope admission service.
+Current snapshot after `AW-LIVE-05` provider envelope API/read-model hook.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 143 |
-| Counted code/doc files, excluding cache and private SoT | 143 |
-| Project lines, excluding cache and private SoT | 26,851 |
-| Python files | 75 |
-| Markdown files | 63 |
+| Project files, excluding cache and private SoT | 150 |
+| Counted code/doc files, excluding cache and private SoT | 147 |
+| Project lines, excluding cache and private SoT | 28,143 |
+| Python files | 76 |
+| Markdown files | 65 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 392 |
-| Pytest passed cases | 392 |
+| Pytest collected cases | 397 |
+| Pytest passed cases | 397 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -1547,3 +1547,41 @@ Interpretation: this adds local no-call admission ordering in front of the
 disabled Solar adapter path. It does not add SDK integration, provider response
 parsing, external provider outcome, model-quality proof, hosted execution, or
 production provider readiness.
+
+## AW-LIVE-05 Provider Envelope API Hook Metrics
+
+Measured after adding an optional API/demo hook over provider envelope admission
+and read-model projections.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 397 |
+| Pytest passed cases | 397 |
+| Regression delta vs AW-LIVE-04 baseline | +5 |
+| API provider envelope integration tests | 4 |
+| Demo provider envelope smoke tests | 1 |
+| Provider envelope API paths | 2 |
+| Provider envelope store writes from fixture `/api/v1/runs` | 0 |
+| Missing provider envelope store | blocked |
+| Corrupted provider envelope store | blocked |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| optional API precheck uses `ProviderEnvelopeAdmissionService` | covered |
+| optional demo precheck uses API public projection | covered |
+| read model returns status/hash/count projection | covered |
+| missing/corrupted store blocks before adapter admission | covered |
+| fixture/dry-run run creation remains separate | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this exposes local no-call provider envelope admission evidence
+through sanitized API/demo projections. It does not add SDK integration,
+provider response parsing, external provider outcome, model-quality proof,
+hosted execution, or production provider readiness.

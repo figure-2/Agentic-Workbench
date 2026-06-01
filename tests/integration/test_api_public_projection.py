@@ -6,7 +6,11 @@ from fastapi.testclient import TestClient
 from apps.api.agentic_workbench_api.main import create_app
 from apps.api.agentic_workbench_api.services.canonical_run_store import RunArtifactRepositoryConfig
 from apps.api.agentic_workbench_api.services.evidence_read_model import EvidenceRepositoryConfig
+from apps.api.agentic_workbench_api.services.provider_envelope_api import (
+    ProviderEnvelopeRepositoryConfig,
+)
 from packages.core.approval_replay_factory import ApprovalReplayRepositoryConfig
+from packages.core.live_open_policy import LIVE_OPEN_REQUIRED_CONTROLS
 from packages.core.repositories import (
     ArtifactRecord,
     audit_event_record_from_event,
@@ -81,6 +85,51 @@ def _provider_admission_payload(
         "prompt_contract_hash": request.prompt_contract_hash,
         "approval_lifecycle": "durable",
         "approval": asdict(approval),
+    }
+
+
+def _provider_envelope_precheck_payload(
+    *,
+    run_id: str = "run-api-envelope",
+    prompt_contract_hash: str | None = None,
+) -> dict:
+    return {
+        "run_id": run_id,
+        "prompt_contract_hash": prompt_contract_hash or _prompt_contract_hash(),
+        "runtime_mode": "live_admission_precheck",
+        "response_summary": "API05 sanitized provider envelope precheck summary",
+        "policy": {
+            "request_timeout_seconds": 30,
+            "max_cost_units": 1,
+            "max_live_api_calls": 1,
+            "max_output_tokens": 512,
+            "retry_count": 0,
+        },
+        "live_open_controls": {field_name: True for field_name in LIVE_OPEN_REQUIRED_CONTROLS},
+        "approval": {
+            "approved_by": "local-user",
+            "approved_at": "2026-06-01T00:00:00Z",
+            "run_id": run_id,
+            "provider_name": "solar-pro-3",
+            "model_name": "solar-pro-3",
+            "mode": "live",
+            "env_key_name": "UPSTAGE_API_KEY",
+            "max_live_api_calls": 1,
+            "max_live_llm_calls": 1,
+            "expires_at": "2099-01-01T00:00:00Z",
+            "audit_log_id": f"audit-{run_id}",
+            "signature_id": f"sig-{run_id}",
+            "signed_contract_hash": stable_contract_hash(
+                {
+                    "run_id": run_id,
+                    "purpose": "api provider envelope precheck",
+                }
+            ),
+            "nonce": f"nonce-{run_id}",
+        },
+        "raw_prompt": "API05_RAW_PROMPT_SENTINEL",
+        "provider_payload": {"body": "API05_PROVIDER_PAYLOAD_SENTINEL"},
+        "provider_body": "API05_PROVIDER_BODY_SENTINEL",
     }
 
 
@@ -1157,6 +1206,170 @@ def test_runs_fixture_path_does_not_touch_sqlite_admission_store(tmp_path):
     assert data["fixture_mode"] is True
     assert data["durable_user_approval"] is False
     assert not (tmp_path / "approval_replay.sqlite3").exists()
+
+
+def test_provider_envelope_precheck_api_persists_hash_read_model_without_external_calls(tmp_path):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload()
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    admission = data["provider_envelope_admission"]
+    read_model = data["provider_envelope_read_model"]
+
+    assert data["projection_version"] == "provider-envelope-admission-api-public-v1"
+    assert data["runtime_mode"] == "live_admission_precheck"
+    assert data["fixture_mode"] is False
+    assert data["status"] == "blocked"
+    assert admission["status"] == "admitted"
+    assert admission["adapter_reached"] is True
+    assert admission["request_contract_hash"]
+    assert admission["response_contract_hash"]
+    assert admission["counts"]["provider_envelope_count"] == 1
+    assert read_model["status"] == "available"
+    assert read_model["counts"]["provider_envelope_count"] == 1
+    assert data["repository_boundary"]["provider_envelope_backend"] == "sqlite"
+    assert data["repository_boundary"]["root_path_returned"] is False
+    assert data["execution_boundary"]["adapter_invocation_count"] == 1
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["live_api_calls"] == 0
+    assert data["execution_boundary"]["live_llm_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["provider_envelope_api_calls"] == 0
+    assert data["execution_boundary"]["provider_envelope_env_value_reads"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+    assert (tmp_path / "provider-envelopes.sqlite3").exists()
+
+    read_response = client.get("/api/v1/admissions/provider/envelopes/run-api-envelope")
+    assert read_response.status_code == 200
+    read_payload = read_response.json()
+    read_data = read_payload["data"]
+    read_serialized = _serialized(read_payload)
+
+    assert read_data["status"] == "available"
+    assert read_data["provider_envelope_admission"]["counts"]["provider_envelope_count"] == 1
+    assert admission["request_contract_hash"] in read_serialized
+    assert admission["response_contract_hash"] in read_serialized
+
+    for forbidden in (
+        "API05_RAW_PROMPT_SENTINEL",
+        "API05_PROVIDER_PAYLOAD_SENTINEL",
+        "API05_PROVIDER_BODY_SENTINEL",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "raw_prompt",
+        "provider_payload",
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+        assert forbidden not in read_serialized
+
+
+def test_provider_envelope_precheck_api_blocks_missing_store_before_adapter():
+    client = TestClient(create_app())
+    request_payload = _provider_envelope_precheck_payload(run_id="run-api-envelope-missing")
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    checks = {check["name"]: check["passed"] for check in data["checks"]}
+
+    assert data["status"] == "blocked"
+    assert data["provider_envelope_admission"]["status"] == "blocked"
+    assert data["provider_envelope_admission"]["adapter_reached"] is False
+    assert data["repository_boundary"]["provider_envelope_backend"] == "unconfigured"
+    assert checks["provider_envelope_repository_configured"] is False
+    assert data["execution_boundary"]["adapter_invocation_count"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert request_payload["approval"]["nonce"] not in serialized
+    assert "signature_id" not in serialized
+    assert "signed_contract_hash" not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_corrupted_store_without_raw_echo(tmp_path):
+    (tmp_path / "provider-envelopes.sqlite3").write_text(
+        "not a sqlite database",
+        encoding="utf-8",
+    )
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(run_id="run-api-envelope-corrupt")
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    checks = {check["name"]: check["passed"] for check in data["checks"]}
+
+    assert data["status"] == "blocked"
+    assert checks["provider_envelope_repository_available"] is False
+    assert data["provider_envelope_admission"]["adapter_reached"] is False
+    assert data["execution_boundary"]["adapter_invocation_count"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["live_api_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert "not a sqlite database" not in serialized
+    assert str(tmp_path) not in serialized
+    assert request_payload["approval"]["nonce"] not in serialized
+    assert "signature_id" not in serialized
+    assert "signed_contract_hash" not in serialized
+
+
+def test_runs_fixture_path_does_not_touch_provider_envelope_store(tmp_path):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+
+    response = client.post(
+        "/api/v1/runs",
+        json={
+            "raw_prompt": "Build fixture path without provider envelope store writes",
+            "target_user": "fixture-envelope-owner@example.com",
+            "product_type": "fixture provider envelope boundary",
+            "constraints": ["keep provider envelope path separate"],
+            "success_criteria": ["provider envelope db is not created"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+
+    assert data["runtime_mode"] == "fixture"
+    assert data["fixture_mode"] is True
+    assert data["durable_user_approval"] is False
+    assert not (tmp_path / "provider-envelopes.sqlite3").exists()
 
 
 def test_fake_admission_api_rejects_fixture_or_synthetic_approval_path_without_raw_echo():

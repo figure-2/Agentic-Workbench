@@ -72,6 +72,7 @@ sequenceDiagram
 | repository records | hash/count/linkage rows that exclude raw prompt, raw body, logs, and provider payloads |
 | `ProviderEnvelopeRecord` | no-call provider envelope evidence with contract hashes, counts, and status |
 | `ProviderEnvelopeAdmissionService` | service boundary that requires envelope persistence/read-model evidence before adapter reachability |
+| `ProviderEnvelopeRepositoryProvider` | API/demo repository selector for optional provider envelope precheck projections |
 
 ## Persistence Boundary
 
@@ -202,6 +203,13 @@ matching request/response hashes, and only then invokes the disabled adapter.
 Missing service, hash mismatch, or corrupted store blocks before adapter
 invocation. The adapter still blocks and provider/runtime calls remain at 0.
 
+`AW-LIVE-05` exposes that admission boundary through optional local API and
+demo read-model hooks. `POST /api/v1/admissions/provider/envelope/precheck`
+can run the no-call admission chain when a server-side provider envelope store
+is configured. `GET /api/v1/admissions/provider/envelopes/{run_id}` returns
+the sanitized provider envelope read model. Both paths expose only status,
+hashes, counts, safe checks, repository markers, and zero-call metrics.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -259,3 +267,5 @@ outside the current executable path.
   corrupted or unavailable stores must be blocked without path or raw row echo.
 - provider envelope admission services must block before adapter invocation
   when evidence persistence, read-model lookup, or hash matching fails.
+- provider envelope API/demo hooks must stay optional, keep fixture/dry-run run
+  creation separate, and return only status/hash/count projections.

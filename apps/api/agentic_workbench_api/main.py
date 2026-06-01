@@ -32,6 +32,12 @@ from .services.canonical_run_store import (
     read_canonical_artifacts,
     read_composed_canonical_run,
 )
+from .services.provider_envelope_api import (
+    ProviderEnvelopeRepositoryConfig,
+    ProviderEnvelopeRepositoryProvider,
+    read_provider_envelope_precheck,
+    run_provider_envelope_precheck,
+)
 
 try:
     from fastapi import FastAPI, HTTPException
@@ -48,6 +54,8 @@ def create_app(
     evidence_repository_provider: EvidenceRepositoryProvider | None = None,
     run_repository_config: RunArtifactRepositoryConfig | None = None,
     run_repository_provider: RunArtifactRepositoryProvider | None = None,
+    provider_envelope_repository_config: ProviderEnvelopeRepositoryConfig | None = None,
+    provider_envelope_repository_provider: ProviderEnvelopeRepositoryProvider | None = None,
 ):
     if FastAPI is None:
         raise RuntimeError("fastapi is not installed. Install API dependencies before serving.")
@@ -61,6 +69,10 @@ def create_app(
     )
     run_repositories = run_repository_provider or RunArtifactRepositoryProvider(
         run_repository_config
+    )
+    provider_envelope_repositories = (
+        provider_envelope_repository_provider
+        or ProviderEnvelopeRepositoryProvider(provider_envelope_repository_config)
     )
 
     @app.post("/api/v1/runs")
@@ -110,6 +122,30 @@ def create_app(
                 "data": run_live_admission_demo(
                     payload,
                     repository_provider=admission_repositories,
+                )
+            }
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/admissions/provider/envelope/precheck")
+    def create_provider_envelope_precheck(payload: dict):
+        try:
+            return {
+                "data": run_provider_envelope_precheck(
+                    payload,
+                    repository_provider=provider_envelope_repositories,
+                )
+            }
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.get("/api/v1/admissions/provider/envelopes/{run_id}")
+    def get_provider_envelope_precheck(run_id: str):
+        try:
+            return {
+                "data": read_provider_envelope_precheck(
+                    run_id,
+                    repository_provider=provider_envelope_repositories,
                 )
             }
         except (KeyError, TypeError, ValueError) as exc:
