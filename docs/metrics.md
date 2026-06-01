@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-34` disabled execution capsule handoff packet boundary.
+Current snapshot after `AW-LIVE-35` disabled execution capsule operator review boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 232 |
-| Counted code/doc files, excluding cache and private SoT | 232 |
-| Project lines, excluding cache and private SoT | 49,812 |
+| Project files, excluding cache and private SoT | 235 |
+| Counted code/doc files, excluding cache and private SoT | 235 |
+| Project lines, excluding cache and private SoT | 50,798 |
 | Python files | 76 |
-| Markdown files | 151 |
+| Markdown files | 154 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 471 |
-| Pytest passed cases | 471 |
+| Pytest collected cases | 474 |
+| Pytest passed cases | 474 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -2877,6 +2877,57 @@ packet boundary.
 | provider/runtime calls remain at 0 | covered |
 
 Interpretation: this adds a local disabled execution capsule handoff packet
+for a later manual provider test candidate. It does not add an external call
+path, SDK integration, env value access, network access, provider response
+parsing, hosted execution, live operator approval, or production provider
+readiness.
+
+## AW-LIVE-35 Disabled Execution Capsule Operator Review Metrics
+
+Measured after adding the blocked disabled first-call execution capsule
+operator review boundary.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 474 |
+| Pytest passed cases | 474 |
+| Regression delta vs AW-LIVE-34 baseline | +3 |
+| API execution capsule operator review integration tests | 3 |
+| Provider envelope API integration tests | 79 |
+| Demo provider envelope smoke tests | 1 |
+| Execution capsule operator review public summary fields | 16 |
+| Execution capsule operator review component count | 8 |
+| Execution capsule operator review component hash count | 4 |
+| Execution capsule operator review no-call counter count | 13 |
+| Claim-boundary check count | 3 |
+| Review passed count with missing expected handoff packet hash | 7 |
+| Review mismatch count with missing expected handoff packet hash | 1 |
+| Review passed count without review payload | 4 |
+| Review mismatch count without review payload | 4 |
+| Review passed count with complete review | 8 |
+| Execution permission count with complete review | 0 |
+| Missing expected handoff packet hash reason | expected_execution_capsule_handoff_packet_hash_required |
+| Missing review payload reason | execution_capsule_operator_review_required |
+| Complete review reason | execution_capsule_operator_review_execution_closed |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| execution capsule handoff packet hash exists before review | covered |
+| expected execution capsule handoff packet hash must match | covered |
+| execution capsule operator review payload is required | covered |
+| operator review is represented as hash/count evidence | covered |
+| claim boundary is represented as hash/count evidence | covered |
+| public review exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled execution capsule operator review
 for a later manual provider test candidate. It does not add an external call
 path, SDK integration, env value access, network access, provider response
 parsing, hosted execution, live operator approval, or production provider

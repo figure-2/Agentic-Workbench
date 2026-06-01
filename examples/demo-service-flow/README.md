@@ -94,4 +94,6 @@ load `.env` values, call Solar Pro 3, or run the DAACS target runtime.
   hashes and counts. The execution authorization capsule remains blocked and
   exposes only hashes and counts. The execution capsule export/read-model
   remains blocked and exposes only hashes and counts. The execution capsule
-  handoff packet remains blocked and exposes only hashes and counts.
+  handoff packet remains blocked and exposes only hashes and counts. The
+  execution capsule operator review remains blocked and exposes only hashes
+  and counts.

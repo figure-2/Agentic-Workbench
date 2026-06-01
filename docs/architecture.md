@@ -88,6 +88,7 @@ sequenceDiagram
 | `manual_provider_test_execution_capsule` | local disabled execution capsule over release seal, final authorization, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_export` | local disabled execution capsule export/read-model over execution capsule, export metadata, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_handoff_packet` | local disabled execution capsule handoff packet over export, export read-model, claim-boundary, and no-call counter hashes |
+| `manual_provider_test_execution_capsule_operator_review` | local disabled execution capsule operator review over handoff packet, operator-review, claim-boundary, and no-call counter hashes |
 
 ## Persistence Boundary
 
@@ -429,6 +430,14 @@ projection. The packet still reports
 `execution_capsule_handoff_packet_execution_closed` and keeps
 `execution_permission_count=0`.
 
+`AW-LIVE-35` adds a disabled first-call execution capsule operator review. The
+review requires an execution capsule handoff packet hash and a separate
+expected handoff packet hash match. It binds execution capsule handoff packet,
+operator review, claim-boundary, and no-call counter hashes into one
+status/reason/hash/count projection. The review still reports
+`execution_capsule_operator_review_execution_closed` and keeps
+`execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -545,3 +554,6 @@ outside the current executable path.
 - execution capsule handoff packets must bind to execution capsule export,
   export read-model, claim-boundary, and no-call counter hashes only and must
   not grant execution permission.
+- execution capsule operator reviews must bind to execution capsule handoff
+  packet, operator-review, claim-boundary, and no-call counter hashes only and
+  must not grant execution permission.

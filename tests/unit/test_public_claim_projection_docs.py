@@ -186,6 +186,13 @@ LIVE_34_RUNBOOK_PATH = (
 LIVE_34_WORK_ORDER_PATH = (
     ROOT / "docs" / "work-orders" / "aw-live-34-execution-capsule-handoff-packet.md"
 )
+LIVE_35_PATH = ROOT / "docs" / "evals" / "aw-live-35-execution-capsule-operator-review.md"
+LIVE_35_RUNBOOK_PATH = (
+    ROOT / "docs" / "runbooks" / "aw-live-35-execution-capsule-operator-review.md"
+)
+LIVE_35_WORK_ORDER_PATH = (
+    ROOT / "docs" / "work-orders" / "aw-live-35-execution-capsule-operator-review.md"
+)
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -300,6 +307,9 @@ PUBLIC_CLAIM_DOCS = [
     LIVE_34_PATH,
     LIVE_34_RUNBOOK_PATH,
     LIVE_34_WORK_ORDER_PATH,
+    LIVE_35_PATH,
+    LIVE_35_RUNBOOK_PATH,
+    LIVE_35_WORK_ORDER_PATH,
 ]
 
 
