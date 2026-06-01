@@ -34,6 +34,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     provider_manual_test_executor_preflight_summary,
     provider_manual_test_execution_switch_summary,
     provider_manual_test_final_release_packet_summary,
+    provider_manual_test_invocation_receipt_summary,
     provider_manual_test_release_proposal_summary,
     provider_manual_test_handoff_packet_summary,
     provider_manual_test_operator_opt_in_summary,
@@ -271,6 +272,18 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
         "dispatch_record_hash": dispatch_record_summary["dispatch_record_hash"],
         "receipt_requested": True,
     }
+    invocation_receipt_summary = provider_manual_test_invocation_receipt_summary(
+        payload
+    )
+    payload["expected_invocation_receipt_hash"] = invocation_receipt_summary[
+        "invocation_receipt_hash"
+    ]
+    payload["manual_test_post_invocation_audit"] = {
+        "invocation_receipt_hash": invocation_receipt_summary[
+            "invocation_receipt_hash"
+        ],
+        "audit_requested": True,
+    }
     return payload
 
 
@@ -441,6 +454,15 @@ def _checks(
             invocation_receipt.get("status") == "blocked"
             and invocation_receipt.get("reason") == "invocation_receipt_execution_closed"
             and int(invocation_receipt.get("execution_permission_count", -1)) == 0
+        )
+        post_invocation_audit = provider_envelope_data.get(
+            "manual_provider_test_post_invocation_audit", {}
+        )
+        checks["provider_post_invocation_audit_blocked"] = (
+            post_invocation_audit.get("status") == "blocked"
+            and post_invocation_audit.get("reason")
+            == "post_invocation_audit_execution_closed"
+            and int(post_invocation_audit.get("execution_permission_count", -1)) == 0
         )
     return checks
 
@@ -1015,6 +1037,48 @@ def run_demo(
                 ).get("receipt_request_count"),
                 "invocation_receipt_execution_permission_count": provider_envelope_data.get(
                     "manual_provider_test_invocation_receipt", {}
+                ).get("execution_permission_count"),
+                "post_invocation_audit_status": provider_envelope_data.get(
+                    "manual_provider_test_post_invocation_audit", {}
+                ).get("status"),
+                "post_invocation_audit_reason": provider_envelope_data.get(
+                    "manual_provider_test_post_invocation_audit", {}
+                ).get("reason"),
+                "post_invocation_audit_hash": provider_envelope_data.get(
+                    "manual_provider_test_post_invocation_audit", {}
+                ).get("post_invocation_audit_hash"),
+                "post_invocation_audit_invocation_receipt_hash": provider_envelope_data.get(
+                    "manual_provider_test_post_invocation_audit", {}
+                ).get("invocation_receipt_hash"),
+                "post_invocation_audit_claim_boundary_hash": provider_envelope_data.get(
+                    "manual_provider_test_post_invocation_audit", {}
+                ).get("claim_boundary_hash"),
+                "post_invocation_audit_no_call_counters_hash": provider_envelope_data.get(
+                    "manual_provider_test_post_invocation_audit", {}
+                ).get("no_call_counters_hash"),
+                "post_invocation_audit_component_count": provider_envelope_data.get(
+                    "manual_provider_test_post_invocation_audit", {}
+                ).get("component_count"),
+                "post_invocation_audit_passed_component_count": provider_envelope_data.get(
+                    "manual_provider_test_post_invocation_audit", {}
+                ).get("passed_component_count"),
+                "post_invocation_audit_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_post_invocation_audit", {}
+                ).get("mismatch_count"),
+                "post_invocation_audit_component_hash_count": provider_envelope_data.get(
+                    "manual_provider_test_post_invocation_audit", {}
+                ).get("component_hash_count"),
+                "post_invocation_audit_no_call_counter_count": provider_envelope_data.get(
+                    "manual_provider_test_post_invocation_audit", {}
+                ).get("no_call_counter_count"),
+                "post_invocation_audit_claim_boundary_check_count": provider_envelope_data.get(
+                    "manual_provider_test_post_invocation_audit", {}
+                ).get("claim_boundary_check_count"),
+                "post_invocation_audit_request_count": provider_envelope_data.get(
+                    "manual_provider_test_post_invocation_audit", {}
+                ).get("audit_request_count"),
+                "post_invocation_audit_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_post_invocation_audit", {}
                 ).get("execution_permission_count"),
                 "review_packet_read_model_status": (
                     provider_envelope_read_data or {}

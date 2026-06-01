@@ -98,6 +98,7 @@ Current implementation:
 - Disabled first-call executor preflight over execution switch, final release packet, and no-call counter hashes
 - Disabled first-call executor dispatch record over executor preflight, planned dispatch, and no-call counter hashes
 - Disabled first-call invocation receipt over dispatch record, result placeholder, and no-call counter hashes
+- Disabled first-call post-invocation audit over invocation receipt, claim-boundary, and no-call counter hashes
 - Test-only DIV/DAACS source identity fixtures for parity reference
 - Fixture-based source identity smoke path from planning artifact to dry-run report
 - Source-to-target trace and portfolio-safe claim projection for parity evidence
@@ -140,7 +141,7 @@ Latest documented local baseline:
 
 ```text
 Measurement date: 2026-06-01
-Pytest: 441 / 441 passed
+Pytest: 444 / 444 passed
 Live LLM calls in offline/dry-run/fake paths: 0
 Live API calls in offline/dry-run/fake paths: 0
 Provider calls/imports in the latest documented eval: 0
@@ -193,6 +194,7 @@ Allowed public summary:
 - Local disabled executor preflight over execution switch and no-call counter hashes
 - Local disabled executor dispatch record over executor preflight and planned dispatch hashes
 - Local disabled invocation receipt over dispatch record and result-placeholder hashes
+- Local disabled post-invocation audit over invocation receipt, claim-boundary, and no-call counter hashes
 - Public output designed around sanitized summaries and correlation hashes
 
 Do not interpret current results as:
@@ -223,11 +225,12 @@ Do not interpret current results as:
 - Release proposal as provider execution permission, provider behavior evidence, hosted execution, or production provider readiness
 - Final release packet as provider execution permission, provider behavior evidence, hosted execution, or production provider readiness
 - Execution switch as provider execution permission, provider behavior evidence, hosted execution, or production provider readiness
+- Post-invocation audit as provider execution permission, provider behavior evidence, hosted execution, or production provider readiness
 
 ## Status
 
-Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection, source identity golden path smoke coverage, claim-safe trace projection, hash/count repository boundaries, SQLite adapter skeletons for runner/report/audit evidence, approval/replay evidence, canonical run/artifact rows, and provider envelope evidence, canonical approval persistence service wiring before replay claim, sanitized fake admission API demo paths, explicit SQLite-backed fake admission API wiring, sanitized evidence read-model API skeleton, optional fixture evidence persistence, canonical run/artifact read APIs, composed canonical run/evidence read API, local service-shaped demo script, minimal Markdown/CLI run status surface, static HTML UI shell, disabled Solar Pro 3 provider adapter skeleton, no-call Solar Pro 3 contract fixtures, provider envelope read-model projection, provider envelope admission service, provider envelope admission API/read-model hook, operator approval envelope for local no-call provider precheck evidence, dry-admission checklist/runbook projection, manual provider test proposal gate, disabled manual provider test executor boundary, blocked one-shot permission contract projection, blocked manual provider test preflight audit bundle, blocked readiness decision record, blocked manual provider test review packet, hash-only review packet export/read-model, final no-call handoff packet, first live-call operator opt-in checklist boundary, sealed pre-execution packet boundary, no-call live execution arming record, no-call execution authorization release proposal, no-call final release packet, disabled first-call execution switch, disabled first-call executor preflight, disabled first-call executor dispatch record, and disabled first-call invocation receipt.
+Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection, source identity golden path smoke coverage, claim-safe trace projection, hash/count repository boundaries, SQLite adapter skeletons for runner/report/audit evidence, approval/replay evidence, canonical run/artifact rows, and provider envelope evidence, canonical approval persistence service wiring before replay claim, sanitized fake admission API demo paths, explicit SQLite-backed fake admission API wiring, sanitized evidence read-model API skeleton, optional fixture evidence persistence, canonical run/artifact read APIs, composed canonical run/evidence read API, local service-shaped demo script, minimal Markdown/CLI run status surface, static HTML UI shell, disabled Solar Pro 3 provider adapter skeleton, no-call Solar Pro 3 contract fixtures, provider envelope read-model projection, provider envelope admission service, provider envelope admission API/read-model hook, operator approval envelope for local no-call provider precheck evidence, dry-admission checklist/runbook projection, manual provider test proposal gate, disabled manual provider test executor boundary, blocked one-shot permission contract projection, blocked manual provider test preflight audit bundle, blocked readiness decision record, blocked manual provider test review packet, hash-only review packet export/read-model, final no-call handoff packet, first live-call operator opt-in checklist boundary, sealed pre-execution packet boundary, no-call live execution arming record, no-call execution authorization release proposal, no-call final release packet, disabled first-call execution switch, disabled first-call executor preflight, disabled first-call executor dispatch record, disabled first-call invocation receipt, and disabled first-call post-invocation audit.
 
 Current status also includes a fail-closed live-open policy gate. A passing policy decision can only mark a future surface as eligible for a separate implementation unit; it does not grant execution permission.
 
-Next implementation track: disabled first-call post-invocation audit boundary. It must still keep external calls closed by default until a later explicitly approved call-opening task.
+Next implementation track: disabled first-call completion summary boundary. It must still keep external calls closed by default until a later explicitly approved call-opening task.

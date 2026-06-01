@@ -83,4 +83,5 @@ load `.env` values, call Solar Pro 3, or run the DAACS target runtime.
   remains blocked and exposes only hashes and counts. The executor preflight
   remains blocked and exposes only hashes and counts. The executor dispatch
   record remains blocked and exposes only hashes and counts. The invocation
-  receipt remains blocked and exposes only hashes and counts.
+  receipt remains blocked and exposes only hashes and counts. The
+  post-invocation audit remains blocked and exposes only hashes and counts.

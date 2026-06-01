@@ -103,6 +103,9 @@ MANUAL_PROVIDER_TEST_EXECUTOR_DISPATCH_VERSION = (
 MANUAL_PROVIDER_TEST_INVOCATION_RECEIPT_VERSION = (
     "manual-provider-test-disabled-first-call-executor-invocation-receipt-v1"
 )
+MANUAL_PROVIDER_TEST_POST_INVOCATION_AUDIT_VERSION = (
+    "manual-provider-test-disabled-first-call-post-invocation-audit-v1"
+)
 
 EXECUTOR_PREFLIGHT_NO_CALL_COUNTER_FIELDS = (
     "live_llm_calls",
@@ -659,6 +662,27 @@ def _manual_provider_test_invocation_receipt_blocked(reason: str) -> JsonDict:
             "component_hash_count": 0,
             "no_call_counter_count": 0,
             "receipt_request_count": 0,
+            "execution_permission_count": 0,
+        }
+    )
+
+
+def _manual_provider_test_post_invocation_audit_blocked(reason: str) -> JsonDict:
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "post_invocation_audit_hash": "",
+            "invocation_receipt_hash": "",
+            "claim_boundary_hash": "",
+            "no_call_counters_hash": "",
+            "component_count": 0,
+            "passed_component_count": 0,
+            "mismatch_count": 1,
+            "component_hash_count": 0,
+            "no_call_counter_count": 0,
+            "claim_boundary_check_count": 0,
+            "audit_request_count": 0,
             "execution_permission_count": 0,
         }
     )
@@ -2152,6 +2176,143 @@ def _manual_provider_test_invocation_receipt_projection(
     )
 
 
+def _provider_envelope_claim_boundary_projection() -> JsonDict:
+    return {
+        "scope": "local provider envelope precheck only",
+        "external_provider_outcome": False,
+        "target_runtime_outcome": False,
+        "production_trust_claim": False,
+    }
+
+
+def _manual_provider_test_post_invocation_audit_projection(
+    *,
+    payload: dict[str, Any],
+    invocation_receipt: JsonDict,
+    execution_boundary: JsonDict,
+) -> JsonDict:
+    invocation_receipt_hash = str(
+        invocation_receipt.get("invocation_receipt_hash", "")
+    ).strip()
+    expected_invocation_receipt_hash = str(
+        payload.get("expected_invocation_receipt_hash", "")
+    ).strip()
+    audit_payload = (
+        payload.get("manual_test_post_invocation_audit")
+        if isinstance(payload.get("manual_test_post_invocation_audit"), dict)
+        else {}
+    )
+    supplied_invocation_receipt_hash = str(
+        audit_payload.get("invocation_receipt_hash", "")
+    ).strip()
+    audit_requested = audit_payload.get("audit_requested") is True
+    claim_boundary = _provider_envelope_claim_boundary_projection()
+    claim_boundary_closed = (
+        claim_boundary.get("external_provider_outcome") is False
+        and claim_boundary.get("target_runtime_outcome") is False
+        and claim_boundary.get("production_trust_claim") is False
+    )
+    claim_boundary_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": MANUAL_PROVIDER_TEST_POST_INVOCATION_AUDIT_VERSION,
+                "claim_boundary": claim_boundary,
+            }
+        )
+        if claim_boundary_closed
+        else ""
+    )
+    no_call_counters = _executor_preflight_no_call_counters(execution_boundary)
+    no_call_counters_closed = all(value == 0 for value in no_call_counters.values())
+    no_call_counters_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": MANUAL_PROVIDER_TEST_POST_INVOCATION_AUDIT_VERSION,
+                "no_call_counters": no_call_counters,
+            }
+        )
+        if no_call_counters_closed
+        else ""
+    )
+    component_checks = [
+        str(invocation_receipt.get("status", "")) == "blocked"
+        and str(invocation_receipt.get("reason", ""))
+        == "invocation_receipt_execution_closed"
+        and bool(invocation_receipt_hash),
+        bool(expected_invocation_receipt_hash)
+        and expected_invocation_receipt_hash == invocation_receipt_hash,
+        bool(audit_payload),
+        bool(supplied_invocation_receipt_hash)
+        and supplied_invocation_receipt_hash == invocation_receipt_hash,
+        audit_requested,
+        claim_boundary_closed,
+        no_call_counters_closed,
+    ]
+    component_count = len(component_checks)
+    passed_component_count = sum(1 for check in component_checks if check)
+    mismatch_count = component_count - passed_component_count
+    component_hash_count = sum(
+        1
+        for value in (
+            invocation_receipt_hash,
+            claim_boundary_hash,
+            no_call_counters_hash,
+        )
+        if value
+    )
+
+    if not component_checks[0]:
+        reason = "invocation_receipt_missing_or_mismatched"
+    elif not expected_invocation_receipt_hash:
+        reason = "expected_invocation_receipt_hash_required"
+    elif expected_invocation_receipt_hash != invocation_receipt_hash:
+        reason = "invocation_receipt_hash_mismatch"
+    elif not component_checks[2]:
+        reason = "post_invocation_audit_required"
+    elif not component_checks[3]:
+        reason = "post_invocation_audit_receipt_hash_mismatch"
+    elif not component_checks[4]:
+        reason = "post_invocation_audit_request_required"
+    elif not component_checks[5]:
+        reason = "post_invocation_audit_claim_boundary_mismatch"
+    elif not component_checks[6]:
+        reason = "post_invocation_audit_no_call_counters_mismatch"
+    else:
+        reason = "post_invocation_audit_execution_closed"
+
+    post_invocation_audit_hash = ""
+    if mismatch_count == 0:
+        post_invocation_audit_hash = stable_contract_hash(
+            {
+                "projection_version": MANUAL_PROVIDER_TEST_POST_INVOCATION_AUDIT_VERSION,
+                "invocation_receipt_hash": invocation_receipt_hash,
+                "claim_boundary_hash": claim_boundary_hash,
+                "no_call_counters_hash": no_call_counters_hash,
+                "component_count": component_count,
+                "execution_permission": "closed",
+            }
+        )
+
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "post_invocation_audit_hash": post_invocation_audit_hash,
+            "invocation_receipt_hash": invocation_receipt_hash,
+            "claim_boundary_hash": claim_boundary_hash,
+            "no_call_counters_hash": no_call_counters_hash,
+            "component_count": component_count,
+            "passed_component_count": passed_component_count,
+            "mismatch_count": mismatch_count,
+            "component_hash_count": component_hash_count,
+            "no_call_counter_count": len(no_call_counters),
+            "claim_boundary_check_count": 3,
+            "audit_request_count": 1 if audit_requested else 0,
+            "execution_permission_count": 0,
+        }
+    )
+
+
 def _manual_test_proposal_projection(
     *,
     payload: dict[str, Any],
@@ -2574,6 +2735,18 @@ def provider_manual_test_invocation_receipt_summary(
     )
 
 
+def provider_manual_test_post_invocation_audit_summary(
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the public no-call first-call post-invocation audit projection."""
+    invocation_receipt = provider_manual_test_invocation_receipt_summary(payload)
+    return _manual_provider_test_post_invocation_audit_projection(
+        payload=payload,
+        invocation_receipt=invocation_receipt,
+        execution_boundary=_zero_execution_boundary(),
+    )
+
+
 def _review_packet_export_from_read_model(read_model: JsonDict) -> JsonDict:
     if str(read_model.get("status", "")) == "blocked":
         return _manual_provider_test_review_packet_export_blocked(
@@ -2701,6 +2874,7 @@ def _blocked_projection(
     manual_provider_test_executor_preflight: JsonDict | None = None,
     manual_provider_test_executor_dispatch_record: JsonDict | None = None,
     manual_provider_test_invocation_receipt: JsonDict | None = None,
+    manual_provider_test_post_invocation_audit: JsonDict | None = None,
 ) -> dict[str, Any]:
     selected_operator_approval = operator_approval_envelope or _operator_approval_missing_projection()
     selected_dry_admission = live_provider_dry_admission or _live_provider_dry_admission_checklist(
@@ -2807,6 +2981,12 @@ def _blocked_projection(
             "dispatch_record_not_evaluated"
         )
     )
+    selected_post_invocation_audit = (
+        manual_provider_test_post_invocation_audit
+        or _manual_provider_test_post_invocation_audit_blocked(
+            "invocation_receipt_not_evaluated"
+        )
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -2852,6 +3032,9 @@ def _blocked_projection(
                 selected_executor_dispatch_record
             ),
             "manual_provider_test_invocation_receipt": selected_invocation_receipt,
+            "manual_provider_test_post_invocation_audit": (
+                selected_post_invocation_audit
+            ),
             "provider_envelope_read_model": read_model or {},
             "checks": [{"name": check_name, "passed": False}],
             "errors": [message],
@@ -3230,6 +3413,11 @@ def _projection_from_result(
         dispatch_record=executor_dispatch_record,
         execution_boundary=execution_boundary,
     )
+    post_invocation_audit = _manual_provider_test_post_invocation_audit_projection(
+        payload=payload,
+        invocation_receipt=invocation_receipt,
+        execution_boundary=execution_boundary,
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -3269,6 +3457,7 @@ def _projection_from_result(
             "manual_provider_test_executor_preflight": executor_preflight,
             "manual_provider_test_executor_dispatch_record": executor_dispatch_record,
             "manual_provider_test_invocation_receipt": invocation_receipt,
+            "manual_provider_test_post_invocation_audit": post_invocation_audit,
             "provider_envelope_read_model": read_model,
             "checks": _check_map(result.checks),
             "errors": [str(error) for error in result.errors],
@@ -3765,6 +3954,11 @@ def read_provider_envelope_precheck(
                     "dispatch_record_missing_or_mismatched"
                 )
             ),
+            "manual_provider_test_post_invocation_audit": (
+                _manual_provider_test_post_invocation_audit_blocked(
+                    "invocation_receipt_missing_or_mismatched"
+                )
+            ),
             "provider_envelope_read_model": read_model,
             "checks": [{"name": "provider_envelope_read_model_available", "passed": True}],
             "errors": [],
@@ -3806,6 +4000,7 @@ __all__ = [
     "MANUAL_PROVIDER_TEST_EXECUTOR_PREFLIGHT_VERSION",
     "MANUAL_PROVIDER_TEST_EXECUTOR_DISPATCH_VERSION",
     "MANUAL_PROVIDER_TEST_INVOCATION_RECEIPT_VERSION",
+    "MANUAL_PROVIDER_TEST_POST_INVOCATION_AUDIT_VERSION",
     "provider_manual_test_proposal_summary",
     "provider_manual_test_preflight_summary",
     "provider_manual_test_review_packet_summary",
@@ -3819,6 +4014,7 @@ __all__ = [
     "provider_manual_test_executor_preflight_summary",
     "provider_manual_test_executor_dispatch_record_summary",
     "provider_manual_test_invocation_receipt_summary",
+    "provider_manual_test_post_invocation_audit_summary",
     "provider_precheck_operator_policy_summary",
     "read_provider_envelope_precheck",
     "run_provider_envelope_precheck",

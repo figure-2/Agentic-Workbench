@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-24` disabled invocation receipt boundary.
+Current snapshot after `AW-LIVE-25` disabled post-invocation audit boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 202 |
-| Counted code/doc files, excluding cache and private SoT | 202 |
-| Project lines, excluding cache and private SoT | 40,685 |
+| Project files, excluding cache and private SoT | 205 |
+| Counted code/doc files, excluding cache and private SoT | 205 |
+| Project lines, excluding cache and private SoT | 41,457 |
 | Python files | 76 |
-| Markdown files | 121 |
+| Markdown files | 124 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 441 |
-| Pytest passed cases | 441 |
+| Pytest collected cases | 444 |
+| Pytest passed cases | 444 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -2381,6 +2381,54 @@ Measured after adding the blocked disabled first-call invocation receipt.
 | provider/runtime calls remain at 0 | covered |
 
 Interpretation: this adds a local disabled invocation receipt for a later
+manual provider test candidate. It does not add an external call path, SDK
+integration, env value access, network access, provider response parsing,
+hosted execution, or production provider readiness.
+
+## AW-LIVE-25 Disabled Post-Invocation Audit Metrics
+
+Measured after adding the blocked disabled first-call post-invocation audit.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 444 |
+| Pytest passed cases | 444 |
+| Regression delta vs AW-LIVE-24 baseline | +3 |
+| API post-invocation audit integration tests | 3 |
+| Provider envelope API integration tests | 49 |
+| Demo provider envelope smoke tests | 1 |
+| Post-invocation audit public summary fields | 14 |
+| Post-invocation audit component count | 7 |
+| Post-invocation audit component hash count | 3 |
+| Post-invocation audit no-call counter count | 13 |
+| Claim-boundary check count | 3 |
+| Audit passed count with missing expected receipt hash | 3 |
+| Audit mismatch count with missing expected receipt hash | 4 |
+| Audit passed count without audit payload | 4 |
+| Audit mismatch count without audit payload | 3 |
+| Audit passed count with complete audit | 7 |
+| Execution permission count with complete audit | 0 |
+| Missing expected receipt hash reason | expected_invocation_receipt_hash_required |
+| Missing audit payload reason | post_invocation_audit_required |
+| Complete audit reason | post_invocation_audit_execution_closed |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| invocation receipt hash exists before post-invocation audit | covered |
+| expected invocation receipt hash must match | covered |
+| post-invocation audit payload is required | covered |
+| claim boundary is represented as hash/count evidence | covered |
+| public audit exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled post-invocation audit for a later
 manual provider test candidate. It does not add an external call path, SDK
 integration, env value access, network access, provider response parsing,
 hosted execution, or production provider readiness.

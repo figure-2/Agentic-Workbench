@@ -13,6 +13,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     provider_manual_test_execution_switch_summary,
     provider_manual_test_executor_preflight_summary,
     provider_manual_test_invocation_receipt_summary,
+    provider_manual_test_post_invocation_audit_summary,
     provider_manual_test_arming_record_summary,
     provider_manual_test_final_release_packet_summary,
     provider_manual_test_handoff_packet_summary,
@@ -142,6 +143,9 @@ def _provider_envelope_precheck_payload(
     include_invocation_receipt: bool = False,
     invocation_receipt_expected_dispatch_hash_override: str | None = None,
     invocation_receipt_dispatch_hash_override: str | None = None,
+    include_post_invocation_audit: bool = False,
+    post_invocation_expected_receipt_hash_override: str | None = None,
+    post_invocation_receipt_hash_override: str | None = None,
 ) -> dict:
     payload = {
         "run_id": run_id,
@@ -404,6 +408,21 @@ def _provider_envelope_precheck_payload(
             "receipt_requested": True,
             "authorization_material": "API24_RECEIPT_AUTH_SENTINEL",
             "provider_payload": "API24_RECEIPT_PROVIDER_PAYLOAD_SENTINEL",
+        }
+    if include_post_invocation_audit:
+        receipt_summary = provider_manual_test_invocation_receipt_summary(payload)
+        payload["expected_invocation_receipt_hash"] = (
+            post_invocation_expected_receipt_hash_override
+            or receipt_summary["invocation_receipt_hash"]
+        )
+        payload["manual_test_post_invocation_audit"] = {
+            "invocation_receipt_hash": (
+                post_invocation_receipt_hash_override
+                or receipt_summary["invocation_receipt_hash"]
+            ),
+            "audit_requested": True,
+            "authorization_material": "API25_AUDIT_AUTH_SENTINEL",
+            "provider_payload": "API25_AUDIT_PROVIDER_PAYLOAD_SENTINEL",
         }
     return payload
 
@@ -4792,6 +4811,278 @@ def test_provider_envelope_precheck_api_builds_invocation_receipt_but_keeps_exec
         "API24_RECEIPT_PROVIDER_PAYLOAD_SENTINEL",
         "manual_test_executor_invocation_receipt",
         "receipt_requested",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_post_invocation_audit_without_expected_receipt_hash(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-audit-missing-expected",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+        include_operator_opt_in=True,
+        include_sealed_pre_execution_packet=True,
+        include_arming_record=True,
+        include_release_proposal=True,
+        include_final_release_packet=True,
+        include_execution_switch=True,
+        execution_switch_enable=True,
+        include_executor_preflight=True,
+        include_executor_dispatch_record=True,
+        include_invocation_receipt=True,
+    )
+    expected_handoff = provider_manual_test_handoff_packet_summary(request_payload)
+    expected_receipt = provider_manual_test_invocation_receipt_summary(request_payload)
+    request_payload["expected_handoff_packet_hash"] = expected_handoff[
+        "handoff_packet_hash"
+    ]
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    audit = data["manual_provider_test_post_invocation_audit"]
+
+    assert set(audit) == {
+        "status",
+        "reason",
+        "post_invocation_audit_hash",
+        "invocation_receipt_hash",
+        "claim_boundary_hash",
+        "no_call_counters_hash",
+        "component_count",
+        "passed_component_count",
+        "mismatch_count",
+        "component_hash_count",
+        "no_call_counter_count",
+        "claim_boundary_check_count",
+        "audit_request_count",
+        "execution_permission_count",
+    }
+    assert audit["status"] == "blocked"
+    assert audit["reason"] == "expected_invocation_receipt_hash_required"
+    assert audit["post_invocation_audit_hash"] == ""
+    assert audit["invocation_receipt_hash"] == expected_receipt[
+        "invocation_receipt_hash"
+    ]
+    assert audit["claim_boundary_hash"]
+    assert audit["no_call_counters_hash"]
+    assert audit["component_count"] == 7
+    assert audit["passed_component_count"] == 3
+    assert audit["mismatch_count"] == 4
+    assert audit["component_hash_count"] == 3
+    assert audit["no_call_counter_count"] == 13
+    assert audit["claim_boundary_check_count"] == 3
+    assert audit["audit_request_count"] == 0
+    assert audit["execution_permission_count"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API25_AUDIT_AUTH_SENTINEL",
+        "API25_AUDIT_PROVIDER_PAYLOAD_SENTINEL",
+        "manual_test_post_invocation_audit",
+        "audit_requested",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_post_invocation_audit_without_audit_payload(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-audit-missing-payload",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+        include_operator_opt_in=True,
+        include_sealed_pre_execution_packet=True,
+        include_arming_record=True,
+        include_release_proposal=True,
+        include_final_release_packet=True,
+        include_execution_switch=True,
+        execution_switch_enable=True,
+        include_executor_preflight=True,
+        include_executor_dispatch_record=True,
+        include_invocation_receipt=True,
+    )
+    expected_handoff = provider_manual_test_handoff_packet_summary(request_payload)
+    expected_receipt = provider_manual_test_invocation_receipt_summary(request_payload)
+    request_payload["expected_handoff_packet_hash"] = expected_handoff[
+        "handoff_packet_hash"
+    ]
+    request_payload["expected_invocation_receipt_hash"] = expected_receipt[
+        "invocation_receipt_hash"
+    ]
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    audit = data["manual_provider_test_post_invocation_audit"]
+
+    assert audit["status"] == "blocked"
+    assert audit["reason"] == "post_invocation_audit_required"
+    assert audit["post_invocation_audit_hash"] == ""
+    assert audit["invocation_receipt_hash"] == expected_receipt[
+        "invocation_receipt_hash"
+    ]
+    assert audit["claim_boundary_hash"]
+    assert audit["no_call_counters_hash"]
+    assert audit["component_count"] == 7
+    assert audit["passed_component_count"] == 4
+    assert audit["mismatch_count"] == 3
+    assert audit["component_hash_count"] == 3
+    assert audit["no_call_counter_count"] == 13
+    assert audit["claim_boundary_check_count"] == 3
+    assert audit["audit_request_count"] == 0
+    assert audit["execution_permission_count"] == 0
+    assert data["provider_envelope_admission"]["adapter_reached"] is True
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API25_AUDIT_AUTH_SENTINEL",
+        "API25_AUDIT_PROVIDER_PAYLOAD_SENTINEL",
+        "manual_test_post_invocation_audit",
+        "audit_requested",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_builds_post_invocation_audit_but_keeps_execution_disabled(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-audit-present",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+        include_operator_opt_in=True,
+        include_sealed_pre_execution_packet=True,
+        include_arming_record=True,
+        include_release_proposal=True,
+        include_final_release_packet=True,
+        include_execution_switch=True,
+        execution_switch_enable=True,
+        include_executor_preflight=True,
+        include_executor_dispatch_record=True,
+        include_invocation_receipt=True,
+        include_post_invocation_audit=True,
+    )
+    expected_handoff = provider_manual_test_handoff_packet_summary(request_payload)
+    expected_receipt = provider_manual_test_invocation_receipt_summary(request_payload)
+    expected_audit = provider_manual_test_post_invocation_audit_summary(
+        request_payload
+    )
+    request_payload["expected_handoff_packet_hash"] = expected_handoff[
+        "handoff_packet_hash"
+    ]
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    audit = data["manual_provider_test_post_invocation_audit"]
+
+    assert audit["status"] == "blocked"
+    assert audit["reason"] == "post_invocation_audit_execution_closed"
+    assert audit["post_invocation_audit_hash"] == expected_audit[
+        "post_invocation_audit_hash"
+    ]
+    assert audit["invocation_receipt_hash"] == expected_receipt[
+        "invocation_receipt_hash"
+    ]
+    assert audit["claim_boundary_hash"] == expected_audit["claim_boundary_hash"]
+    assert audit["no_call_counters_hash"] == expected_audit[
+        "no_call_counters_hash"
+    ]
+    assert audit["component_count"] == 7
+    assert audit["passed_component_count"] == 7
+    assert audit["mismatch_count"] == 0
+    assert audit["component_hash_count"] == 3
+    assert audit["no_call_counter_count"] == 13
+    assert audit["claim_boundary_check_count"] == 3
+    assert audit["audit_request_count"] == 1
+    assert audit["execution_permission_count"] == 0
+    assert data["provider_envelope_admission"]["adapter_reached"] is True
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API25_AUDIT_AUTH_SENTINEL",
+        "API25_AUDIT_PROVIDER_PAYLOAD_SENTINEL",
+        "manual_test_post_invocation_audit",
+        "audit_requested",
         "authorization_material",
         "provider_payload",
         "raw_prompt",

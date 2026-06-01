@@ -298,6 +298,25 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert envelope["invocation_receipt_no_call_counter_count"] == 13
     assert envelope["invocation_receipt_request_count"] == 1
     assert envelope["invocation_receipt_execution_permission_count"] == 0
+    assert envelope["post_invocation_audit_status"] == "blocked"
+    assert (
+        envelope["post_invocation_audit_reason"]
+        == "post_invocation_audit_execution_closed"
+    )
+    assert envelope["post_invocation_audit_hash"]
+    assert envelope["post_invocation_audit_invocation_receipt_hash"] == envelope[
+        "invocation_receipt_hash"
+    ]
+    assert envelope["post_invocation_audit_claim_boundary_hash"]
+    assert envelope["post_invocation_audit_no_call_counters_hash"]
+    assert envelope["post_invocation_audit_component_count"] == 7
+    assert envelope["post_invocation_audit_passed_component_count"] == 7
+    assert envelope["post_invocation_audit_mismatch_count"] == 0
+    assert envelope["post_invocation_audit_component_hash_count"] == 3
+    assert envelope["post_invocation_audit_no_call_counter_count"] == 13
+    assert envelope["post_invocation_audit_claim_boundary_check_count"] == 3
+    assert envelope["post_invocation_audit_request_count"] == 1
+    assert envelope["post_invocation_audit_execution_permission_count"] == 0
     assert envelope["review_packet_read_model_status"] == "available"
     assert envelope["review_packet_read_export_hash"] == envelope["review_packet_hash"]
     assert envelope["review_packet_read_export_count"] == 1
@@ -319,6 +338,7 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert checks["provider_executor_preflight_blocked"] is True
     assert checks["provider_executor_dispatch_record_blocked"] is True
     assert checks["provider_invocation_receipt_blocked"] is True
+    assert checks["provider_post_invocation_audit_blocked"] is True
     assert envelope["execution_boundary"]["provider_calls"] == 0
     assert envelope["execution_boundary"]["network_calls"] == 0
     assert envelope["execution_boundary"]["solar_live_api_calls"] == 0
