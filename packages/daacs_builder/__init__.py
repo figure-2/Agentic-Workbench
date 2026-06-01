@@ -41,6 +41,11 @@ from .provider_envelope_store import (
     provider_envelope_public_read_model_from_sqlite,
     provider_envelope_record_from_contract_result,
 )
+from .provider_envelope_admission import (
+    ProviderEnvelopeAdmissionResult,
+    ProviderEnvelopeAdmissionService,
+    invoke_adapter_after_provider_envelope_admission,
+)
 from .runner_provider import (
     ApprovalRecord,
     OfflineRunnerProvider,
@@ -67,6 +72,8 @@ __all__ = [
     "OfflineRunnerProvider",
     "ProviderEnvelopeRecord",
     "ProviderEnvelopeRepository",
+    "ProviderEnvelopeAdmissionResult",
+    "ProviderEnvelopeAdmissionService",
     "ProviderEnvelopeStoreUnavailableError",
     "ProviderAdapterRegistry",
     "RunnerPlan",
@@ -91,6 +98,7 @@ __all__ = [
     "ensure_implementation_approved",
     "find_blocked_operation_attempts",
     "implementation_brief_from_prd_package",
+    "invoke_adapter_after_provider_envelope_admission",
     "planning_to_build_spec",
     "provider_envelope_public_read_model",
     "provider_envelope_public_read_model_from_sqlite",

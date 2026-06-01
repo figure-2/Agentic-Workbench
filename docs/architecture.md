@@ -71,6 +71,7 @@ sequenceDiagram
 | `VerificationReport` | sanitized check/error/file/metric projection |
 | repository records | hash/count/linkage rows that exclude raw prompt, raw body, logs, and provider payloads |
 | `ProviderEnvelopeRecord` | no-call provider envelope evidence with contract hashes, counts, and status |
+| `ProviderEnvelopeAdmissionService` | service boundary that requires envelope persistence/read-model evidence before adapter reachability |
 
 ## Persistence Boundary
 
@@ -194,6 +195,13 @@ sanitized summary. The public read model narrows that to hashes, counts,
 status, repository boundary state, and zero-call counters. Corrupted,
 unavailable, or wrong-schema stores are blocked.
 
+`AW-LIVE-04` adds a provider envelope admission service in front of the
+disabled Solar adapter path. The service validates no-call contract evidence,
+persists an envelope row, reads it back through the public read model, verifies
+matching request/response hashes, and only then invokes the disabled adapter.
+Missing service, hash mismatch, or corrupted store blocks before adapter
+invocation. The adapter still blocks and provider/runtime calls remain at 0.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -249,3 +257,5 @@ outside the current executable path.
   raw input text, source body, provider body, or authorization material.
 - provider envelope read models must expose hashes, counts, and status only;
   corrupted or unavailable stores must be blocked without path or raw row echo.
+- provider envelope admission services must block before adapter invocation
+  when evidence persistence, read-model lookup, or hash matching fails.

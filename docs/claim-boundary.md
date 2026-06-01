@@ -32,6 +32,8 @@ Agentic Workbench is a local/dev AI agent workflow harness prototype. It may cla
   summary/hash projection and policy checks
 - Sanitized provider envelope read model for no-call contract hashes, counts,
   and status
+- Local no-call provider envelope admission service before disabled Solar
+  adapter invocation
 - Sanitized public summaries and correlation hashes
 - Fixture-based smoke tests and local regression tests
 
@@ -80,6 +82,8 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
   model-quality proof, live response parser, or production provider readiness
 - provider envelope read model described as provider outcome, hosted
   observability, live response parser, or production provider readiness
+- provider envelope admission service described as provider execution,
+  model-quality proof, hosted provider service, or production provider readiness
 
 ## Public Artifact Rules
 
@@ -118,3 +122,4 @@ Allowed replacements:
 | No-Live-Call Gate | Current paths are not described as live-provider or live-runtime success |
 | Non-Dummy Test Gate | Schema, adapter, redaction, pathing, approval, runner, and smoke tests remain executable |
 | Provider Envelope Read Gate | No-call provider envelope evidence exposes hashes, counts, and status only |
+| Provider Envelope Admission Gate | Disabled adapter path is reachable only after no-call envelope evidence is saved and read back |

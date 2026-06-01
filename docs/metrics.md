@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-03` provider envelope read model.
+Current snapshot after `AW-LIVE-04` provider envelope admission service.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 139 |
-| Counted code/doc files, excluding cache and private SoT | 139 |
-| Project lines, excluding cache and private SoT | 25,897 |
-| Python files | 73 |
-| Markdown files | 61 |
-| Test files | 30 |
-| Unit test files | 23 |
+| Project files, excluding cache and private SoT | 143 |
+| Counted code/doc files, excluding cache and private SoT | 143 |
+| Project lines, excluding cache and private SoT | 26,851 |
+| Python files | 75 |
+| Markdown files | 63 |
+| Test files | 31 |
+| Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 384 |
-| Pytest passed cases | 384 |
+| Pytest collected cases | 392 |
+| Pytest passed cases | 392 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -1508,3 +1508,42 @@ Interpretation: this adds no-call provider envelope evidence storage and read
 model projection. It does not add SDK integration, provider response parsing,
 external provider outcome, model-quality proof, hosted execution, or production
 provider readiness.
+
+## AW-LIVE-04 Provider Envelope Admission Service Metrics
+
+Measured after adding a provider envelope admission service before disabled
+Solar adapter invocation.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 392 |
+| Pytest passed cases | 392 |
+| Regression delta vs AW-LIVE-03 baseline | +8 |
+| Provider envelope admission unit tests | 8 |
+| Adapter invocation before successful envelope admission | 0 |
+| Adapter invocation after successful envelope admission | 1 fixture path |
+| Request/response hash mismatch block fixtures | 2 |
+| Corrupted store block fixtures | 1 |
+| Raw prompt/provider body/provider payload findings | 0 |
+| Forbidden public key findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| provider envelope row saved before disabled adapter invocation | covered |
+| provider envelope read model checked before disabled adapter invocation | covered |
+| missing admission service blocked before adapter invocation | covered |
+| request contract hash mismatch blocked | covered |
+| response contract hash mismatch blocked | covered |
+| corrupted envelope store blocked | covered |
+| duplicate matching evidence admitted as duplicate | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds local no-call admission ordering in front of the
+disabled Solar adapter path. It does not add SDK integration, provider response
+parsing, external provider outcome, model-quality proof, hosted execution, or
+production provider readiness.
