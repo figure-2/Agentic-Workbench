@@ -240,6 +240,11 @@ def _checks(
             and int(envelope_execution.get("network_calls", -1)) == 0
             and int(envelope_execution.get("solar_live_api_calls", -1)) == 0
         )
+        preflight = provider_envelope_data.get("manual_provider_test_preflight_audit", {})
+        checks["provider_preflight_audit_blocked"] = (
+            preflight.get("status") == "blocked"
+            and preflight.get("reason") == "preflight_execution_closed"
+        )
     return checks
 
 
@@ -382,6 +387,30 @@ def run_demo(
                 "one_shot_permission_field_count": provider_envelope_data.get(
                     "one_shot_live_permission", {}
                 ).get("permission_field_count"),
+                "preflight_audit_status": provider_envelope_data.get(
+                    "manual_provider_test_preflight_audit", {}
+                ).get("status"),
+                "preflight_audit_reason": provider_envelope_data.get(
+                    "manual_provider_test_preflight_audit", {}
+                ).get("reason"),
+                "preflight_audit_hash": provider_envelope_data.get(
+                    "manual_provider_test_preflight_audit", {}
+                ).get("preflight_audit_hash"),
+                "preflight_audit_component_count": provider_envelope_data.get(
+                    "manual_provider_test_preflight_audit", {}
+                ).get("component_count"),
+                "preflight_audit_passed_component_count": provider_envelope_data.get(
+                    "manual_provider_test_preflight_audit", {}
+                ).get("passed_component_count"),
+                "preflight_audit_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_preflight_audit", {}
+                ).get("mismatch_count"),
+                "preflight_no_call_counter_count": provider_envelope_data.get(
+                    "manual_provider_test_preflight_audit", {}
+                ).get("no_call_counter_count"),
+                "preflight_no_call_counter_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_preflight_audit", {}
+                ).get("no_call_counter_mismatch_count"),
                 "read_model_status": (
                     provider_envelope_read_data or {}
                 ).get("status"),

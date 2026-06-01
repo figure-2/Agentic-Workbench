@@ -252,6 +252,14 @@ candidate still reports `executor_blocked`, so provider SDK imports, env value
 reads, network calls, external API calls, and DAACS target runtime calls remain
 closed.
 
+`AW-LIVE-11` adds a blocked manual provider test preflight audit bundle. The
+bundle combines the proposal hash, planned call hash, one-shot permission hash,
+dry-admission checklist hash, and no-call counters into one public projection
+that returns only status, reason, hash, and counts. A complete local candidate
+still reports `preflight_execution_closed`; missing or mismatched components
+return component-specific blocked reasons. No adapter, provider, or target
+runtime path is opened.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit

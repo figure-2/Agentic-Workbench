@@ -1310,6 +1310,7 @@ def test_provider_envelope_precheck_api_persists_hash_read_model_without_externa
     manual_proposal = data["manual_provider_test_proposal"]
     manual_executor = data["manual_provider_test_executor"]
     one_shot_permission = data["one_shot_live_permission"]
+    preflight_audit = data["manual_provider_test_preflight_audit"]
     checklist_by_id = {item["id"]: item for item in dry_admission["checklist"]}
 
     assert data["projection_version"] == "provider-envelope-admission-api-public-v1"
@@ -1382,6 +1383,22 @@ def test_provider_envelope_precheck_api_persists_hash_read_model_without_externa
     assert one_shot_permission["reason"] == "one_shot_permission_required"
     assert one_shot_permission["permission_contract_hash"] == ""
     assert one_shot_permission["permission_field_count"] == 0
+    assert set(preflight_audit) == {
+        "status",
+        "reason",
+        "preflight_audit_hash",
+        "component_count",
+        "passed_component_count",
+        "mismatch_count",
+        "no_call_counter_count",
+        "no_call_counter_mismatch_count",
+    }
+    assert preflight_audit["status"] == "blocked"
+    assert preflight_audit["reason"] == "proposal_component_missing_or_blocked"
+    assert preflight_audit["preflight_audit_hash"] == ""
+    assert preflight_audit["component_count"] == 5
+    assert preflight_audit["mismatch_count"] >= 1
+    assert preflight_audit["no_call_counter_mismatch_count"] == 0
     assert data["repository_boundary"]["provider_envelope_backend"] == "sqlite"
     assert data["repository_boundary"]["root_path_returned"] is False
     assert data["execution_boundary"]["adapter_invocation_count"] == 1
@@ -1630,6 +1647,7 @@ def test_provider_envelope_precheck_api_blocks_one_shot_permission_when_executor
     data = payload["data"]
     manual_executor = data["manual_provider_test_executor"]
     one_shot_permission = data["one_shot_live_permission"]
+    preflight_audit = data["manual_provider_test_preflight_audit"]
 
     assert manual_executor["status"] == "blocked"
     assert manual_executor["reason"] == "executor_disabled_by_default"
@@ -1645,6 +1663,84 @@ def test_provider_envelope_precheck_api_blocks_one_shot_permission_when_executor
     assert one_shot_permission["permission_contract_hash"]
     assert one_shot_permission["expires_at"] == "2099-01-01T00:00:00Z"
     assert one_shot_permission["permission_field_count"] == 11
+    assert set(preflight_audit) == {
+        "status",
+        "reason",
+        "preflight_audit_hash",
+        "component_count",
+        "passed_component_count",
+        "mismatch_count",
+        "no_call_counter_count",
+        "no_call_counter_mismatch_count",
+    }
+    assert preflight_audit["status"] == "blocked"
+    assert preflight_audit["reason"] == "preflight_execution_closed"
+    assert preflight_audit["preflight_audit_hash"]
+    assert preflight_audit["component_count"] == 5
+    assert preflight_audit["passed_component_count"] == 5
+    assert preflight_audit["mismatch_count"] == 0
+    assert preflight_audit["no_call_counter_count"] >= 10
+    assert preflight_audit["no_call_counter_mismatch_count"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["live_api_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["provider_envelope_env_value_reads"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API08_ABORT_CRITERIA_SENTINEL",
+        "API08_MANUAL_TEST_AUTH_SENTINEL",
+        "API10_PERMISSION_AUTH_SENTINEL",
+        "API10_PERMISSION_PROVIDER_PAYLOAD_SENTINEL",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_marks_preflight_mismatch_without_raw_echo(tmp_path):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-preflight-mismatch",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+    )
+    request_payload["one_shot_live_permission"]["planned_call_hash"] = "mismatched-call-hash"
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    one_shot_permission = data["one_shot_live_permission"]
+    preflight_audit = data["manual_provider_test_preflight_audit"]
+
+    assert one_shot_permission["status"] == "blocked"
+    assert one_shot_permission["reason"] == "one_shot_permission_contract_mismatch"
+    assert one_shot_permission["permission_contract_hash"] == ""
+    assert preflight_audit["status"] == "blocked"
+    assert preflight_audit["reason"] == "permission_component_missing_or_mismatch"
+    assert preflight_audit["preflight_audit_hash"] == ""
+    assert preflight_audit["component_count"] == 5
+    assert preflight_audit["mismatch_count"] >= 1
+    assert preflight_audit["no_call_counter_mismatch_count"] == 0
     assert data["execution_boundary"]["provider_calls"] == 0
     assert data["execution_boundary"]["live_api_calls"] == 0
     assert data["execution_boundary"]["network_calls"] == 0

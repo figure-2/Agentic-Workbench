@@ -59,6 +59,9 @@ LIVE_PROVIDER_DRY_ADMISSION_VERSION = "live-provider-dry-admission-checklist-v1"
 MANUAL_PROVIDER_TEST_PROPOSAL_VERSION = "manual-provider-test-proposal-gate-v1"
 MANUAL_PROVIDER_TEST_EXECUTOR_VERSION = "manual-provider-test-executor-boundary-v1"
 ONE_SHOT_LIVE_PERMISSION_VERSION = "one-shot-live-call-permission-contract-v1"
+MANUAL_PROVIDER_TEST_PREFLIGHT_AUDIT_VERSION = (
+    "manual-provider-test-preflight-audit-bundle-v1"
+)
 
 
 @dataclass(slots=True)
@@ -355,6 +358,21 @@ def _one_shot_live_permission_blocked(reason: str) -> JsonDict:
     )
 
 
+def _manual_provider_test_preflight_audit_blocked(reason: str) -> JsonDict:
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "preflight_audit_hash": "",
+            "component_count": 0,
+            "passed_component_count": 0,
+            "mismatch_count": 0,
+            "no_call_counter_count": 0,
+            "no_call_counter_mismatch_count": 0,
+        }
+    )
+
+
 def _manual_test_proposal_policy(policy: SolarCostTimeoutPolicy) -> JsonDict:
     return {
         "request_timeout_seconds": int(policy.request_timeout_seconds or 0),
@@ -461,6 +479,107 @@ def _one_shot_live_permission_projection(
             "permission_contract_hash": permission_contract_hash,
             "expires_at": expires_at if contract_matches else "",
             "permission_field_count": len(required_checks) if contract_matches else 0,
+        }
+    )
+
+
+_PREFLIGHT_NO_CALL_COUNTERS = (
+    "live_llm_calls",
+    "live_api_calls",
+    "provider_calls",
+    "provider_imports",
+    "provider_secret_value_reads",
+    "network_calls",
+    "provider_envelope_sdk_imports",
+    "provider_envelope_env_value_reads",
+    "provider_envelope_api_calls",
+    "provider_envelope_network_calls",
+    "solar_live_sdk_imports",
+    "solar_live_env_value_reads",
+    "solar_live_api_calls",
+)
+
+
+def _manual_provider_test_preflight_audit_projection(
+    *,
+    live_provider_dry_admission: JsonDict,
+    manual_provider_test_proposal: JsonDict,
+    manual_provider_test_executor: JsonDict,
+    one_shot_live_permission: JsonDict,
+    execution_boundary: JsonDict,
+) -> JsonDict:
+    proposal_hash = str(manual_provider_test_proposal.get("proposal_hash", "")).strip()
+    planned_call_hash = str(manual_provider_test_executor.get("planned_call_hash", "")).strip()
+    permission_hash = str(one_shot_live_permission.get("permission_contract_hash", "")).strip()
+    dry_admission_hash = str(live_provider_dry_admission.get("dry_admission_hash", "")).strip()
+    no_call_counter_values = {
+        counter_name: _coerce_int(execution_boundary.get(counter_name, 0))
+        for counter_name in _PREFLIGHT_NO_CALL_COUNTERS
+    }
+    no_call_counter_mismatch_count = sum(
+        1 for value in no_call_counter_values.values() if value != 0
+    )
+    component_checks = [
+        str(manual_provider_test_proposal.get("status", "")) == "approved_disabled"
+        and bool(proposal_hash),
+        str(manual_provider_test_executor.get("status", "")) == "blocked"
+        and str(manual_provider_test_executor.get("reason", "")) == "executor_disabled_by_default"
+        and bool(planned_call_hash),
+        str(one_shot_live_permission.get("status", "")) == "blocked"
+        and str(one_shot_live_permission.get("reason", "")) == "executor_blocked"
+        and bool(permission_hash),
+        str(live_provider_dry_admission.get("status", "")) == "dry_admission_only"
+        and live_provider_dry_admission.get("live_ready") is False
+        and live_provider_dry_admission.get("allowed_to_execute") is False
+        and _coerce_int(live_provider_dry_admission.get("checklist_item_count", 0)) > 0,
+        no_call_counter_mismatch_count == 0,
+    ]
+    component_count = len(component_checks)
+    passed_component_count = sum(1 for check in component_checks if check)
+    mismatch_count = component_count - passed_component_count
+    if not component_checks[0]:
+        reason = "proposal_component_missing_or_blocked"
+    elif not component_checks[1]:
+        reason = "executor_component_missing_or_mismatch"
+    elif not component_checks[2]:
+        reason = "permission_component_missing_or_mismatch"
+    elif not component_checks[3]:
+        reason = "operator_checklist_missing_or_mismatch"
+    elif not component_checks[4]:
+        reason = "no_call_counter_mismatch"
+    else:
+        reason = "preflight_execution_closed"
+
+    preflight_audit_hash = ""
+    if mismatch_count == 0:
+        preflight_audit_hash = stable_contract_hash(
+            {
+                "projection_version": MANUAL_PROVIDER_TEST_PREFLIGHT_AUDIT_VERSION,
+                "proposal_hash": proposal_hash,
+                "planned_call_hash": planned_call_hash,
+                "permission_contract_hash": permission_hash,
+                "dry_admission_hash": dry_admission_hash,
+                "checklist_item_count": _coerce_int(
+                    live_provider_dry_admission.get("checklist_item_count", 0)
+                ),
+                "manual_required_count": _coerce_int(
+                    live_provider_dry_admission.get("manual_required_count", 0)
+                ),
+                "no_call_counter_hash": stable_contract_hash(no_call_counter_values),
+                "no_call_counter_count": len(_PREFLIGHT_NO_CALL_COUNTERS),
+            }
+        )
+
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "preflight_audit_hash": preflight_audit_hash,
+            "component_count": component_count,
+            "passed_component_count": passed_component_count,
+            "mismatch_count": mismatch_count,
+            "no_call_counter_count": len(_PREFLIGHT_NO_CALL_COUNTERS),
+            "no_call_counter_mismatch_count": no_call_counter_mismatch_count,
         }
     )
 
@@ -681,6 +800,16 @@ def _blocked_projection(
     selected_one_shot_permission = one_shot_live_permission or _one_shot_live_permission_blocked(
         "one_shot_permission_required"
     )
+    execution_boundary = _zero_execution_boundary(
+        {"adapter_invocation_count": adapter_invocation_count}
+    )
+    selected_preflight_audit = _manual_provider_test_preflight_audit_projection(
+        live_provider_dry_admission=selected_dry_admission,
+        manual_provider_test_proposal=selected_manual_proposal,
+        manual_provider_test_executor=selected_manual_executor,
+        one_shot_live_permission=selected_one_shot_permission,
+        execution_boundary=execution_boundary,
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -707,6 +836,7 @@ def _blocked_projection(
             "manual_provider_test_proposal": selected_manual_proposal,
             "manual_provider_test_executor": selected_manual_executor,
             "one_shot_live_permission": selected_one_shot_permission,
+            "manual_provider_test_preflight_audit": selected_preflight_audit,
             "provider_envelope_read_model": read_model or {},
             "checks": [{"name": check_name, "passed": False}],
             "errors": [message],
@@ -716,9 +846,7 @@ def _blocked_projection(
                 "raw_row_returned": False,
                 "root_path_returned": False,
             },
-            "execution_boundary": _zero_execution_boundary(
-                {"adapter_invocation_count": adapter_invocation_count}
-            ),
+            "execution_boundary": execution_boundary,
             "claim_boundary": {
                 "scope": "local provider envelope precheck only",
                 "external_provider_outcome": False,
@@ -994,6 +1122,21 @@ def _projection_from_result(
         else "blocked"
     )
     adapter_reached = int(metrics.get("provider_envelope_adapter_invocation_count", 0)) == 1
+    execution_boundary = _zero_execution_boundary(
+        {
+            **metrics,
+            "adapter_invocation_count": int(
+                metrics.get("provider_envelope_adapter_invocation_count", 0)
+            ),
+        }
+    )
+    preflight_audit = _manual_provider_test_preflight_audit_projection(
+        live_provider_dry_admission=live_provider_dry_admission,
+        manual_provider_test_proposal=manual_provider_test_proposal,
+        manual_provider_test_executor=manual_provider_test_executor,
+        one_shot_live_permission=one_shot_live_permission,
+        execution_boundary=execution_boundary,
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -1016,6 +1159,7 @@ def _projection_from_result(
             "manual_provider_test_proposal": manual_provider_test_proposal,
             "manual_provider_test_executor": manual_provider_test_executor,
             "one_shot_live_permission": one_shot_live_permission,
+            "manual_provider_test_preflight_audit": preflight_audit,
             "provider_envelope_read_model": read_model,
             "checks": _check_map(result.checks),
             "errors": [str(error) for error in result.errors],
@@ -1025,14 +1169,7 @@ def _projection_from_result(
                 "raw_row_returned": False,
                 "root_path_returned": False,
             },
-            "execution_boundary": _zero_execution_boundary(
-                {
-                    **metrics,
-                    "adapter_invocation_count": int(
-                        metrics.get("provider_envelope_adapter_invocation_count", 0)
-                    ),
-                }
-            ),
+            "execution_boundary": execution_boundary,
             "claim_boundary": {
                 "scope": "local provider envelope precheck only",
                 "external_provider_outcome": False,
@@ -1264,6 +1401,9 @@ def read_provider_envelope_precheck(
             "one_shot_live_permission": _one_shot_live_permission_blocked(
                 "one_shot_permission_required"
             ),
+            "manual_provider_test_preflight_audit": _manual_provider_test_preflight_audit_blocked(
+                "proposal_component_missing_or_blocked"
+            ),
             "provider_envelope_read_model": read_model,
             "checks": [{"name": "provider_envelope_read_model_available", "passed": True}],
             "errors": [],
@@ -1291,6 +1431,7 @@ __all__ = [
     "MANUAL_PROVIDER_TEST_PROPOSAL_VERSION",
     "MANUAL_PROVIDER_TEST_EXECUTOR_VERSION",
     "ONE_SHOT_LIVE_PERMISSION_VERSION",
+    "MANUAL_PROVIDER_TEST_PREFLIGHT_AUDIT_VERSION",
     "provider_manual_test_proposal_summary",
     "provider_precheck_operator_policy_summary",
     "read_provider_envelope_precheck",

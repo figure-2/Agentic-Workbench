@@ -127,10 +127,19 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert envelope["one_shot_permission_hash"]
     assert envelope["one_shot_permission_expires_at"] == "2099-01-01T00:00:00Z"
     assert envelope["one_shot_permission_field_count"] == 11
+    assert envelope["preflight_audit_status"] == "blocked"
+    assert envelope["preflight_audit_reason"] == "preflight_execution_closed"
+    assert envelope["preflight_audit_hash"]
+    assert envelope["preflight_audit_component_count"] == 5
+    assert envelope["preflight_audit_passed_component_count"] == 5
+    assert envelope["preflight_audit_mismatch_count"] == 0
+    assert envelope["preflight_no_call_counter_count"] >= 10
+    assert envelope["preflight_no_call_counter_mismatch_count"] == 0
     assert envelope["read_model_status"] == "available"
     assert checks["provider_envelope_precheck_recorded"] is True
     assert checks["provider_envelope_adapter_reached_disabled_path"] is True
     assert checks["provider_envelope_calls_zero"] is True
+    assert checks["provider_preflight_audit_blocked"] is True
     assert envelope["execution_boundary"]["provider_calls"] == 0
     assert envelope["execution_boundary"]["network_calls"] == 0
     assert envelope["execution_boundary"]["solar_live_api_calls"] == 0

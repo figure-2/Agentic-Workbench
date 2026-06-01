@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-10` one-shot permission contract boundary.
+Current snapshot after `AW-LIVE-11` manual provider test preflight audit bundle.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 162 |
-| Counted code/doc files, excluding cache and private SoT | 160 |
-| Project lines, excluding cache and private SoT | 30,475 |
+| Project files, excluding cache and private SoT | 165 |
+| Counted code/doc files, excluding cache and private SoT | 163 |
+| Project lines, excluding cache and private SoT | 30,993 |
 | Python files | 76 |
-| Markdown files | 79 |
+| Markdown files | 82 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 401 |
-| Pytest passed cases | 401 |
+| Pytest collected cases | 402 |
+| Pytest passed cases | 402 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -1773,4 +1773,44 @@ Measured after adding the blocked one-shot permission contract projection.
 Interpretation: this adds a blocked local permission contract projection for a
 later manual provider test candidate. It does not add an external call path,
 SDK integration, env value access, network access, provider response parsing,
+hosted execution, or production provider readiness.
+
+## AW-LIVE-11 Manual Provider Test Preflight Audit Bundle Metrics
+
+Measured after adding the blocked manual provider test preflight audit bundle.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 402 |
+| Pytest passed cases | 402 |
+| Regression delta vs AW-LIVE-10 baseline | +1 |
+| API preflight audit integration tests | 2 |
+| Provider envelope API integration tests | 8 |
+| Demo provider envelope smoke tests | 1 |
+| Preflight component count | 5 |
+| Preflight public projection fields | 8 |
+| No-call counter names checked | 13 |
+| Preflight status with consistent local candidate | blocked |
+| Preflight reason with consistent local candidate | preflight_execution_closed |
+| Preflight reason with mismatched permission | permission_component_missing_or_mismatch |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| proposal/executor/permission/checklist/counters in one bundle | covered |
+| bundle remains blocked | covered |
+| missing proposal reason | covered |
+| mismatched permission reason | covered |
+| projection narrowed to status/reason/hash/count fields | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a blocked local preflight audit bundle for a later
+manual provider test candidate. It does not add an external call path, SDK
+integration, env value access, network access, provider response parsing,
 hosted execution, or production provider readiness.
