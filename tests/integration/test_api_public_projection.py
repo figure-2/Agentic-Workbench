@@ -19,6 +19,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     provider_manual_test_operator_handback_summary,
     provider_manual_test_operator_decision_packet_summary,
     provider_manual_test_operator_release_attestation_summary,
+    provider_manual_test_release_authorization_seal_summary,
     provider_manual_test_arming_record_summary,
     provider_manual_test_final_release_packet_summary,
     provider_manual_test_handoff_packet_summary,
@@ -166,6 +167,9 @@ def _provider_envelope_precheck_payload(
     include_operator_release_attestation: bool = False,
     attestation_expected_decision_packet_hash_override: str | None = None,
     attestation_decision_packet_hash_override: str | None = None,
+    include_release_authorization_seal: bool = False,
+    seal_expected_release_attestation_hash_override: str | None = None,
+    seal_release_attestation_hash_override: str | None = None,
 ) -> dict:
     payload = {
         "run_id": run_id,
@@ -538,6 +542,29 @@ def _provider_envelope_precheck_payload(
             },
             "authorization_material": "API30_ATTESTATION_AUTH_SENTINEL",
             "provider_payload": "API30_ATTESTATION_PROVIDER_PAYLOAD_SENTINEL",
+        }
+    if include_release_authorization_seal:
+        release_attestation_summary = (
+            provider_manual_test_operator_release_attestation_summary(payload)
+        )
+        payload["expected_operator_release_attestation_hash"] = (
+            seal_expected_release_attestation_hash_override
+            or release_attestation_summary["operator_release_attestation_hash"]
+        )
+        payload["manual_test_release_authorization_seal"] = {
+            "operator_release_attestation_hash": (
+                seal_release_attestation_hash_override
+                or release_attestation_summary["operator_release_attestation_hash"]
+            ),
+            "seal_requested": True,
+            "seal_material": {
+                "seal_decision": "sealed",
+                "seal_reason_code": "local-no-call-release-sealed",
+                "sealed_at": "2026-06-01T01:05:00Z",
+                "operator_ref": "API31_OPERATOR_REF_SENTINEL",
+            },
+            "authorization_material": "API31_SEAL_AUTH_SENTINEL",
+            "provider_payload": "API31_SEAL_PROVIDER_PAYLOAD_SENTINEL",
         }
     return payload
 
@@ -6676,6 +6703,319 @@ def test_provider_envelope_precheck_api_builds_operator_release_attestation_but_
         "attestation_requested",
         "API30_OPERATOR_REF_SENTINEL",
         "local-no-call-release-attested",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_release_authorization_seal_without_expected_attestation_hash(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-seal-no-expected-attestation",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+        include_operator_opt_in=True,
+        include_sealed_pre_execution_packet=True,
+        include_arming_record=True,
+        include_release_proposal=True,
+        include_final_release_packet=True,
+        include_execution_switch=True,
+        execution_switch_enable=True,
+        include_executor_preflight=True,
+        include_executor_dispatch_record=True,
+        include_invocation_receipt=True,
+        include_post_invocation_audit=True,
+        include_completion_summary=True,
+        include_closeout_record=True,
+        include_operator_handback=True,
+        include_operator_decision_packet=True,
+        include_operator_release_attestation=True,
+    )
+    expected_handoff = provider_manual_test_handoff_packet_summary(request_payload)
+    expected_attestation = provider_manual_test_operator_release_attestation_summary(
+        request_payload
+    )
+    request_payload["expected_handoff_packet_hash"] = expected_handoff[
+        "handoff_packet_hash"
+    ]
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    seal = data["manual_provider_test_release_seal"]
+
+    assert set(seal) == {
+        "status",
+        "reason",
+        "release_seal_hash",
+        "operator_release_attestation_hash",
+        "seal_material_hash",
+        "claim_boundary_hash",
+        "no_call_counters_hash",
+        "component_count",
+        "passed_component_count",
+        "mismatch_count",
+        "component_hash_count",
+        "no_call_counter_count",
+        "claim_boundary_check_count",
+        "seal_material_count",
+        "seal_request_count",
+        "execution_permission_count",
+    }
+    assert seal["status"] == "blocked"
+    assert (
+        seal["reason"]
+        == "expected_operator_release_attestation_hash_required"
+    )
+    assert seal["release_seal_hash"] == ""
+    assert seal["operator_release_attestation_hash"] == expected_attestation[
+        "operator_release_attestation_hash"
+    ]
+    assert seal["seal_material_hash"] == ""
+    assert seal["claim_boundary_hash"]
+    assert seal["no_call_counters_hash"]
+    assert seal["component_count"] == 8
+    assert seal["passed_component_count"] == 3
+    assert seal["mismatch_count"] == 5
+    assert seal["component_hash_count"] == 3
+    assert seal["no_call_counter_count"] == 13
+    assert seal["claim_boundary_check_count"] == 3
+    assert seal["seal_material_count"] == 0
+    assert seal["seal_request_count"] == 0
+    assert seal["execution_permission_count"] == 0
+    assert data["provider_envelope_admission"]["adapter_reached"] is True
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API31_SEAL_AUTH_SENTINEL",
+        "API31_SEAL_PROVIDER_PAYLOAD_SENTINEL",
+        "manual_test_release_authorization_seal",
+        "seal_requested",
+        "API31_OPERATOR_REF_SENTINEL",
+        "local-no-call-release-sealed",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_release_authorization_seal_without_seal_payload(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-seal-no-payload",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+        include_operator_opt_in=True,
+        include_sealed_pre_execution_packet=True,
+        include_arming_record=True,
+        include_release_proposal=True,
+        include_final_release_packet=True,
+        include_execution_switch=True,
+        execution_switch_enable=True,
+        include_executor_preflight=True,
+        include_executor_dispatch_record=True,
+        include_invocation_receipt=True,
+        include_post_invocation_audit=True,
+        include_completion_summary=True,
+        include_closeout_record=True,
+        include_operator_handback=True,
+        include_operator_decision_packet=True,
+        include_operator_release_attestation=True,
+    )
+    expected_handoff = provider_manual_test_handoff_packet_summary(request_payload)
+    expected_attestation = provider_manual_test_operator_release_attestation_summary(
+        request_payload
+    )
+    request_payload["expected_handoff_packet_hash"] = expected_handoff[
+        "handoff_packet_hash"
+    ]
+    request_payload["expected_operator_release_attestation_hash"] = (
+        expected_attestation["operator_release_attestation_hash"]
+    )
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    seal = data["manual_provider_test_release_seal"]
+
+    assert seal["status"] == "blocked"
+    assert seal["reason"] == "release_authorization_seal_required"
+    assert seal["release_seal_hash"] == ""
+    assert seal["operator_release_attestation_hash"] == expected_attestation[
+        "operator_release_attestation_hash"
+    ]
+    assert seal["seal_material_hash"] == ""
+    assert seal["claim_boundary_hash"]
+    assert seal["no_call_counters_hash"]
+    assert seal["component_count"] == 8
+    assert seal["passed_component_count"] == 4
+    assert seal["mismatch_count"] == 4
+    assert seal["component_hash_count"] == 3
+    assert seal["no_call_counter_count"] == 13
+    assert seal["claim_boundary_check_count"] == 3
+    assert seal["seal_material_count"] == 0
+    assert seal["seal_request_count"] == 0
+    assert seal["execution_permission_count"] == 0
+    assert data["provider_envelope_admission"]["adapter_reached"] is True
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API31_SEAL_AUTH_SENTINEL",
+        "API31_SEAL_PROVIDER_PAYLOAD_SENTINEL",
+        "manual_test_release_authorization_seal",
+        "seal_requested",
+        "API31_OPERATOR_REF_SENTINEL",
+        "local-no-call-release-sealed",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_builds_release_authorization_seal_but_keeps_execution_disabled(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-seal-present",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+        include_operator_opt_in=True,
+        include_sealed_pre_execution_packet=True,
+        include_arming_record=True,
+        include_release_proposal=True,
+        include_final_release_packet=True,
+        include_execution_switch=True,
+        execution_switch_enable=True,
+        include_executor_preflight=True,
+        include_executor_dispatch_record=True,
+        include_invocation_receipt=True,
+        include_post_invocation_audit=True,
+        include_completion_summary=True,
+        include_closeout_record=True,
+        include_operator_handback=True,
+        include_operator_decision_packet=True,
+        include_operator_release_attestation=True,
+        include_release_authorization_seal=True,
+    )
+    expected_handoff = provider_manual_test_handoff_packet_summary(request_payload)
+    expected_attestation = provider_manual_test_operator_release_attestation_summary(
+        request_payload
+    )
+    expected_seal = provider_manual_test_release_authorization_seal_summary(
+        request_payload
+    )
+    request_payload["expected_handoff_packet_hash"] = expected_handoff[
+        "handoff_packet_hash"
+    ]
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    seal = data["manual_provider_test_release_seal"]
+
+    assert seal["status"] == "blocked"
+    assert seal["reason"] == "release_authorization_seal_execution_closed"
+    assert seal["release_seal_hash"] == (
+        expected_seal["release_seal_hash"]
+    )
+    assert seal["operator_release_attestation_hash"] == (
+        expected_attestation["operator_release_attestation_hash"]
+    )
+    assert seal["seal_material_hash"] == expected_seal["seal_material_hash"]
+    assert seal["seal_material_hash"]
+    assert seal["claim_boundary_hash"] == expected_seal["claim_boundary_hash"]
+    assert seal["no_call_counters_hash"] == expected_seal["no_call_counters_hash"]
+    assert seal["component_count"] == 8
+    assert seal["passed_component_count"] == 8
+    assert seal["mismatch_count"] == 0
+    assert seal["component_hash_count"] == 4
+    assert seal["no_call_counter_count"] == 13
+    assert seal["claim_boundary_check_count"] == 3
+    assert seal["seal_material_count"] == 1
+    assert seal["seal_request_count"] == 1
+    assert seal["execution_permission_count"] == 0
+    assert data["provider_envelope_admission"]["adapter_reached"] is True
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API31_SEAL_AUTH_SENTINEL",
+        "API31_SEAL_PROVIDER_PAYLOAD_SENTINEL",
+        "manual_test_release_authorization_seal",
+        "seal_requested",
+        "API31_OPERATOR_REF_SENTINEL",
+        "local-no-call-release-sealed",
         "authorization_material",
         "provider_payload",
         "raw_prompt",

@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-30` disabled operator release attestation boundary.
+Current snapshot after `AW-LIVE-31` disabled release authorization seal boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 220 |
-| Counted code/doc files, excluding cache and private SoT | 220 |
-| Project lines, excluding cache and private SoT | 45,846 |
+| Project files, excluding cache and private SoT | 223 |
+| Counted code/doc files, excluding cache and private SoT | 223 |
+| Project lines, excluding cache and private SoT | 46,845 |
 | Python files | 76 |
-| Markdown files | 139 |
+| Markdown files | 142 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 459 |
-| Pytest passed cases | 459 |
+| Pytest collected cases | 462 |
+| Pytest passed cases | 462 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -2673,6 +2673,56 @@ attestation.
 | provider/runtime calls remain at 0 | covered |
 
 Interpretation: this adds a local disabled operator release attestation for a
+later manual provider test candidate. It does not add an external call path,
+SDK integration, env value access, network access, provider response parsing,
+hosted execution, live operator approval, or production provider readiness.
+
+## AW-LIVE-31 Disabled Release Authorization Seal Metrics
+
+Measured after adding the blocked disabled first-call release authorization
+seal.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 462 |
+| Pytest passed cases | 462 |
+| Regression delta vs AW-LIVE-30 baseline | +3 |
+| API release authorization seal integration tests | 3 |
+| Provider envelope API integration tests | 67 |
+| Demo provider envelope smoke tests | 1 |
+| Release seal public summary fields | 16 |
+| Release seal component count | 8 |
+| Release seal component hash count | 4 |
+| Release seal no-call counter count | 13 |
+| Claim-boundary check count | 3 |
+| Seal passed count with missing expected release attestation hash | 3 |
+| Seal mismatch count with missing expected release attestation hash | 5 |
+| Seal passed count without seal payload | 4 |
+| Seal mismatch count without seal payload | 4 |
+| Seal passed count with complete seal | 8 |
+| Execution permission count with complete seal | 0 |
+| Missing expected release attestation hash reason | expected_operator_release_attestation_hash_required |
+| Missing seal payload reason | release_authorization_seal_required |
+| Complete seal reason | release_authorization_seal_execution_closed |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| operator release attestation hash exists before seal | covered |
+| expected operator release attestation hash must match | covered |
+| release seal payload is required | covered |
+| seal material is represented as hash/count evidence | covered |
+| claim boundary is represented as hash/count evidence | covered |
+| public seal exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled release authorization seal for a
 later manual provider test candidate. It does not add an external call path,
 SDK integration, env value access, network access, provider response parsing,
 hosted execution, live operator approval, or production provider readiness.

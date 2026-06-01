@@ -121,6 +121,9 @@ MANUAL_PROVIDER_TEST_OPERATOR_DECISION_PACKET_VERSION = (
 MANUAL_PROVIDER_TEST_OPERATOR_RELEASE_ATTESTATION_VERSION = (
     "manual-provider-test-disabled-first-call-operator-release-attestation-v1"
 )
+MANUAL_PROVIDER_TEST_RELEASE_AUTHORIZATION_SEAL_VERSION = (
+    "manual-provider-test-disabled-first-call-release-authorization-seal-v1"
+)
 
 EXECUTOR_PREFLIGHT_NO_CALL_COUNTER_FIELDS = (
     "live_llm_calls",
@@ -811,6 +814,31 @@ def _manual_provider_test_operator_release_attestation_blocked(
             "claim_boundary_check_count": 0,
             "operator_attestation_count": 0,
             "attestation_request_count": 0,
+            "execution_permission_count": 0,
+        }
+    )
+
+
+def _manual_provider_test_release_authorization_seal_blocked(
+    reason: str,
+) -> JsonDict:
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "release_seal_hash": "",
+            "operator_release_attestation_hash": "",
+            "seal_material_hash": "",
+            "claim_boundary_hash": "",
+            "no_call_counters_hash": "",
+            "component_count": 0,
+            "passed_component_count": 0,
+            "mismatch_count": 1,
+            "component_hash_count": 0,
+            "no_call_counter_count": 0,
+            "claim_boundary_check_count": 0,
+            "seal_material_count": 0,
+            "seal_request_count": 0,
             "execution_permission_count": 0,
         }
     )
@@ -3208,6 +3236,186 @@ def _manual_provider_test_operator_release_attestation_projection(
     )
 
 
+def _manual_provider_test_release_authorization_seal_projection(
+    *,
+    payload: dict[str, Any],
+    operator_release_attestation: JsonDict,
+    execution_boundary: JsonDict,
+) -> JsonDict:
+    operator_release_attestation_hash = str(
+        operator_release_attestation.get("operator_release_attestation_hash", "")
+    ).strip()
+    expected_operator_release_attestation_hash = str(
+        payload.get("expected_operator_release_attestation_hash", "")
+    ).strip()
+    seal_payload = (
+        payload.get("manual_test_release_authorization_seal")
+        if isinstance(payload.get("manual_test_release_authorization_seal"), dict)
+        else {}
+    )
+    supplied_operator_release_attestation_hash = str(
+        seal_payload.get("operator_release_attestation_hash", "")
+    ).strip()
+    seal_material = (
+        seal_payload.get("seal_material")
+        if isinstance(seal_payload.get("seal_material"), dict)
+        else {}
+    )
+    seal_material_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": (
+                    MANUAL_PROVIDER_TEST_RELEASE_AUTHORIZATION_SEAL_VERSION
+                ),
+                "seal_decision": str(
+                    seal_material.get("seal_decision", "")
+                ).strip(),
+                "seal_reason_code": str(
+                    seal_material.get("seal_reason_code", "")
+                ).strip(),
+                "sealed_at": str(seal_material.get("sealed_at", "")).strip(),
+                "operator_ref_hash": stable_contract_hash(
+                    {
+                        "operator_ref": str(
+                            seal_material.get("operator_ref", "")
+                        ).strip()
+                    }
+                )
+                if str(seal_material.get("operator_ref", "")).strip()
+                else "",
+            }
+        )
+        if seal_material
+        else ""
+    )
+    seal_requested = seal_payload.get("seal_requested") is True
+    claim_boundary = _provider_envelope_claim_boundary_projection()
+    claim_boundary_closed = (
+        claim_boundary.get("external_provider_outcome") is False
+        and claim_boundary.get("target_runtime_outcome") is False
+        and claim_boundary.get("production_trust_claim") is False
+    )
+    claim_boundary_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": (
+                    MANUAL_PROVIDER_TEST_RELEASE_AUTHORIZATION_SEAL_VERSION
+                ),
+                "claim_boundary": claim_boundary,
+            }
+        )
+        if claim_boundary_closed
+        else ""
+    )
+    no_call_counters = _executor_preflight_no_call_counters(execution_boundary)
+    no_call_counters_closed = all(value == 0 for value in no_call_counters.values())
+    no_call_counters_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": (
+                    MANUAL_PROVIDER_TEST_RELEASE_AUTHORIZATION_SEAL_VERSION
+                ),
+                "no_call_counters": no_call_counters,
+            }
+        )
+        if no_call_counters_closed
+        else ""
+    )
+    component_checks = [
+        str(operator_release_attestation.get("status", "")) == "blocked"
+        and str(operator_release_attestation.get("reason", ""))
+        == "operator_release_attestation_execution_closed"
+        and bool(operator_release_attestation_hash),
+        bool(expected_operator_release_attestation_hash)
+        and expected_operator_release_attestation_hash
+        == operator_release_attestation_hash,
+        bool(seal_payload),
+        bool(supplied_operator_release_attestation_hash)
+        and supplied_operator_release_attestation_hash
+        == operator_release_attestation_hash,
+        bool(seal_material_hash),
+        seal_requested,
+        claim_boundary_closed,
+        no_call_counters_closed,
+    ]
+    component_count = len(component_checks)
+    passed_component_count = sum(1 for check in component_checks if check)
+    mismatch_count = component_count - passed_component_count
+    component_hash_count = sum(
+        1
+        for value in (
+            operator_release_attestation_hash,
+            seal_material_hash,
+            claim_boundary_hash,
+            no_call_counters_hash,
+        )
+        if value
+    )
+
+    if not component_checks[0]:
+        reason = "operator_release_attestation_missing_or_mismatched"
+    elif not expected_operator_release_attestation_hash:
+        reason = "expected_operator_release_attestation_hash_required"
+    elif (
+        expected_operator_release_attestation_hash
+        != operator_release_attestation_hash
+    ):
+        reason = "operator_release_attestation_hash_mismatch"
+    elif not component_checks[2]:
+        reason = "release_authorization_seal_required"
+    elif not component_checks[3]:
+        reason = "release_authorization_seal_attestation_hash_mismatch"
+    elif not component_checks[4]:
+        reason = "seal_material_required"
+    elif not component_checks[5]:
+        reason = "release_authorization_seal_request_required"
+    elif not component_checks[6]:
+        reason = "release_authorization_seal_claim_boundary_mismatch"
+    elif not component_checks[7]:
+        reason = "release_authorization_seal_no_call_counters_mismatch"
+    else:
+        reason = "release_authorization_seal_execution_closed"
+
+    release_authorization_seal_hash = ""
+    if mismatch_count == 0:
+        release_authorization_seal_hash = stable_contract_hash(
+            {
+                "projection_version": (
+                    MANUAL_PROVIDER_TEST_RELEASE_AUTHORIZATION_SEAL_VERSION
+                ),
+                "operator_release_attestation_hash": (
+                    operator_release_attestation_hash
+                ),
+                "seal_material_hash": seal_material_hash,
+                "claim_boundary_hash": claim_boundary_hash,
+                "no_call_counters_hash": no_call_counters_hash,
+                "component_count": component_count,
+                "execution_permission": "closed",
+            }
+        )
+
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "release_seal_hash": release_authorization_seal_hash,
+            "operator_release_attestation_hash": operator_release_attestation_hash,
+            "seal_material_hash": seal_material_hash,
+            "claim_boundary_hash": claim_boundary_hash,
+            "no_call_counters_hash": no_call_counters_hash,
+            "component_count": component_count,
+            "passed_component_count": passed_component_count,
+            "mismatch_count": mismatch_count,
+            "component_hash_count": component_hash_count,
+            "no_call_counter_count": len(no_call_counters),
+            "claim_boundary_check_count": 3,
+            "seal_material_count": 1 if seal_material_hash else 0,
+            "seal_request_count": 1 if seal_requested else 0,
+            "execution_permission_count": 0,
+        }
+    )
+
+
 def _manual_test_proposal_projection(
     *,
     payload: dict[str, Any],
@@ -3704,6 +3912,20 @@ def provider_manual_test_operator_release_attestation_summary(
     )
 
 
+def provider_manual_test_release_authorization_seal_summary(
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the public no-call first-call release authorization seal projection."""
+    operator_release_attestation = provider_manual_test_operator_release_attestation_summary(
+        payload
+    )
+    return _manual_provider_test_release_authorization_seal_projection(
+        payload=payload,
+        operator_release_attestation=operator_release_attestation,
+        execution_boundary=_zero_execution_boundary(),
+    )
+
+
 def _review_packet_export_from_read_model(read_model: JsonDict) -> JsonDict:
     if str(read_model.get("status", "")) == "blocked":
         return _manual_provider_test_review_packet_export_blocked(
@@ -3837,6 +4059,7 @@ def _blocked_projection(
     manual_provider_test_operator_handback: JsonDict | None = None,
     manual_provider_test_operator_decision_packet: JsonDict | None = None,
     manual_provider_test_operator_release_attestation: JsonDict | None = None,
+    manual_provider_test_release_authorization_seal: JsonDict | None = None,
 ) -> dict[str, Any]:
     selected_operator_approval = operator_approval_envelope or _operator_approval_missing_projection()
     selected_dry_admission = live_provider_dry_admission or _live_provider_dry_admission_checklist(
@@ -3979,6 +4202,12 @@ def _blocked_projection(
             "operator_decision_packet_not_evaluated"
         )
     )
+    selected_release_authorization_seal = (
+        manual_provider_test_release_authorization_seal
+        or _manual_provider_test_release_authorization_seal_blocked(
+            "operator_release_attestation_not_evaluated"
+        )
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -4035,6 +4264,9 @@ def _blocked_projection(
             ),
             "manual_provider_test_operator_release_attestation": (
                 selected_operator_release_attestation
+            ),
+            "manual_provider_test_release_seal": (
+                selected_release_authorization_seal
             ),
             "provider_envelope_read_model": read_model or {},
             "checks": [{"name": check_name, "passed": False}],
@@ -4446,6 +4678,13 @@ def _projection_from_result(
             execution_boundary=execution_boundary,
         )
     )
+    release_authorization_seal = (
+        _manual_provider_test_release_authorization_seal_projection(
+            payload=payload,
+            operator_release_attestation=operator_release_attestation,
+            execution_boundary=execution_boundary,
+        )
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -4494,6 +4733,9 @@ def _projection_from_result(
             ),
             "manual_provider_test_operator_release_attestation": (
                 operator_release_attestation
+            ),
+            "manual_provider_test_release_seal": (
+                release_authorization_seal
             ),
             "provider_envelope_read_model": read_model,
             "checks": _check_map(result.checks),
@@ -5021,6 +5263,11 @@ def read_provider_envelope_precheck(
                     "operator_decision_packet_missing_or_mismatched"
                 )
             ),
+            "manual_provider_test_release_seal": (
+                _manual_provider_test_release_authorization_seal_blocked(
+                    "operator_release_attestation_missing_or_mismatched"
+                )
+            ),
             "provider_envelope_read_model": read_model,
             "checks": [{"name": "provider_envelope_read_model_available", "passed": True}],
             "errors": [],
@@ -5068,6 +5315,7 @@ __all__ = [
     "MANUAL_PROVIDER_TEST_OPERATOR_HANDBACK_VERSION",
     "MANUAL_PROVIDER_TEST_OPERATOR_DECISION_PACKET_VERSION",
     "MANUAL_PROVIDER_TEST_OPERATOR_RELEASE_ATTESTATION_VERSION",
+    "MANUAL_PROVIDER_TEST_RELEASE_AUTHORIZATION_SEAL_VERSION",
     "provider_manual_test_proposal_summary",
     "provider_manual_test_preflight_summary",
     "provider_manual_test_review_packet_summary",
@@ -5087,6 +5335,7 @@ __all__ = [
     "provider_manual_test_operator_handback_summary",
     "provider_manual_test_operator_decision_packet_summary",
     "provider_manual_test_operator_release_attestation_summary",
+    "provider_manual_test_release_authorization_seal_summary",
     "provider_precheck_operator_policy_summary",
     "read_provider_envelope_precheck",
     "run_provider_envelope_precheck",

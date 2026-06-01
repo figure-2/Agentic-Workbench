@@ -84,6 +84,7 @@ sequenceDiagram
 | `manual_provider_test_release_proposal` | local release proposal over arming record, operator, release window, and rollback hashes |
 | `manual_provider_test_final_release_packet` | local final packet over release proposal, arming record, operator, release window, and rollback hashes |
 | `manual_provider_test_execution_switch` | local disabled switch over final release packet and switch-enable hashes |
+| `manual_provider_test_release_seal` | local disabled release seal over release-attestation, seal-material, claim-boundary, and no-call counter hashes |
 
 ## Persistence Boundary
 
@@ -394,6 +395,14 @@ status/reason/hash/count projection. The attestation still reports
 `operator_release_attestation_execution_closed` and keeps
 `execution_permission_count=0`.
 
+`AW-LIVE-31` adds a disabled first-call release authorization seal. The seal
+requires an operator release attestation hash and a separate expected operator
+release attestation hash match. It binds release attestation, seal material,
+claim-boundary, and no-call counter hashes into one status/reason/hash/count
+projection. The seal still reports
+`release_authorization_seal_execution_closed` and keeps
+`execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -498,3 +507,6 @@ outside the current executable path.
 - operator release attestations must bind to decision packet,
   operator-attestation, claim-boundary, and no-call counter hashes only and
   must not grant execution permission.
+- release authorization seals must bind to release attestation, seal-material,
+  claim-boundary, and no-call counter hashes only and must not grant execution
+  permission.

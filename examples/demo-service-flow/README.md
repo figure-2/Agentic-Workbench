@@ -90,4 +90,5 @@ load `.env` values, call Solar Pro 3, or run the DAACS target runtime.
   operator handback remains blocked and exposes only hashes and counts. The
   operator decision packet remains blocked and exposes only hashes and counts.
   The operator release attestation remains blocked and exposes only hashes and
-  counts.
+  counts. The release authorization seal remains blocked and exposes only
+  hashes and counts.
