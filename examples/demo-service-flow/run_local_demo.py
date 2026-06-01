@@ -276,6 +276,21 @@ def run_demo(
                 "operator_policy_summary_hash": provider_envelope_data.get(
                     "operator_policy_summary", {}
                 ).get("policy_summary_hash"),
+                "dry_admission_status": provider_envelope_data.get(
+                    "live_provider_dry_admission", {}
+                ).get("status"),
+                "live_ready": provider_envelope_data.get(
+                    "live_provider_dry_admission", {}
+                ).get("live_ready"),
+                "allowed_to_execute": provider_envelope_data.get(
+                    "live_provider_dry_admission", {}
+                ).get("allowed_to_execute"),
+                "manual_required_count": provider_envelope_data.get(
+                    "live_provider_dry_admission", {}
+                ).get("manual_required_count"),
+                "checklist_item_count": provider_envelope_data.get(
+                    "live_provider_dry_admission", {}
+                ).get("checklist_item_count"),
                 "read_model_status": (
                     provider_envelope_read_data or {}
                 ).get("status"),

@@ -74,6 +74,7 @@ sequenceDiagram
 | `ProviderEnvelopeAdmissionService` | service boundary that requires envelope persistence/read-model evidence before adapter reachability |
 | `ProviderEnvelopeRepositoryProvider` | API/demo repository selector for optional provider envelope precheck projections |
 | `operator_approval_envelope` | local operator approval projection bound to a provider precheck policy summary hash |
+| `live_provider_dry_admission` | local checklist projection showing manual preconditions and closed execution permission |
 
 ## Persistence Boundary
 
@@ -217,6 +218,15 @@ covers timeout, cost, API quota, output budget, live-open readiness counts, and
 zero-call boundaries. Missing or mismatched operator approval blocks before
 provider envelope repository access and before disabled adapter reachability.
 
+`AW-LIVE-07` adds a local dry-admission checklist projection and runbook. The
+projection combines operator approval status, policy summary hash binding,
+cost, timeout, API quota, output budget, rollback, final operator review, and
+closed execution permission into a public response. It always reports
+`status=dry_admission_only`, `live_ready=false`, and
+`allowed_to_execute=false`. This makes the next manual decision visible without
+opening provider SDK imports, env value reads, network calls, external API
+calls, or DAACS target runtime calls.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -278,3 +288,6 @@ outside the current executable path.
   creation separate, and return only status/hash/count projections.
 - operator approval envelopes must bind to a sanitized policy summary hash and
   must not expose raw authorization material or grant execution permission.
+- dry-admission checklist projections must show manual preconditions while
+  keeping `live_ready=false`, `allowed_to_execute=false`, and all
+  provider/runtime counters at 0.

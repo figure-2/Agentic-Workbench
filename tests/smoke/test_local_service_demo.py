@@ -109,6 +109,11 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert envelope["counts"]["provider_envelope_count"] == 1
     assert envelope["operator_approval_status"] == "approved"
     assert envelope["operator_policy_summary_hash"]
+    assert envelope["dry_admission_status"] == "dry_admission_only"
+    assert envelope["live_ready"] is False
+    assert envelope["allowed_to_execute"] is False
+    assert envelope["manual_required_count"] == 2
+    assert envelope["checklist_item_count"] >= 8
     assert envelope["read_model_status"] == "available"
     assert checks["provider_envelope_precheck_recorded"] is True
     assert checks["provider_envelope_adapter_reached_disabled_path"] is True

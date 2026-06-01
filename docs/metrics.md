@@ -33,15 +33,15 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-06` operator approval envelope.
+Current snapshot after `AW-LIVE-07` live provider dry-admission runbook.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 152 |
-| Counted code/doc files, excluding cache and private SoT | 149 |
-| Project lines, excluding cache and private SoT | 28,636 |
+| Project files, excluding cache and private SoT | 155 |
+| Counted code/doc files, excluding cache and private SoT | 152 |
+| Project lines, excluding cache and private SoT | 29,097 |
 | Python files | 76 |
-| Markdown files | 67 |
+| Markdown files | 70 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
@@ -1623,3 +1623,41 @@ Interpretation: this adds local operator approval evidence for provider
 precheck policy summaries. It does not add production operator identity,
 external provider execution, provider response parsing, model-quality proof,
 hosted execution, or production provider readiness.
+
+## AW-LIVE-07 Live Provider Dry-Admission Runbook Metrics
+
+Measured after adding the manual dry-admission checklist projection and runbook.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 398 |
+| Pytest passed cases | 398 |
+| Regression delta vs AW-LIVE-06 baseline | +0 |
+| API dry-admission integration assertions | covered |
+| Demo dry-admission smoke assertions | covered |
+| Dry-admission checklist projection fields | 13 groups |
+| Checklist item count in current projection | 9 |
+| Manual-required checklist items | 2 |
+| API/demo `live_ready` | false |
+| API/demo `allowed_to_execute` | false |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| live call preconditions documented | covered |
+| cost/timeout/quota/rollback/operator approval conditions explicit | covered |
+| API/demo status is dry-admission only | covered |
+| missing operator approval remains blocked before store write | covered |
+| fixture/dry-run run creation remains separate | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local checklist and manual runbook for future
+provider test proposals. It does not add provider execution, SDK integration,
+env value access, network access, provider response parsing, hosted execution,
+or production provider readiness.

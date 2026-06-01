@@ -34,6 +34,8 @@ Agentic Workbench is a local/dev AI agent workflow harness prototype. It may cla
   and status
 - Local no-call provider envelope admission service before disabled Solar
   adapter invocation
+- Local dry-admission checklist for future provider test proposals, with
+  execution permission closed
 - Sanitized public summaries and correlation hashes
 - Fixture-based smoke tests and local regression tests
 
@@ -90,6 +92,8 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
 - operator approval envelope described as production operator identity,
   external provider execution permission, hosted approval authority, or
   production provider readiness
+- dry-admission checklist described as external provider behavior, execution
+  permission, hosted approval authority, or production provider readiness
 
 ## Public Artifact Rules
 
@@ -131,3 +135,4 @@ Allowed replacements:
 | Provider Envelope Admission Gate | Disabled adapter path is reachable only after no-call envelope evidence is saved and read back |
 | Provider Envelope API Hook Gate | Local API/demo precheck exposes status, hashes, and counts only |
 | Operator Approval Envelope Gate | Provider precheck requires a local operator approval bound to a sanitized policy summary hash |
+| Dry-Admission Checklist Gate | Provider precheck exposes manual conditions while keeping execution permission closed |

@@ -1244,6 +1244,8 @@ def test_provider_envelope_precheck_api_persists_hash_read_model_without_externa
     read_model = data["provider_envelope_read_model"]
     operator_policy = data["operator_policy_summary"]
     operator_approval = data["operator_approval_envelope"]
+    dry_admission = data["live_provider_dry_admission"]
+    checklist_by_id = {item["id"]: item for item in dry_admission["checklist"]}
 
     assert data["projection_version"] == "provider-envelope-admission-api-public-v1"
     assert data["runtime_mode"] == "live_admission_precheck"
@@ -1274,6 +1276,22 @@ def test_provider_envelope_precheck_api_persists_hash_read_model_without_externa
     assert operator_approval["policy_summary_hash"] == operator_policy["policy_summary_hash"]
     assert operator_approval["envelope_hash"]
     assert operator_approval["auth_material_returned"] is False
+    assert dry_admission["projection_version"] == "live-provider-dry-admission-checklist-v1"
+    assert dry_admission["status"] == "dry_admission_only"
+    assert dry_admission["live_ready"] is False
+    assert dry_admission["allowed_to_execute"] is False
+    assert dry_admission["operator_approval"]["status"] == "approved"
+    assert dry_admission["operator_approval"]["policy_summary_hash_match"] is True
+    assert dry_admission["policy_summary"]["eligible_for_later_live_open"] is True
+    assert dry_admission["policy_summary"]["execution_permission_closed"] is True
+    assert checklist_by_id["rollback_plan_documented"]["status"] == "manual_required"
+    assert checklist_by_id["manual_operator_final_review"]["status"] == "manual_required"
+    assert checklist_by_id["execution_permission_closed"]["status"] == "closed"
+    assert dry_admission["manual_required_count"] == 2
+    assert dry_admission["execution_boundary"]["api_calls"] == 0
+    assert dry_admission["execution_boundary"]["network_calls"] == 0
+    assert dry_admission["execution_boundary"]["solar_provider_calls"] == 0
+    assert dry_admission["execution_boundary"]["target_runtime_calls"] == 0
     assert data["repository_boundary"]["provider_envelope_backend"] == "sqlite"
     assert data["repository_boundary"]["root_path_returned"] is False
     assert data["execution_boundary"]["adapter_invocation_count"] == 1
@@ -1341,6 +1359,7 @@ def test_provider_envelope_precheck_api_blocks_missing_operator_approval_before_
     checks = {check["name"]: check["passed"] for check in data["checks"]}
     operator_policy = data["operator_policy_summary"]
     operator_approval = data["operator_approval_envelope"]
+    dry_admission = data["live_provider_dry_admission"]
 
     assert data["status"] == "blocked"
     assert checks["operator_approval_envelope_present"] is False
@@ -1349,6 +1368,13 @@ def test_provider_envelope_precheck_api_blocks_missing_operator_approval_before_
     assert operator_approval["status"] == "missing"
     assert operator_approval["decision"] == "missing"
     assert operator_approval["auth_material_returned"] is False
+    assert dry_admission["status"] == "dry_admission_only"
+    assert dry_admission["live_ready"] is False
+    assert dry_admission["allowed_to_execute"] is False
+    assert dry_admission["operator_approval"]["status"] == "missing"
+    assert dry_admission["operator_approval"]["policy_summary_hash_match"] is False
+    assert dry_admission["blocked_check_count"] >= 1
+    assert dry_admission["manual_required_count"] == 2
     assert data["provider_envelope_admission"]["adapter_reached"] is False
     assert data["provider_envelope_admission"]["counts"]["provider_envelope_count"] == 0
     assert data["execution_boundary"]["adapter_invocation_count"] == 0

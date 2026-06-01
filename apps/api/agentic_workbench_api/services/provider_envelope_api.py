@@ -55,6 +55,7 @@ PROVIDER_ENVELOPE_API_PROJECTION_VERSION = "provider-envelope-admission-api-publ
 PROVIDER_ENVELOPE_PRECHECK_MODE = "live_admission_precheck"
 OPERATOR_POLICY_SUMMARY_VERSION = "provider-precheck-operator-policy-summary-v1"
 OPERATOR_APPROVAL_ENVELOPE_VERSION = "provider-precheck-operator-approval-envelope-v1"
+LIVE_PROVIDER_DRY_ADMISSION_VERSION = "live-provider-dry-admission-checklist-v1"
 
 
 @dataclass(slots=True)
@@ -132,6 +133,144 @@ def _zero_execution_boundary(extra: dict[str, Any] | None = None) -> JsonDict:
     }
 
 
+def _dry_admission_bool(value: Any) -> bool:
+    return bool(value) if isinstance(value, bool) else False
+
+
+def _live_provider_dry_admission_checklist(
+    *,
+    run_id: str,
+    operator_policy_summary: JsonDict | None = None,
+    operator_approval_envelope: JsonDict | None = None,
+) -> JsonDict:
+    policy_summary = operator_policy_summary or {}
+    approval_envelope = operator_approval_envelope or _operator_approval_missing_projection()
+    policy = policy_summary.get("policy") if isinstance(policy_summary.get("policy"), dict) else {}
+    readiness = (
+        policy_summary.get("readiness")
+        if isinstance(policy_summary.get("readiness"), dict)
+        else {}
+    )
+    expected_policy_hash = str(policy_summary.get("policy_summary_hash", ""))
+    approved_policy_hash = str(approval_envelope.get("policy_summary_hash", ""))
+    approval_status = str(approval_envelope.get("status", "missing"))
+    approval_hash_match = bool(expected_policy_hash) and approved_policy_hash == expected_policy_hash
+    checklist = [
+        {
+            "id": "operator_approval_envelope_present",
+            "status": "passed" if approval_status == "approved" else "blocked",
+            "passed": approval_status == "approved",
+            "manual_review": False,
+        },
+        {
+            "id": "policy_summary_hash_bound",
+            "status": "passed" if approval_hash_match else "blocked",
+            "passed": approval_hash_match,
+            "manual_review": False,
+        },
+        {
+            "id": "cost_limit_reviewed",
+            "status": "passed" if int(policy.get("max_cost_units", 0)) > 0 else "blocked",
+            "passed": int(policy.get("max_cost_units", 0)) > 0,
+            "manual_review": False,
+        },
+        {
+            "id": "timeout_limit_reviewed",
+            "status": "passed"
+            if int(policy.get("request_timeout_seconds", 0)) > 0
+            else "blocked",
+            "passed": int(policy.get("request_timeout_seconds", 0)) > 0,
+            "manual_review": False,
+        },
+        {
+            "id": "api_quota_reviewed",
+            "status": "passed" if int(policy.get("max_live_api_calls", 0)) > 0 else "blocked",
+            "passed": int(policy.get("max_live_api_calls", 0)) > 0,
+            "manual_review": False,
+        },
+        {
+            "id": "output_budget_reviewed",
+            "status": "passed"
+            if int(policy.get("max_output_unit_budget", 0)) > 0
+            else "blocked",
+            "passed": int(policy.get("max_output_unit_budget", 0)) > 0,
+            "manual_review": False,
+        },
+        {
+            "id": "rollback_plan_documented",
+            "status": "manual_required",
+            "passed": False,
+            "manual_review": True,
+        },
+        {
+            "id": "manual_operator_final_review",
+            "status": "manual_required",
+            "passed": False,
+            "manual_review": True,
+        },
+        {
+            "id": "execution_permission_closed",
+            "status": "closed",
+            "passed": not _dry_admission_bool(readiness.get("allowed_to_execute")),
+            "manual_review": False,
+        },
+    ]
+    passed_count = sum(1 for item in checklist if item["passed"] is True)
+    blocked_count = sum(1 for item in checklist if item["status"] == "blocked")
+    manual_required_count = sum(1 for item in checklist if item["manual_review"] is True)
+    projection = {
+        "projection_version": LIVE_PROVIDER_DRY_ADMISSION_VERSION,
+        "status": "dry_admission_only",
+        "run_id": safe_public_run_id(run_id),
+        "provider_name": str(policy_summary.get("provider_name", SOLAR_PRO_3_PROVIDER)),
+        "model_name": str(policy_summary.get("model_name", SOLAR_PRO_3_MODEL)),
+        "runtime_mode": PROVIDER_ENVELOPE_PRECHECK_MODE,
+        "live_ready": False,
+        "allowed_to_execute": False,
+        "checklist_item_count": len(checklist),
+        "passed_check_count": passed_count,
+        "blocked_check_count": blocked_count,
+        "manual_required_count": manual_required_count,
+        "checklist": checklist,
+        "operator_approval": {
+            "status": approval_status,
+            "policy_summary_hash_present": bool(expected_policy_hash),
+            "policy_summary_hash_match": approval_hash_match,
+            "envelope_hash_present": bool(approval_envelope.get("envelope_hash")),
+        },
+        "policy_summary": {
+            "cost_limit_configured": int(policy.get("max_cost_units", 0)) > 0,
+            "timeout_configured": int(policy.get("request_timeout_seconds", 0)) > 0,
+            "api_quota_configured": int(policy.get("max_live_api_calls", 0)) > 0,
+            "output_budget_configured": int(policy.get("max_output_unit_budget", 0)) > 0,
+            "required_control_count": int(readiness.get("required_control_count", 0)),
+            "missing_control_count": int(readiness.get("missing_control_count", 0)),
+            "eligible_for_later_live_open": _dry_admission_bool(
+                readiness.get("eligible_for_live_open")
+            ),
+            "execution_permission_closed": not _dry_admission_bool(
+                readiness.get("allowed_to_execute")
+            ),
+        },
+        "execution_boundary": {
+            "sdk_imports": 0,
+            "env_value_reads": 0,
+            "api_calls": 0,
+            "network_calls": 0,
+            "solar_provider_calls": 0,
+            "target_runtime_calls": 0,
+        },
+        "claim_boundary": {
+            "scope": "local provider dry-admission checklist only",
+            "external_provider_outcome": False,
+            "target_runtime_outcome": False,
+            "production_trust_claim": False,
+        },
+    }
+    projection["dry_admission_hash"] = stable_contract_hash(projection)
+    return _safe_public_payload(projection)
+
+
 def _blocked_projection(
     *,
     run_id: str,
@@ -142,7 +281,14 @@ def _blocked_projection(
     adapter_invocation_count: int = 0,
     operator_policy_summary: JsonDict | None = None,
     operator_approval_envelope: JsonDict | None = None,
+    live_provider_dry_admission: JsonDict | None = None,
 ) -> dict[str, Any]:
+    selected_operator_approval = operator_approval_envelope or _operator_approval_missing_projection()
+    selected_dry_admission = live_provider_dry_admission or _live_provider_dry_admission_checklist(
+        run_id=run_id,
+        operator_policy_summary=operator_policy_summary,
+        operator_approval_envelope=selected_operator_approval,
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -164,8 +310,8 @@ def _blocked_projection(
                 },
             },
             "operator_policy_summary": operator_policy_summary or {},
-            "operator_approval_envelope": operator_approval_envelope
-            or _operator_approval_missing_projection(),
+            "operator_approval_envelope": selected_operator_approval,
+            "live_provider_dry_admission": selected_dry_admission,
             "provider_envelope_read_model": read_model or {},
             "checks": [{"name": check_name, "passed": False}],
             "errors": [message],
@@ -434,6 +580,7 @@ def _projection_from_result(
     repository_provider: ProviderEnvelopeRepositoryProvider,
     operator_policy_summary: JsonDict,
     operator_approval_envelope: JsonDict,
+    live_provider_dry_admission: JsonDict,
 ) -> dict[str, Any]:
     metrics = dict(result.metrics)
     request_hash = ""
@@ -467,6 +614,7 @@ def _projection_from_result(
             },
             "operator_policy_summary": operator_policy_summary,
             "operator_approval_envelope": operator_approval_envelope,
+            "live_provider_dry_admission": live_provider_dry_admission,
             "provider_envelope_read_model": read_model,
             "checks": _check_map(result.checks),
             "errors": [str(error) for error in result.errors],
@@ -519,6 +667,11 @@ def run_provider_envelope_precheck(
         payload=payload,
         policy_summary=operator_policy_summary,
     )
+    live_provider_dry_admission = _live_provider_dry_admission_checklist(
+        run_id=request.run_id,
+        operator_policy_summary=operator_policy_summary,
+        operator_approval_envelope=operator_approval,
+    )
     if operator_errors:
         return _blocked_projection(
             run_id=request.run_id,
@@ -527,6 +680,7 @@ def run_provider_envelope_precheck(
             message=operator_errors[0],
             operator_policy_summary=operator_policy_summary,
             operator_approval_envelope=operator_approval,
+            live_provider_dry_admission=live_provider_dry_admission,
         )
 
     if not selected_provider.configured:
@@ -537,6 +691,7 @@ def run_provider_envelope_precheck(
             message="provider envelope repository is required before adapter admission.",
             operator_policy_summary=operator_policy_summary,
             operator_approval_envelope=operator_approval,
+            live_provider_dry_admission=live_provider_dry_admission,
         )
 
     request_result = build_solar_request_contract_fixture(request, policy)
@@ -556,6 +711,7 @@ def run_provider_envelope_precheck(
             adapter_invocation_count=0,
             operator_policy_summary=operator_policy_summary,
             operator_approval_envelope=operator_approval,
+            live_provider_dry_admission=live_provider_dry_admission,
         )
 
     try:
@@ -568,6 +724,7 @@ def run_provider_envelope_precheck(
             message="provider envelope repository is unavailable.",
             operator_policy_summary=operator_policy_summary,
             operator_approval_envelope=operator_approval,
+            live_provider_dry_admission=live_provider_dry_admission,
         )
 
     service = ProviderEnvelopeAdmissionService(repository)
@@ -592,6 +749,7 @@ def run_provider_envelope_precheck(
         repository_provider=selected_provider,
         operator_policy_summary=operator_policy_summary,
         operator_approval_envelope=operator_approval,
+        live_provider_dry_admission=live_provider_dry_admission,
     )
 
 
@@ -648,6 +806,20 @@ def read_provider_envelope_precheck(
                 "envelope_hash": "",
                 "auth_material_returned": False,
             },
+            "live_provider_dry_admission": _live_provider_dry_admission_checklist(
+                run_id=run_id,
+                operator_policy_summary=None,
+                operator_approval_envelope={
+                    "projection_version": OPERATOR_APPROVAL_ENVELOPE_VERSION,
+                    "status": "not_applicable",
+                    "decision": "not_applicable",
+                    "operator_ref": "",
+                    "approved_at": "",
+                    "policy_summary_hash": "",
+                    "envelope_hash": "",
+                    "auth_material_returned": False,
+                },
+            ),
             "provider_envelope_read_model": read_model,
             "checks": [{"name": "provider_envelope_read_model_available", "passed": True}],
             "errors": [],
@@ -671,6 +843,7 @@ def read_provider_envelope_precheck(
 __all__ = [
     "ProviderEnvelopeRepositoryConfig",
     "ProviderEnvelopeRepositoryProvider",
+    "LIVE_PROVIDER_DRY_ADMISSION_VERSION",
     "provider_precheck_operator_policy_summary",
     "read_provider_envelope_precheck",
     "run_provider_envelope_precheck",

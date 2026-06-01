@@ -33,6 +33,11 @@ LIVE_03_PATH = ROOT / "docs" / "evals" / "aw-live-03-provider-envelope-read-mode
 LIVE_04_PATH = ROOT / "docs" / "evals" / "aw-live-04-provider-envelope-admission.md"
 LIVE_05_PATH = ROOT / "docs" / "evals" / "aw-live-05-provider-envelope-api-hook.md"
 LIVE_06_PATH = ROOT / "docs" / "evals" / "aw-live-06-operator-approval-envelope.md"
+LIVE_07_PATH = ROOT / "docs" / "evals" / "aw-live-07-live-provider-dry-admission-runbook.md"
+LIVE_07_RUNBOOK_PATH = ROOT / "docs" / "runbooks" / "aw-live-07-live-provider-dry-admission.md"
+LIVE_07_WORK_ORDER_PATH = (
+    ROOT / "docs" / "work-orders" / "aw-live-07-live-provider-dry-admission-runbook.md"
+)
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -63,6 +68,9 @@ PUBLIC_CLAIM_DOCS = [
     LIVE_04_PATH,
     LIVE_05_PATH,
     LIVE_06_PATH,
+    LIVE_07_PATH,
+    LIVE_07_RUNBOOK_PATH,
+    LIVE_07_WORK_ORDER_PATH,
 ]
 
 
