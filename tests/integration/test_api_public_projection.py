@@ -22,6 +22,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     provider_manual_test_release_authorization_seal_summary,
     provider_manual_test_execution_authorization_capsule_summary,
     provider_manual_test_execution_capsule_export_summary,
+    provider_manual_test_execution_capsule_handoff_packet_summary,
     provider_manual_test_arming_record_summary,
     provider_manual_test_final_release_packet_summary,
     provider_manual_test_handoff_packet_summary,
@@ -178,6 +179,9 @@ def _provider_envelope_precheck_payload(
     include_execution_capsule_export: bool = False,
     export_expected_execution_capsule_hash_override: str | None = None,
     export_execution_capsule_hash_override: str | None = None,
+    include_execution_capsule_handoff_packet: bool = False,
+    handoff_expected_execution_capsule_export_hash_override: str | None = None,
+    handoff_execution_capsule_export_hash_override: str | None = None,
 ) -> dict:
     payload = {
         "run_id": run_id,
@@ -619,6 +623,21 @@ def _provider_envelope_precheck_payload(
             },
             "authorization_material": "API33_EXPORT_AUTH_SENTINEL",
             "provider_payload": "API33_EXPORT_PROVIDER_PAYLOAD_SENTINEL",
+        }
+    if include_execution_capsule_handoff_packet:
+        export_summary = provider_manual_test_execution_capsule_export_summary(payload)
+        payload["expected_execution_capsule_export_hash"] = (
+            handoff_expected_execution_capsule_export_hash_override
+            or export_summary["execution_capsule_export_hash"]
+        )
+        payload["manual_test_execution_capsule_handoff_packet"] = {
+            "execution_capsule_export_hash": (
+                handoff_execution_capsule_export_hash_override
+                or export_summary["execution_capsule_export_hash"]
+            ),
+            "handoff_requested": True,
+            "handoff_material": "API34_HANDOFF_MATERIAL_SENTINEL",
+            "provider_payload": "API34_HANDOFF_PROVIDER_PAYLOAD_SENTINEL",
         }
     return payload
 
@@ -7722,6 +7741,327 @@ def test_provider_envelope_precheck_api_builds_execution_capsule_export_read_mod
         "export_requested",
         "API33_OPERATOR_REF_SENTINEL",
         "local-no-call-capsule-exported",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_execution_capsule_handoff_without_expected_export_hash(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-capsule-handoff-no-expected",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+        include_operator_opt_in=True,
+        include_sealed_pre_execution_packet=True,
+        include_arming_record=True,
+        include_release_proposal=True,
+        include_final_release_packet=True,
+        include_execution_switch=True,
+        execution_switch_enable=True,
+        include_executor_preflight=True,
+        include_executor_dispatch_record=True,
+        include_invocation_receipt=True,
+        include_post_invocation_audit=True,
+        include_completion_summary=True,
+        include_closeout_record=True,
+        include_operator_handback=True,
+        include_operator_decision_packet=True,
+        include_operator_release_attestation=True,
+        include_release_authorization_seal=True,
+        include_execution_authorization_capsule=True,
+        include_execution_capsule_export=True,
+        include_execution_capsule_handoff_packet=True,
+    )
+    expected_handoff = provider_manual_test_handoff_packet_summary(request_payload)
+    expected_export = provider_manual_test_execution_capsule_export_summary(
+        request_payload
+    )
+    request_payload["expected_handoff_packet_hash"] = expected_handoff[
+        "handoff_packet_hash"
+    ]
+    request_payload.pop("expected_execution_capsule_export_hash", None)
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    packet = data["manual_provider_test_execution_capsule_handoff_packet"]
+
+    assert set(packet) == {
+        "status",
+        "reason",
+        "execution_capsule_handoff_packet_hash",
+        "execution_capsule_export_hash",
+        "execution_capsule_export_read_model_hash",
+        "claim_boundary_hash",
+        "no_call_counters_hash",
+        "packet_count",
+        "component_count",
+        "passed_component_count",
+        "mismatch_count",
+        "component_hash_count",
+        "no_call_counter_count",
+        "claim_boundary_check_count",
+        "export_read_model_count",
+        "handoff_request_count",
+        "execution_permission_count",
+    }
+    assert packet["status"] == "blocked"
+    assert packet["reason"] == "expected_execution_capsule_export_hash_required"
+    assert packet["execution_capsule_handoff_packet_hash"] == ""
+    assert packet["execution_capsule_export_hash"] == expected_export[
+        "execution_capsule_export_hash"
+    ]
+    assert packet["execution_capsule_export_read_model_hash"] == expected_export[
+        "execution_capsule_export_hash"
+    ]
+    assert packet["claim_boundary_hash"]
+    assert packet["no_call_counters_hash"]
+    assert packet["packet_count"] == 0
+    assert packet["component_count"] == 8
+    assert packet["passed_component_count"] == 7
+    assert packet["mismatch_count"] == 1
+    assert packet["component_hash_count"] == 4
+    assert packet["no_call_counter_count"] == 13
+    assert packet["claim_boundary_check_count"] == 3
+    assert packet["export_read_model_count"] == 1
+    assert packet["handoff_request_count"] == 1
+    assert packet["execution_permission_count"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API34_HANDOFF_MATERIAL_SENTINEL",
+        "API34_HANDOFF_PROVIDER_PAYLOAD_SENTINEL",
+        "manual_test_execution_capsule_handoff_packet",
+        "handoff_requested",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_execution_capsule_handoff_without_packet_payload(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-capsule-handoff-no-packet",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+        include_operator_opt_in=True,
+        include_sealed_pre_execution_packet=True,
+        include_arming_record=True,
+        include_release_proposal=True,
+        include_final_release_packet=True,
+        include_execution_switch=True,
+        execution_switch_enable=True,
+        include_executor_preflight=True,
+        include_executor_dispatch_record=True,
+        include_invocation_receipt=True,
+        include_post_invocation_audit=True,
+        include_completion_summary=True,
+        include_closeout_record=True,
+        include_operator_handback=True,
+        include_operator_decision_packet=True,
+        include_operator_release_attestation=True,
+        include_release_authorization_seal=True,
+        include_execution_authorization_capsule=True,
+        include_execution_capsule_export=True,
+    )
+    expected_handoff = provider_manual_test_handoff_packet_summary(request_payload)
+    expected_export = provider_manual_test_execution_capsule_export_summary(
+        request_payload
+    )
+    request_payload["expected_handoff_packet_hash"] = expected_handoff[
+        "handoff_packet_hash"
+    ]
+    request_payload["expected_execution_capsule_export_hash"] = expected_export[
+        "execution_capsule_export_hash"
+    ]
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    packet = data["manual_provider_test_execution_capsule_handoff_packet"]
+
+    assert packet["status"] == "blocked"
+    assert packet["reason"] == "execution_capsule_handoff_packet_required"
+    assert packet["execution_capsule_handoff_packet_hash"] == ""
+    assert packet["execution_capsule_export_hash"] == expected_export[
+        "execution_capsule_export_hash"
+    ]
+    assert packet["execution_capsule_export_read_model_hash"] == expected_export[
+        "execution_capsule_export_hash"
+    ]
+    assert packet["claim_boundary_hash"]
+    assert packet["no_call_counters_hash"]
+    assert packet["packet_count"] == 0
+    assert packet["component_count"] == 8
+    assert packet["passed_component_count"] == 5
+    assert packet["mismatch_count"] == 3
+    assert packet["component_hash_count"] == 4
+    assert packet["no_call_counter_count"] == 13
+    assert packet["claim_boundary_check_count"] == 3
+    assert packet["export_read_model_count"] == 1
+    assert packet["handoff_request_count"] == 0
+    assert packet["execution_permission_count"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API34_HANDOFF_MATERIAL_SENTINEL",
+        "API34_HANDOFF_PROVIDER_PAYLOAD_SENTINEL",
+        "manual_test_execution_capsule_handoff_packet",
+        "handoff_requested",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_builds_execution_capsule_handoff_but_keeps_execution_disabled(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-capsule-handoff-present",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+        include_operator_opt_in=True,
+        include_sealed_pre_execution_packet=True,
+        include_arming_record=True,
+        include_release_proposal=True,
+        include_final_release_packet=True,
+        include_execution_switch=True,
+        execution_switch_enable=True,
+        include_executor_preflight=True,
+        include_executor_dispatch_record=True,
+        include_invocation_receipt=True,
+        include_post_invocation_audit=True,
+        include_completion_summary=True,
+        include_closeout_record=True,
+        include_operator_handback=True,
+        include_operator_decision_packet=True,
+        include_operator_release_attestation=True,
+        include_release_authorization_seal=True,
+        include_execution_authorization_capsule=True,
+        include_execution_capsule_export=True,
+        include_execution_capsule_handoff_packet=True,
+    )
+    expected_handoff = provider_manual_test_handoff_packet_summary(request_payload)
+    expected_packet = provider_manual_test_execution_capsule_handoff_packet_summary(
+        request_payload
+    )
+    request_payload["expected_handoff_packet_hash"] = expected_handoff[
+        "handoff_packet_hash"
+    ]
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    packet = data["manual_provider_test_execution_capsule_handoff_packet"]
+
+    assert packet["status"] == "blocked"
+    assert packet["reason"] == "execution_capsule_handoff_packet_execution_closed"
+    assert packet["execution_capsule_handoff_packet_hash"] == expected_packet[
+        "execution_capsule_handoff_packet_hash"
+    ]
+    assert packet["execution_capsule_export_hash"] == expected_packet[
+        "execution_capsule_export_hash"
+    ]
+    assert packet["execution_capsule_export_read_model_hash"] == expected_packet[
+        "execution_capsule_export_read_model_hash"
+    ]
+    assert packet["claim_boundary_hash"] == expected_packet["claim_boundary_hash"]
+    assert packet["no_call_counters_hash"] == expected_packet[
+        "no_call_counters_hash"
+    ]
+    assert packet["packet_count"] == 1
+    assert packet["component_count"] == 8
+    assert packet["passed_component_count"] == 8
+    assert packet["mismatch_count"] == 0
+    assert packet["component_hash_count"] == 4
+    assert packet["no_call_counter_count"] == 13
+    assert packet["claim_boundary_check_count"] == 3
+    assert packet["export_read_model_count"] == 1
+    assert packet["handoff_request_count"] == 1
+    assert packet["execution_permission_count"] == 0
+    assert data["provider_envelope_admission"]["adapter_reached"] is True
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API34_HANDOFF_MATERIAL_SENTINEL",
+        "API34_HANDOFF_PROVIDER_PAYLOAD_SENTINEL",
+        "manual_test_execution_capsule_handoff_packet",
+        "handoff_requested",
         "authorization_material",
         "provider_payload",
         "raw_prompt",

@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-33` disabled execution capsule export/read-model boundary.
+Current snapshot after `AW-LIVE-34` disabled execution capsule handoff packet boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 229 |
-| Counted code/doc files, excluding cache and private SoT | 229 |
-| Project lines, excluding cache and private SoT | 48,849 |
+| Project files, excluding cache and private SoT | 232 |
+| Counted code/doc files, excluding cache and private SoT | 232 |
+| Project lines, excluding cache and private SoT | 49,812 |
 | Python files | 76 |
-| Markdown files | 148 |
+| Markdown files | 151 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 468 |
-| Pytest passed cases | 468 |
+| Pytest collected cases | 471 |
+| Pytest passed cases | 471 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -2826,6 +2826,57 @@ export/read-model boundary.
 | provider/runtime calls remain at 0 | covered |
 
 Interpretation: this adds a local disabled execution capsule export/read-model
+for a later manual provider test candidate. It does not add an external call
+path, SDK integration, env value access, network access, provider response
+parsing, hosted execution, live operator approval, or production provider
+readiness.
+
+## AW-LIVE-34 Disabled Execution Capsule Handoff Packet Metrics
+
+Measured after adding the blocked disabled first-call execution capsule handoff
+packet boundary.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 471 |
+| Pytest passed cases | 471 |
+| Regression delta vs AW-LIVE-33 baseline | +3 |
+| API execution capsule handoff packet integration tests | 3 |
+| Provider envelope API integration tests | 76 |
+| Demo provider envelope smoke tests | 1 |
+| Execution capsule handoff packet public summary fields | 17 |
+| Execution capsule handoff packet component count | 8 |
+| Execution capsule handoff packet component hash count | 4 |
+| Execution capsule handoff packet no-call counter count | 13 |
+| Claim-boundary check count | 3 |
+| Packet passed count with missing expected export hash | 7 |
+| Packet mismatch count with missing expected export hash | 1 |
+| Packet passed count without packet payload | 5 |
+| Packet mismatch count without packet payload | 3 |
+| Packet passed count with complete packet | 8 |
+| Execution permission count with complete packet | 0 |
+| Missing expected export hash reason | expected_execution_capsule_export_hash_required |
+| Missing packet payload reason | execution_capsule_handoff_packet_required |
+| Complete packet reason | execution_capsule_handoff_packet_execution_closed |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| execution capsule export hash exists before handoff | covered |
+| expected execution capsule export hash must match | covered |
+| execution capsule handoff packet payload is required | covered |
+| export read model is represented as hash/count evidence | covered |
+| claim boundary is represented as hash/count evidence | covered |
+| public packet exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled execution capsule handoff packet
 for a later manual provider test candidate. It does not add an external call
 path, SDK integration, env value access, network access, provider response
 parsing, hosted execution, live operator approval, or production provider
