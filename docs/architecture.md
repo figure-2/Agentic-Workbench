@@ -78,6 +78,7 @@ sequenceDiagram
 | `manual_provider_test_proposal` | local proposal gate with proposal hash, approval hash match, and execution disabled by default |
 | `manual_provider_test_executor` | disabled executor projection with status, reason, and planned call hash only |
 | `manual_provider_test_handoff_packet` | final no-call packet with status, reason, handoff hash, and counts only |
+| `manual_provider_test_operator_opt_in` | local opt-in checklist bound to the handoff packet hash, still execution-closed |
 
 ## Persistence Boundary
 
@@ -287,6 +288,13 @@ export evidence as status, reason, a handoff hash, and counts. Expected export
 or handoff hash mismatch blocks before adapter admission. The packet is not an
 execution permission and keeps `execution_permission_count=0`.
 
+`AW-LIVE-16` adds a first live-call operator opt-in checklist boundary. The
+checklist requires the handoff packet hash to exist, requires an explicit
+operator opt-in payload, and binds that payload to the computed handoff hash.
+Missing opt-in, mismatched handoff hash, invalid decision, or incomplete
+operator fields remain blocked. A complete opt-in still reports
+`operator_opt_in_execution_closed` and keeps `execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -358,3 +366,5 @@ outside the current executable path.
 - manual provider test handoff packets must remain no-call projections over
   sanitized policy/preflight/readiness/review/export evidence and must not
   grant execution permission.
+- operator opt-in checklists must bind to the no-call handoff packet hash and
+  must not grant execution permission.

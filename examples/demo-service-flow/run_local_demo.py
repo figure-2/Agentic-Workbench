@@ -29,6 +29,7 @@ from apps.api.agentic_workbench_api.services.evidence_read_model import (
 from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     MANUAL_PROVIDER_TEST_EXECUTOR_VERSION,
     ProviderEnvelopeRepositoryConfig,
+    provider_manual_test_handoff_packet_summary,
     provider_manual_test_preflight_summary,
     provider_manual_test_proposal_summary,
     provider_precheck_operator_policy_summary,
@@ -186,6 +187,13 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
         "decided_at": "2026-06-01T00:10:00Z",
         "decision_reason_code": "local-demo-readiness-reviewed",
     }
+    handoff_summary = provider_manual_test_handoff_packet_summary(payload)
+    payload["manual_test_operator_opt_in"] = {
+        "handoff_packet_hash": handoff_summary["handoff_packet_hash"],
+        "decision": "opt_in",
+        "operator_ref": "local-demo-operator",
+        "opted_in_at": "2026-06-01T00:15:00Z",
+    }
     return payload
 
 
@@ -282,6 +290,14 @@ def _checks(
             and handoff_packet.get("reason") == "handoff_packet_execution_closed"
             and int(handoff_packet.get("component_count", 0)) >= 5
             and int(handoff_packet.get("execution_permission_count", -1)) == 0
+        )
+        operator_opt_in = provider_envelope_data.get(
+            "manual_provider_test_operator_opt_in", {}
+        )
+        checks["provider_operator_opt_in_blocked"] = (
+            operator_opt_in.get("status") == "blocked"
+            and operator_opt_in.get("reason") == "operator_opt_in_execution_closed"
+            and int(operator_opt_in.get("execution_permission_count", -1)) == 0
         )
     return checks
 
@@ -535,6 +551,30 @@ def run_demo(
                 ).get("export_count"),
                 "handoff_packet_execution_permission_count": provider_envelope_data.get(
                     "manual_provider_test_handoff_packet", {}
+                ).get("execution_permission_count"),
+                "operator_opt_in_status": provider_envelope_data.get(
+                    "manual_provider_test_operator_opt_in", {}
+                ).get("status"),
+                "operator_opt_in_reason": provider_envelope_data.get(
+                    "manual_provider_test_operator_opt_in", {}
+                ).get("reason"),
+                "operator_opt_in_hash": provider_envelope_data.get(
+                    "manual_provider_test_operator_opt_in", {}
+                ).get("operator_opt_in_hash"),
+                "operator_opt_in_handoff_packet_hash": provider_envelope_data.get(
+                    "manual_provider_test_operator_opt_in", {}
+                ).get("handoff_packet_hash"),
+                "operator_opt_in_checklist_item_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_opt_in", {}
+                ).get("checklist_item_count"),
+                "operator_opt_in_passed_check_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_opt_in", {}
+                ).get("passed_check_count"),
+                "operator_opt_in_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_opt_in", {}
+                ).get("mismatch_count"),
+                "operator_opt_in_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_opt_in", {}
                 ).get("execution_permission_count"),
                 "review_packet_read_model_status": (
                     provider_envelope_read_data or {}

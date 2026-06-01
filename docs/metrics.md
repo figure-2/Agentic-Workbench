@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-15` final no-call handoff packet.
+Current snapshot after `AW-LIVE-16` operator opt-in checklist boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 177 |
-| Counted code/doc files, excluding cache and private SoT | 175 |
-| Project lines, excluding cache and private SoT | 33,999 |
+| Project files, excluding cache and private SoT | 180 |
+| Counted code/doc files, excluding cache and private SoT | 178 |
+| Project lines, excluding cache and private SoT | 34,607 |
 | Python files | 76 |
-| Markdown files | 94 |
+| Markdown files | 97 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 414 |
-| Pytest passed cases | 414 |
+| Pytest collected cases | 417 |
+| Pytest passed cases | 417 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -1974,6 +1974,49 @@ Measured after adding the blocked manual provider test handoff packet.
 | provider/runtime calls remain at 0 | covered |
 
 Interpretation: this adds a local no-call audit handoff packet for a later
+manual provider test candidate. It does not add an external call path, SDK
+integration, env value access, network access, provider response parsing,
+hosted execution, or production provider readiness.
+
+## AW-LIVE-16 Operator Opt-In Checklist Boundary Metrics
+
+Measured after adding the blocked operator opt-in checklist boundary.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 417 |
+| Pytest passed cases | 417 |
+| Regression delta vs AW-LIVE-15 baseline | +3 |
+| API operator opt-in integration tests | 3 |
+| Provider envelope API integration tests | 22 |
+| Demo provider envelope smoke tests | 1 |
+| Operator opt-in public summary fields | 8 |
+| Operator opt-in checklist item count | 5 |
+| Operator opt-in passed count with missing opt-in | 1 |
+| Operator opt-in mismatch count with missing opt-in | 4 |
+| Operator opt-in passed count with complete opt-in | 5 |
+| Execution permission count with complete opt-in | 0 |
+| Missing opt-in reason | operator_opt_in_required |
+| Complete opt-in reason | operator_opt_in_execution_closed |
+| Handoff mismatch reason | handoff_packet_hash_mismatch |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| handoff packet hash is required before opt-in | covered |
+| missing operator opt-in is blocked | covered |
+| complete operator opt-in remains execution-closed | covered |
+| opt-in handoff hash mismatch is blocked | covered |
+| public opt-in projection exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local no-call operator opt-in checklist for a later
 manual provider test candidate. It does not add an external call path, SDK
 integration, env value access, network access, provider response parsing,
 hosted execution, or production provider readiness.

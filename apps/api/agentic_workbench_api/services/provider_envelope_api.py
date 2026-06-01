@@ -76,6 +76,9 @@ MANUAL_PROVIDER_TEST_REVIEW_PACKET_EXPORT_VERSION = (
 MANUAL_PROVIDER_TEST_HANDOFF_PACKET_VERSION = (
     "manual-provider-test-final-handoff-packet-v1"
 )
+MANUAL_PROVIDER_TEST_OPERATOR_OPT_IN_VERSION = (
+    "manual-provider-test-operator-opt-in-checklist-v1"
+)
 
 
 @dataclass(slots=True)
@@ -446,6 +449,21 @@ def _manual_provider_test_handoff_packet_blocked(reason: str) -> JsonDict:
             "mismatch_count": 1,
             "component_hash_count": 0,
             "export_count": 0,
+            "execution_permission_count": 0,
+        }
+    )
+
+
+def _manual_provider_test_operator_opt_in_blocked(reason: str) -> JsonDict:
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "operator_opt_in_hash": "",
+            "handoff_packet_hash": "",
+            "checklist_item_count": 0,
+            "passed_check_count": 0,
+            "mismatch_count": 1,
             "execution_permission_count": 0,
         }
     )
@@ -898,6 +916,77 @@ def _manual_provider_test_handoff_packet_projection(
     )
 
 
+def _manual_provider_test_operator_opt_in_projection(
+    *,
+    payload: dict[str, Any],
+    handoff_packet: JsonDict,
+) -> JsonDict:
+    handoff_hash = str(handoff_packet.get("handoff_packet_hash", "")).strip()
+    opt_in_payload = (
+        payload.get("manual_test_operator_opt_in")
+        if isinstance(payload.get("manual_test_operator_opt_in"), dict)
+        else {}
+    )
+    expected_handoff_hash = str(
+        opt_in_payload.get("handoff_packet_hash")
+        or opt_in_payload.get("approved_handoff_packet_hash")
+        or ""
+    ).strip()
+    decision = str(opt_in_payload.get("decision", "")).strip().lower()
+    operator_ref = str(opt_in_payload.get("operator_ref", "")).strip()
+    opted_in_at = str(opt_in_payload.get("opted_in_at", "")).strip()
+
+    component_checks = [
+        bool(handoff_hash),
+        bool(opt_in_payload),
+        bool(expected_handoff_hash) and expected_handoff_hash == handoff_hash,
+        decision == "opt_in",
+        bool(operator_ref) and bool(opted_in_at),
+    ]
+    checklist_item_count = len(component_checks)
+    passed_check_count = sum(1 for check in component_checks if check)
+    mismatch_count = checklist_item_count - passed_check_count
+
+    if not component_checks[0]:
+        reason = "handoff_packet_missing_or_mismatched"
+    elif not component_checks[1]:
+        reason = "operator_opt_in_required"
+    elif not component_checks[2]:
+        reason = "handoff_packet_hash_mismatch"
+    elif not component_checks[3]:
+        reason = "operator_opt_in_decision_invalid"
+    elif not component_checks[4]:
+        reason = "operator_opt_in_incomplete"
+    else:
+        reason = "operator_opt_in_execution_closed"
+
+    operator_opt_in_hash = ""
+    if mismatch_count == 0:
+        operator_opt_in_hash = stable_contract_hash(
+            {
+                "projection_version": MANUAL_PROVIDER_TEST_OPERATOR_OPT_IN_VERSION,
+                "handoff_packet_hash": handoff_hash,
+                "decision": decision,
+                "operator_ref": operator_ref,
+                "opted_in_at": opted_in_at,
+                "execution_permission": "closed",
+            }
+        )
+
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "operator_opt_in_hash": operator_opt_in_hash,
+            "handoff_packet_hash": handoff_hash,
+            "checklist_item_count": checklist_item_count,
+            "passed_check_count": passed_check_count,
+            "mismatch_count": mismatch_count,
+            "execution_permission_count": 0,
+        }
+    )
+
+
 def _manual_test_proposal_projection(
     *,
     payload: dict[str, Any],
@@ -1208,6 +1297,15 @@ def provider_manual_test_handoff_packet_summary(payload: dict[str, Any]) -> dict
     )
 
 
+def provider_manual_test_operator_opt_in_summary(payload: dict[str, Any]) -> dict[str, Any]:
+    """Build the public no-call operator opt-in checklist projection."""
+    handoff_packet = provider_manual_test_handoff_packet_summary(payload)
+    return _manual_provider_test_operator_opt_in_projection(
+        payload=payload,
+        handoff_packet=handoff_packet,
+    )
+
+
 def _review_packet_export_from_read_model(read_model: JsonDict) -> JsonDict:
     if str(read_model.get("status", "")) == "blocked":
         return _manual_provider_test_review_packet_export_blocked(
@@ -1326,6 +1424,7 @@ def _blocked_projection(
     manual_provider_test_review_packet_export: JsonDict | None = None,
     manual_provider_test_review_packet_export_read_model: JsonDict | None = None,
     manual_provider_test_handoff_packet: JsonDict | None = None,
+    manual_provider_test_operator_opt_in: JsonDict | None = None,
 ) -> dict[str, Any]:
     selected_operator_approval = operator_approval_envelope or _operator_approval_missing_projection()
     selected_dry_admission = live_provider_dry_admission or _live_provider_dry_admission_checklist(
@@ -1384,6 +1483,12 @@ def _blocked_projection(
             review_packet_export=selected_review_packet_export,
         )
     )
+    selected_operator_opt_in = (
+        manual_provider_test_operator_opt_in
+        or _manual_provider_test_operator_opt_in_blocked(
+            "operator_opt_in_not_evaluated"
+        )
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -1418,6 +1523,7 @@ def _blocked_projection(
                 manual_provider_test_review_packet_export_read_model or {}
             ),
             "manual_provider_test_handoff_packet": selected_handoff_packet,
+            "manual_provider_test_operator_opt_in": selected_operator_opt_in,
             "provider_envelope_read_model": read_model or {},
             "checks": [{"name": check_name, "passed": False}],
             "errors": [message],
@@ -1754,6 +1860,10 @@ def _projection_from_result(
         handoff_packet = _manual_provider_test_handoff_packet_blocked(
             "handoff_packet_hash_mismatch"
         )
+    operator_opt_in = _manual_provider_test_operator_opt_in_projection(
+        payload=payload,
+        handoff_packet=handoff_packet,
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -1784,6 +1894,7 @@ def _projection_from_result(
                 review_packet_export_read_model
             ),
             "manual_provider_test_handoff_packet": handoff_packet,
+            "manual_provider_test_operator_opt_in": operator_opt_in,
             "provider_envelope_read_model": read_model,
             "checks": _check_map(result.checks),
             "errors": [str(error) for error in result.errors],
@@ -1933,6 +2044,11 @@ def run_provider_envelope_precheck(
                     "review_packet_export_hash_mismatch"
                 )
             ),
+            manual_provider_test_operator_opt_in=(
+                _manual_provider_test_operator_opt_in_blocked(
+                    "handoff_packet_missing_or_mismatched"
+                )
+            ),
         )
     manual_provider_test_handoff_packet_preview = (
         _manual_provider_test_handoff_packet_projection(
@@ -1968,6 +2084,11 @@ def run_provider_envelope_precheck(
             ),
             manual_provider_test_handoff_packet=(
                 _manual_provider_test_handoff_packet_blocked(
+                    "handoff_packet_hash_mismatch"
+                )
+            ),
+            manual_provider_test_operator_opt_in=(
+                _manual_provider_test_operator_opt_in_blocked(
                     "handoff_packet_hash_mismatch"
                 )
             ),
@@ -2189,6 +2310,9 @@ def read_provider_envelope_precheck(
                 ),
                 review_packet_export=review_packet_export,
             ),
+            "manual_provider_test_operator_opt_in": _manual_provider_test_operator_opt_in_blocked(
+                "handoff_packet_missing_or_mismatched"
+            ),
             "provider_envelope_read_model": read_model,
             "checks": [{"name": "provider_envelope_read_model_available", "passed": True}],
             "errors": [],
@@ -2221,10 +2345,12 @@ __all__ = [
     "MANUAL_PROVIDER_TEST_REVIEW_PACKET_VERSION",
     "MANUAL_PROVIDER_TEST_REVIEW_PACKET_EXPORT_VERSION",
     "MANUAL_PROVIDER_TEST_HANDOFF_PACKET_VERSION",
+    "MANUAL_PROVIDER_TEST_OPERATOR_OPT_IN_VERSION",
     "provider_manual_test_proposal_summary",
     "provider_manual_test_preflight_summary",
     "provider_manual_test_review_packet_summary",
     "provider_manual_test_handoff_packet_summary",
+    "provider_manual_test_operator_opt_in_summary",
     "provider_precheck_operator_policy_summary",
     "read_provider_envelope_precheck",
     "run_provider_envelope_precheck",
