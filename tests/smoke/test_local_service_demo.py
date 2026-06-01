@@ -199,6 +199,20 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert envelope["arming_record_mismatch_count"] == 0
     assert envelope["arming_record_component_hash_count"] == 5
     assert envelope["arming_record_execution_permission_count"] == 0
+    assert envelope["release_proposal_status"] == "blocked"
+    assert envelope["release_proposal_reason"] == "release_proposal_execution_closed"
+    assert envelope["release_proposal_hash"]
+    assert envelope["release_proposal_arming_record_hash"] == envelope["arming_record_hash"]
+    assert envelope["release_proposal_operator_hash"]
+    assert envelope["release_proposal_release_window_hash"]
+    assert envelope["release_proposal_rollback_abort_hash"] == envelope[
+        "arming_record_rollback_abort_hash"
+    ]
+    assert envelope["release_proposal_component_count"] == 7
+    assert envelope["release_proposal_passed_component_count"] == 7
+    assert envelope["release_proposal_mismatch_count"] == 0
+    assert envelope["release_proposal_component_hash_count"] == 4
+    assert envelope["release_proposal_execution_permission_count"] == 0
     assert envelope["review_packet_read_model_status"] == "available"
     assert envelope["review_packet_read_export_hash"] == envelope["review_packet_hash"]
     assert envelope["review_packet_read_export_count"] == 1
@@ -214,6 +228,7 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert checks["provider_operator_opt_in_blocked"] is True
     assert checks["provider_sealed_packet_blocked"] is True
     assert checks["provider_arming_record_blocked"] is True
+    assert checks["provider_release_proposal_blocked"] is True
     assert envelope["execution_boundary"]["provider_calls"] == 0
     assert envelope["execution_boundary"]["network_calls"] == 0
     assert envelope["execution_boundary"]["solar_live_api_calls"] == 0

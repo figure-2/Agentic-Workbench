@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-18` no-call arming record boundary.
+Current snapshot after `AW-LIVE-19` no-call release proposal boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 186 |
-| Counted code/doc files, excluding cache and private SoT | 184 |
-| Project lines, excluding cache and private SoT | 36,133 |
+| Project files, excluding cache and private SoT | 189 |
+| Counted code/doc files, excluding cache and private SoT | 187 |
+| Project lines, excluding cache and private SoT | 36,872 |
 | Python files | 76 |
-| Markdown files | 103 |
+| Markdown files | 106 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 423 |
-| Pytest passed cases | 423 |
+| Pytest collected cases | 426 |
+| Pytest passed cases | 426 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -2105,6 +2105,51 @@ Measured after adding the blocked no-call live execution arming record.
 | provider/runtime calls remain at 0 | covered |
 
 Interpretation: this adds a local no-call arming record for a later manual
+provider test candidate. It does not add an external call path, SDK
+integration, env value access, network access, provider response parsing,
+hosted execution, or production provider readiness.
+
+## AW-LIVE-19 Execution Authorization Release Proposal Metrics
+
+Measured after adding the blocked no-call execution authorization release
+proposal.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 426 |
+| Pytest passed cases | 426 |
+| Regression delta vs AW-LIVE-18 baseline | +3 |
+| API release proposal integration tests | 3 |
+| Provider envelope API integration tests | 31 |
+| Demo provider envelope smoke tests | 1 |
+| Release proposal public summary fields | 12 |
+| Release proposal component count | 7 |
+| Release proposal component hash count | 4 |
+| Release proposal passed count with missing expected arming hash | 1 |
+| Release proposal mismatch count with missing expected arming hash | 6 |
+| Release proposal passed count with complete proposal | 7 |
+| Execution permission count with complete proposal | 0 |
+| Missing expected arming hash reason | expected_arming_record_hash_required |
+| Complete proposal reason | release_proposal_execution_closed |
+| Release proposal arming hash mismatch reason | release_proposal_arming_hash_mismatch |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| arming record hash exists before release proposal | covered |
+| expected arming record hash must match | covered |
+| operator and release window are represented as hashes | covered |
+| rollback/abort hash is included | covered |
+| public release proposal exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local no-call release proposal for a later manual
 provider test candidate. It does not add an external call path, SDK
 integration, env value access, network access, provider response parsing,
 hosted execution, or production provider readiness.

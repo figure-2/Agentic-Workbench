@@ -85,6 +85,9 @@ MANUAL_PROVIDER_TEST_SEALED_PRE_EXECUTION_PACKET_VERSION = (
 MANUAL_PROVIDER_TEST_ARMING_RECORD_VERSION = (
     "manual-provider-test-live-execution-arming-record-v1"
 )
+MANUAL_PROVIDER_TEST_RELEASE_PROPOSAL_VERSION = (
+    "manual-provider-test-execution-release-proposal-v1"
+)
 
 
 @dataclass(slots=True)
@@ -505,6 +508,25 @@ def _manual_provider_test_arming_record_blocked(reason: str) -> JsonDict:
             "expiry_hash": "",
             "rollback_abort_hash": "",
             "abort_policy_hash": "",
+            "component_count": 0,
+            "passed_component_count": 0,
+            "mismatch_count": 1,
+            "component_hash_count": 0,
+            "execution_permission_count": 0,
+        }
+    )
+
+
+def _manual_provider_test_release_proposal_blocked(reason: str) -> JsonDict:
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "release_proposal_hash": "",
+            "arming_record_hash": "",
+            "operator_hash": "",
+            "release_window_hash": "",
+            "rollback_abort_hash": "",
             "component_count": 0,
             "passed_component_count": 0,
             "mismatch_count": 1,
@@ -1311,6 +1333,136 @@ def _manual_provider_test_arming_record_projection(
     )
 
 
+def _manual_provider_test_release_proposal_projection(
+    *,
+    payload: dict[str, Any],
+    arming_record: JsonDict,
+) -> JsonDict:
+    arming_record_hash = str(arming_record.get("arming_record_hash", "")).strip()
+    expected_arming_record_hash = str(
+        payload.get("expected_arming_record_hash", "")
+    ).strip()
+    release_payload = (
+        payload.get("manual_test_execution_release_proposal")
+        if isinstance(payload.get("manual_test_execution_release_proposal"), dict)
+        else {}
+    )
+    supplied_arming_record_hash = str(
+        release_payload.get("arming_record_hash", "")
+    ).strip()
+    operator_ref = str(release_payload.get("operator_ref", "")).strip()
+    proposed_at = str(release_payload.get("proposed_at", "")).strip()
+    release_window_start = str(
+        release_payload.get("release_window_start", "")
+    ).strip()
+    release_window_end = str(release_payload.get("release_window_end", "")).strip()
+    supplied_rollback_abort_hash = str(
+        release_payload.get("rollback_abort_hash", "")
+    ).strip()
+    arming_rollback_abort_hash = str(
+        arming_record.get("rollback_abort_hash", "")
+    ).strip()
+    operator_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": MANUAL_PROVIDER_TEST_RELEASE_PROPOSAL_VERSION,
+                "operator_ref": operator_ref,
+                "proposed_at": proposed_at,
+            }
+        )
+        if operator_ref and proposed_at
+        else ""
+    )
+    release_window_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": MANUAL_PROVIDER_TEST_RELEASE_PROPOSAL_VERSION,
+                "release_window_start": release_window_start,
+                "release_window_end": release_window_end,
+            }
+        )
+        if release_window_start and release_window_end
+        else ""
+    )
+    component_checks = [
+        str(arming_record.get("status", "")) == "blocked"
+        and str(arming_record.get("reason", "")) == "arming_record_execution_closed"
+        and bool(arming_record_hash),
+        bool(expected_arming_record_hash)
+        and expected_arming_record_hash == arming_record_hash,
+        bool(release_payload),
+        bool(supplied_arming_record_hash)
+        and supplied_arming_record_hash == arming_record_hash,
+        bool(operator_hash),
+        bool(release_window_hash),
+        bool(supplied_rollback_abort_hash)
+        and supplied_rollback_abort_hash == arming_rollback_abort_hash,
+    ]
+    component_count = len(component_checks)
+    passed_component_count = sum(1 for check in component_checks if check)
+    mismatch_count = component_count - passed_component_count
+    component_hash_count = sum(
+        1
+        for value in (
+            arming_record_hash,
+            operator_hash,
+            release_window_hash,
+            supplied_rollback_abort_hash,
+        )
+        if value
+    )
+
+    if not component_checks[0]:
+        reason = "arming_record_missing_or_mismatched"
+    elif not expected_arming_record_hash:
+        reason = "expected_arming_record_hash_required"
+    elif expected_arming_record_hash != arming_record_hash:
+        reason = "arming_record_hash_mismatch"
+    elif not component_checks[2]:
+        reason = "release_proposal_required"
+    elif not component_checks[3]:
+        reason = "release_proposal_arming_hash_mismatch"
+    elif not component_checks[4]:
+        reason = "release_operator_required"
+    elif not component_checks[5]:
+        reason = "release_window_required"
+    elif not component_checks[6]:
+        reason = "rollback_hash_mismatch"
+    else:
+        reason = "release_proposal_execution_closed"
+
+    release_proposal_hash = ""
+    if mismatch_count == 0:
+        release_proposal_hash = stable_contract_hash(
+            {
+                "projection_version": MANUAL_PROVIDER_TEST_RELEASE_PROPOSAL_VERSION,
+                "arming_record_hash": arming_record_hash,
+                "operator_hash": operator_hash,
+                "release_window_hash": release_window_hash,
+                "rollback_abort_hash": supplied_rollback_abort_hash,
+                "component_count": component_count,
+                "execution_permission": "closed",
+            }
+        )
+
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "release_proposal_hash": release_proposal_hash,
+            "arming_record_hash": arming_record_hash,
+            "operator_hash": operator_hash,
+            "release_window_hash": release_window_hash,
+            "rollback_abort_hash": supplied_rollback_abort_hash,
+            "component_count": component_count,
+            "passed_component_count": passed_component_count,
+            "mismatch_count": mismatch_count,
+            "component_hash_count": component_hash_count,
+            "execution_permission_count": 0,
+        }
+    )
+
+
 def _manual_test_proposal_projection(
     *,
     payload: dict[str, Any],
@@ -1672,6 +1824,15 @@ def provider_manual_test_arming_record_summary(payload: dict[str, Any]) -> dict[
     )
 
 
+def provider_manual_test_release_proposal_summary(payload: dict[str, Any]) -> dict[str, Any]:
+    """Build the public no-call execution authorization release proposal projection."""
+    arming_record = provider_manual_test_arming_record_summary(payload)
+    return _manual_provider_test_release_proposal_projection(
+        payload=payload,
+        arming_record=arming_record,
+    )
+
+
 def _review_packet_export_from_read_model(read_model: JsonDict) -> JsonDict:
     if str(read_model.get("status", "")) == "blocked":
         return _manual_provider_test_review_packet_export_blocked(
@@ -1793,6 +1954,7 @@ def _blocked_projection(
     manual_provider_test_operator_opt_in: JsonDict | None = None,
     manual_provider_test_sealed_pre_execution_packet: JsonDict | None = None,
     manual_provider_test_arming_record: JsonDict | None = None,
+    manual_provider_test_release_proposal: JsonDict | None = None,
 ) -> dict[str, Any]:
     selected_operator_approval = operator_approval_envelope or _operator_approval_missing_projection()
     selected_dry_admission = live_provider_dry_admission or _live_provider_dry_admission_checklist(
@@ -1865,6 +2027,10 @@ def _blocked_projection(
         manual_provider_test_arming_record
         or _manual_provider_test_arming_record_blocked("arming_record_not_evaluated")
     )
+    selected_release_proposal = (
+        manual_provider_test_release_proposal
+        or _manual_provider_test_release_proposal_blocked("arming_record_not_evaluated")
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -1902,6 +2068,7 @@ def _blocked_projection(
             "manual_provider_test_operator_opt_in": selected_operator_opt_in,
             "manual_provider_test_sealed_pre_execution_packet": selected_sealed_packet,
             "manual_provider_test_arming_record": selected_arming_record,
+            "manual_provider_test_release_proposal": selected_release_proposal,
             "provider_envelope_read_model": read_model or {},
             "checks": [{"name": check_name, "passed": False}],
             "errors": [message],
@@ -2253,6 +2420,10 @@ def _projection_from_result(
         payload=payload,
         sealed_pre_execution_packet=sealed_pre_execution_packet,
     )
+    release_proposal = _manual_provider_test_release_proposal_projection(
+        payload=payload,
+        arming_record=arming_record,
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -2286,6 +2457,7 @@ def _projection_from_result(
             "manual_provider_test_operator_opt_in": operator_opt_in,
             "manual_provider_test_sealed_pre_execution_packet": sealed_pre_execution_packet,
             "manual_provider_test_arming_record": arming_record,
+            "manual_provider_test_release_proposal": release_proposal,
             "provider_envelope_read_model": read_model,
             "checks": _check_map(result.checks),
             "errors": [str(error) for error in result.errors],
@@ -2450,6 +2622,11 @@ def run_provider_envelope_precheck(
                     "sealed_packet_missing_or_mismatched"
                 )
             ),
+            manual_provider_test_release_proposal=(
+                _manual_provider_test_release_proposal_blocked(
+                    "arming_record_missing_or_mismatched"
+                )
+            ),
         )
     manual_provider_test_handoff_packet_preview = (
         _manual_provider_test_handoff_packet_projection(
@@ -2501,6 +2678,11 @@ def run_provider_envelope_precheck(
             manual_provider_test_arming_record=(
                 _manual_provider_test_arming_record_blocked(
                     "sealed_packet_missing_or_mismatched"
+                )
+            ),
+            manual_provider_test_release_proposal=(
+                _manual_provider_test_release_proposal_blocked(
+                    "arming_record_missing_or_mismatched"
                 )
             ),
         )
@@ -2730,6 +2912,9 @@ def read_provider_envelope_precheck(
             "manual_provider_test_arming_record": _manual_provider_test_arming_record_blocked(
                 "sealed_packet_missing_or_mismatched"
             ),
+            "manual_provider_test_release_proposal": _manual_provider_test_release_proposal_blocked(
+                "arming_record_missing_or_mismatched"
+            ),
             "provider_envelope_read_model": read_model,
             "checks": [{"name": "provider_envelope_read_model_available", "passed": True}],
             "errors": [],
@@ -2765,6 +2950,7 @@ __all__ = [
     "MANUAL_PROVIDER_TEST_OPERATOR_OPT_IN_VERSION",
     "MANUAL_PROVIDER_TEST_SEALED_PRE_EXECUTION_PACKET_VERSION",
     "MANUAL_PROVIDER_TEST_ARMING_RECORD_VERSION",
+    "MANUAL_PROVIDER_TEST_RELEASE_PROPOSAL_VERSION",
     "provider_manual_test_proposal_summary",
     "provider_manual_test_preflight_summary",
     "provider_manual_test_review_packet_summary",
@@ -2772,6 +2958,7 @@ __all__ = [
     "provider_manual_test_operator_opt_in_summary",
     "provider_manual_test_sealed_pre_execution_packet_summary",
     "provider_manual_test_arming_record_summary",
+    "provider_manual_test_release_proposal_summary",
     "provider_precheck_operator_policy_summary",
     "read_provider_envelope_precheck",
     "run_provider_envelope_precheck",
