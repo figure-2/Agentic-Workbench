@@ -42,6 +42,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     provider_manual_test_execution_capsule_final_authorization_summary,
     provider_manual_test_execution_capsule_authz_export_summary,
     provider_manual_test_execution_capsule_authz_handoff_packet_summary,
+    provider_manual_test_execution_capsule_authz_operator_decision_summary,
     provider_manual_test_execution_capsule_authz_operator_review_summary,
     provider_manual_test_execution_capsule_release_attestation_summary,
     provider_manual_test_execution_capsule_release_seal_summary,
@@ -585,6 +586,28 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
             "decision_reason_code": "local-demo-no-call-capsule-authz-decided",
         },
     }
+    execution_capsule_authz_operator_decision_hash = (
+        provider_manual_test_execution_capsule_authz_operator_decision_summary(
+            payload
+        )["execution_capsule_authz_operator_decision_hash"]
+    )
+    payload["expected_execution_capsule_authz_operator_decision_hash"] = (
+        execution_capsule_authz_operator_decision_hash
+    )
+    payload["manual_test_execution_capsule_authz_release_attestation"] = {
+        "execution_capsule_authz_operator_decision_hash": (
+            execution_capsule_authz_operator_decision_hash
+        ),
+        "attestation_requested": True,
+        "release_attestation": {
+            "operator_ref": "local-demo-operator",
+            "attested_at": "2026-06-01T01:55:00Z",
+            "attestation": "release_attested",
+            "attestation_reason_code": (
+                "local-demo-no-call-capsule-authz-release-attested"
+            ),
+        },
+    }
     return payload
 
 
@@ -981,6 +1004,20 @@ def _checks(
             == "execution_capsule_authz_operator_decision_execution_closed"
             and int(
                 execution_capsule_authz_operator_decision.get(
+                    "execution_permission_count", -1
+                )
+            )
+            == 0
+        )
+        execution_capsule_authz_release_attestation = provider_envelope_data.get(
+            "manual_provider_test_execution_capsule_authz_release_attestation", {}
+        )
+        checks["provider_execution_capsule_authz_release_attestation_blocked"] = (
+            execution_capsule_authz_release_attestation.get("status") == "blocked"
+            and execution_capsule_authz_release_attestation.get("reason")
+            == "execution_capsule_authz_release_attestation_execution_closed"
+            and int(
+                execution_capsule_authz_release_attestation.get(
                     "execution_permission_count", -1
                 )
             )
@@ -2553,6 +2590,70 @@ def run_demo(
                 ).get("decision_request_count"),
                 "execution_capsule_authz_operator_decision_execution_permission_count": provider_envelope_data.get(
                     "manual_provider_test_execution_capsule_authz_operator_decision",
+                    {},
+                ).get("execution_permission_count"),
+                "execution_capsule_authz_release_attestation_status": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_release_attestation",
+                    {},
+                ).get("status"),
+                "execution_capsule_authz_release_attestation_reason": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_release_attestation",
+                    {},
+                ).get("reason"),
+                "execution_capsule_authz_release_attestation_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_release_attestation",
+                    {},
+                ).get("execution_capsule_authz_release_attestation_hash"),
+                "execution_capsule_authz_release_attestation_decision_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_release_attestation",
+                    {},
+                ).get("execution_capsule_authz_operator_decision_hash"),
+                "execution_capsule_authz_release_attestation_material_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_release_attestation",
+                    {},
+                ).get("release_attestation_hash"),
+                "execution_capsule_authz_release_attestation_claim_boundary_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_release_attestation",
+                    {},
+                ).get("claim_boundary_hash"),
+                "execution_capsule_authz_release_attestation_no_call_counters_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_release_attestation",
+                    {},
+                ).get("no_call_counters_hash"),
+                "execution_capsule_authz_release_attestation_component_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_release_attestation",
+                    {},
+                ).get("component_count"),
+                "execution_capsule_authz_release_attestation_passed_component_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_release_attestation",
+                    {},
+                ).get("passed_component_count"),
+                "execution_capsule_authz_release_attestation_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_release_attestation",
+                    {},
+                ).get("mismatch_count"),
+                "execution_capsule_authz_release_attestation_component_hash_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_release_attestation",
+                    {},
+                ).get("component_hash_count"),
+                "execution_capsule_authz_release_attestation_no_call_counter_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_release_attestation",
+                    {},
+                ).get("no_call_counter_count"),
+                "execution_capsule_authz_release_attestation_claim_boundary_check_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_release_attestation",
+                    {},
+                ).get("claim_boundary_check_count"),
+                "execution_capsule_authz_release_attestation_material_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_release_attestation",
+                    {},
+                ).get("release_attestation_count"),
+                "execution_capsule_authz_release_attestation_request_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_release_attestation",
+                    {},
+                ).get("attestation_request_count"),
+                "execution_capsule_authz_release_attestation_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_release_attestation",
                     {},
                 ).get("execution_permission_count"),
                 "review_packet_read_model_status": (
