@@ -82,6 +82,7 @@ sequenceDiagram
 | `manual_provider_test_sealed_pre_execution_packet` | local sealed packet over handoff, opt-in, policy, rollback, and abort hashes |
 | `manual_provider_test_arming_record` | local arming record over sealed packet, operator, expiry, rollback, and abort hashes |
 | `manual_provider_test_release_proposal` | local release proposal over arming record, operator, release window, and rollback hashes |
+| `manual_provider_test_final_release_packet` | local final packet over release proposal, arming record, operator, release window, and rollback hashes |
 
 ## Persistence Boundary
 
@@ -317,6 +318,13 @@ hash match. It binds operator, release window, and rollback evidence as hashes
 and counts only. The proposal still reports `release_proposal_execution_closed`
 and keeps `execution_permission_count=0`.
 
+`AW-LIVE-20` adds a no-call final release packet. The packet requires a release
+proposal hash and a separate expected release proposal hash match. It binds the
+release proposal, arming record, operator, release window, and rollback hashes
+into one status/reason/hash/count projection. The packet still reports
+`final_release_packet_execution_closed` and keeps
+`execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -396,3 +404,6 @@ outside the current executable path.
   and must not grant execution permission.
 - release proposals must bind to arming record, operator, release window, and
   rollback hashes only and must not grant execution permission.
+- final release packets must bind to release proposal, arming record, operator,
+  release window, and rollback hashes only and must not grant execution
+  permission.

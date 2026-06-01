@@ -78,4 +78,5 @@ load `.env` values, call Solar Pro 3, or run the DAACS target runtime.
   summaries remain blocked and hash-only. The sealed pre-execution packet also
   remains blocked and exposes only hashes and counts. The arming record
   remains blocked and exposes only hashes and counts. The release proposal
+  remains blocked and exposes only hashes and counts. The final release packet
   remains blocked and exposes only hashes and counts.

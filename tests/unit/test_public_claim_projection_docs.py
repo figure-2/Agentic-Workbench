@@ -100,6 +100,9 @@ LIVE_18_WORK_ORDER_PATH = ROOT / "docs" / "work-orders" / "aw-live-18-arming-rec
 LIVE_19_PATH = ROOT / "docs" / "evals" / "aw-live-19-release-proposal.md"
 LIVE_19_RUNBOOK_PATH = ROOT / "docs" / "runbooks" / "aw-live-19-release-proposal.md"
 LIVE_19_WORK_ORDER_PATH = ROOT / "docs" / "work-orders" / "aw-live-19-release-proposal.md"
+LIVE_20_PATH = ROOT / "docs" / "evals" / "aw-live-20-final-release-packet.md"
+LIVE_20_RUNBOOK_PATH = ROOT / "docs" / "runbooks" / "aw-live-20-final-release-packet.md"
+LIVE_20_WORK_ORDER_PATH = ROOT / "docs" / "work-orders" / "aw-live-20-final-release-packet.md"
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -169,6 +172,9 @@ PUBLIC_CLAIM_DOCS = [
     LIVE_19_PATH,
     LIVE_19_RUNBOOK_PATH,
     LIVE_19_WORK_ORDER_PATH,
+    LIVE_20_PATH,
+    LIVE_20_RUNBOOK_PATH,
+    LIVE_20_WORK_ORDER_PATH,
 ]
 
 

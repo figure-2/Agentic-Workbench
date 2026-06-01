@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-19` no-call release proposal boundary.
+Current snapshot after `AW-LIVE-20` no-call final release packet boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 189 |
-| Counted code/doc files, excluding cache and private SoT | 187 |
-| Project lines, excluding cache and private SoT | 36,872 |
+| Project files, excluding cache and private SoT | 192 |
+| Counted code/doc files, excluding cache and private SoT | 190 |
+| Project lines, excluding cache and private SoT | 37,622 |
 | Python files | 76 |
-| Markdown files | 106 |
+| Markdown files | 109 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 426 |
-| Pytest passed cases | 426 |
+| Pytest collected cases | 429 |
+| Pytest passed cases | 429 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -2151,5 +2151,49 @@ proposal.
 
 Interpretation: this adds a local no-call release proposal for a later manual
 provider test candidate. It does not add an external call path, SDK
+integration, env value access, network access, provider response parsing,
+hosted execution, or production provider readiness.
+
+## AW-LIVE-20 Final Release Packet Metrics
+
+Measured after adding the blocked no-call final release packet.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 429 |
+| Pytest passed cases | 429 |
+| Regression delta vs AW-LIVE-19 baseline | +3 |
+| API final release packet integration tests | 3 |
+| Provider envelope API integration tests | 34 |
+| Demo provider envelope smoke tests | 1 |
+| Final release packet public summary fields | 13 |
+| Final release packet component count | 8 |
+| Final release packet component hash count | 5 |
+| Final release packet passed count with missing expected release hash | 5 |
+| Final release packet mismatch count with missing expected release hash | 3 |
+| Final release packet passed count with complete packet | 8 |
+| Execution permission count with complete packet | 0 |
+| Missing expected release hash reason | expected_release_proposal_hash_required |
+| Complete packet reason | final_release_packet_execution_closed |
+| Final packet proposal hash mismatch reason | final_release_packet_proposal_hash_mismatch |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| release proposal hash exists before final packet | covered |
+| expected release proposal hash must match | covered |
+| arming record, operator, and release window hashes are included | covered |
+| rollback/abort hash is included | covered |
+| public final release packet exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local no-call final release packet for a later
+manual provider test candidate. It does not add an external call path, SDK
 integration, env value access, network access, provider response parsing,
 hosted execution, or production provider readiness.

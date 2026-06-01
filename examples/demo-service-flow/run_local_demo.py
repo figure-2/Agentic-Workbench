@@ -30,6 +30,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     MANUAL_PROVIDER_TEST_EXECUTOR_VERSION,
     ProviderEnvelopeRepositoryConfig,
     provider_manual_test_arming_record_summary,
+    provider_manual_test_release_proposal_summary,
     provider_manual_test_handoff_packet_summary,
     provider_manual_test_operator_opt_in_summary,
     provider_manual_test_preflight_summary,
@@ -224,6 +225,11 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
         "release_window_end": "2026-06-01T00:40:00Z",
         "rollback_abort_hash": arming_summary["rollback_abort_hash"],
     }
+    release_summary = provider_manual_test_release_proposal_summary(payload)
+    payload["expected_release_proposal_hash"] = release_summary["release_proposal_hash"]
+    payload["manual_test_final_release_packet"] = {
+        "release_proposal_hash": release_summary["release_proposal_hash"],
+    }
     return payload
 
 
@@ -353,6 +359,14 @@ def _checks(
             release_proposal.get("status") == "blocked"
             and release_proposal.get("reason") == "release_proposal_execution_closed"
             and int(release_proposal.get("execution_permission_count", -1)) == 0
+        )
+        final_release_packet = provider_envelope_data.get(
+            "manual_provider_test_final_release_packet", {}
+        )
+        checks["provider_final_release_packet_blocked"] = (
+            final_release_packet.get("status") == "blocked"
+            and final_release_packet.get("reason") == "final_release_packet_execution_closed"
+            and int(final_release_packet.get("execution_permission_count", -1)) == 0
         )
     return checks
 
@@ -741,6 +755,45 @@ def run_demo(
                 ).get("component_hash_count"),
                 "release_proposal_execution_permission_count": provider_envelope_data.get(
                     "manual_provider_test_release_proposal", {}
+                ).get("execution_permission_count"),
+                "final_release_packet_status": provider_envelope_data.get(
+                    "manual_provider_test_final_release_packet", {}
+                ).get("status"),
+                "final_release_packet_reason": provider_envelope_data.get(
+                    "manual_provider_test_final_release_packet", {}
+                ).get("reason"),
+                "final_release_packet_hash": provider_envelope_data.get(
+                    "manual_provider_test_final_release_packet", {}
+                ).get("final_release_packet_hash"),
+                "final_release_packet_release_proposal_hash": provider_envelope_data.get(
+                    "manual_provider_test_final_release_packet", {}
+                ).get("release_proposal_hash"),
+                "final_release_packet_arming_record_hash": provider_envelope_data.get(
+                    "manual_provider_test_final_release_packet", {}
+                ).get("arming_record_hash"),
+                "final_release_packet_operator_hash": provider_envelope_data.get(
+                    "manual_provider_test_final_release_packet", {}
+                ).get("operator_hash"),
+                "final_release_packet_release_window_hash": provider_envelope_data.get(
+                    "manual_provider_test_final_release_packet", {}
+                ).get("release_window_hash"),
+                "final_release_packet_rollback_abort_hash": provider_envelope_data.get(
+                    "manual_provider_test_final_release_packet", {}
+                ).get("rollback_abort_hash"),
+                "final_release_packet_component_count": provider_envelope_data.get(
+                    "manual_provider_test_final_release_packet", {}
+                ).get("component_count"),
+                "final_release_packet_passed_component_count": provider_envelope_data.get(
+                    "manual_provider_test_final_release_packet", {}
+                ).get("passed_component_count"),
+                "final_release_packet_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_final_release_packet", {}
+                ).get("mismatch_count"),
+                "final_release_packet_component_hash_count": provider_envelope_data.get(
+                    "manual_provider_test_final_release_packet", {}
+                ).get("component_hash_count"),
+                "final_release_packet_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_final_release_packet", {}
                 ).get("execution_permission_count"),
                 "review_packet_read_model_status": (
                     provider_envelope_read_data or {}
