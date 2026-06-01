@@ -34,6 +34,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     provider_manual_test_completion_summary,
     provider_manual_test_executor_dispatch_record_summary,
     provider_manual_test_executor_preflight_summary,
+    provider_manual_test_execution_authorization_capsule_summary,
     provider_manual_test_execution_switch_summary,
     provider_manual_test_final_release_packet_summary,
     provider_manual_test_invocation_receipt_summary,
@@ -380,6 +381,20 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
             "reason_code": "local-demo-no-call-execution-capsule-sealed",
         },
     }
+    execution_capsule_hash = provider_manual_test_execution_authorization_capsule_summary(
+        payload
+    )["execution_capsule_hash"]
+    payload["expected_execution_capsule_hash"] = execution_capsule_hash
+    payload["manual_test_execution_capsule_export"] = {
+        "execution_capsule_hash": execution_capsule_hash,
+        "export_requested": True,
+        "export_metadata": {
+            "operator_ref": "local-demo-operator",
+            "exported_at": "2026-06-01T01:10:00Z",
+            "export_kind": "read_model_projection",
+            "export_reason_code": "local-demo-no-call-capsule-exported",
+        },
+    }
     return payload
 
 
@@ -620,6 +635,22 @@ def _checks(
             and execution_capsule.get("reason")
             == "execution_authorization_capsule_execution_closed"
             and int(execution_capsule.get("execution_permission_count", -1)) == 0
+        )
+        execution_capsule_export = provider_envelope_data.get(
+            "manual_provider_test_execution_capsule_export", {}
+        )
+        execution_capsule_export_read_model = provider_envelope_data.get(
+            "manual_provider_test_execution_capsule_export_read_model", {}
+        )
+        checks["provider_execution_capsule_export_blocked"] = (
+            execution_capsule_export.get("status") == "blocked"
+            and execution_capsule_export.get("reason")
+            == "execution_capsule_export_execution_closed"
+            and int(execution_capsule_export.get("execution_permission_count", -1))
+            == 0
+        )
+        checks["provider_execution_capsule_export_read_model_available"] = (
+            execution_capsule_export_read_model.get("status") == "available"
         )
     return checks
 
@@ -1561,6 +1592,70 @@ def run_demo(
                 "execution_capsule_execution_permission_count": provider_envelope_data.get(
                     "manual_provider_test_execution_capsule", {}
                 ).get("execution_permission_count"),
+                "execution_capsule_export_status": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_export", {}
+                ).get("status"),
+                "execution_capsule_export_reason": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_export", {}
+                ).get("reason"),
+                "execution_capsule_export_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_export", {}
+                ).get("execution_capsule_export_hash"),
+                "execution_capsule_export_execution_capsule_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_export", {}
+                ).get("execution_capsule_hash"),
+                "execution_capsule_export_metadata_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_export", {}
+                ).get("export_metadata_hash"),
+                "execution_capsule_export_claim_boundary_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_export", {}
+                ).get("claim_boundary_hash"),
+                "execution_capsule_export_no_call_counters_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_export", {}
+                ).get("no_call_counters_hash"),
+                "execution_capsule_export_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_export", {}
+                ).get("export_count"),
+                "execution_capsule_export_component_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_export", {}
+                ).get("component_count"),
+                "execution_capsule_export_passed_component_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_export", {}
+                ).get("passed_component_count"),
+                "execution_capsule_export_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_export", {}
+                ).get("mismatch_count"),
+                "execution_capsule_export_component_hash_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_export", {}
+                ).get("component_hash_count"),
+                "execution_capsule_export_no_call_counter_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_export", {}
+                ).get("no_call_counter_count"),
+                "execution_capsule_export_claim_boundary_check_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_export", {}
+                ).get("claim_boundary_check_count"),
+                "execution_capsule_export_metadata_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_export", {}
+                ).get("export_metadata_count"),
+                "execution_capsule_export_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_export", {}
+                ).get("execution_permission_count"),
+                "execution_capsule_export_read_model_status": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_export_read_model", {}
+                ).get("status"),
+                "execution_capsule_export_read_model_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_export_read_model", {}
+                ).get("latest_execution_capsule_export_hash"),
+                "execution_capsule_export_read_model_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_export_read_model", {}
+                )
+                .get("counts", {})
+                .get("execution_capsule_export_count"),
+                "execution_capsule_export_read_model_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_export_read_model", {}
+                )
+                .get("counts", {})
+                .get("execution_permission_count"),
                 "review_packet_read_model_status": (
                     provider_envelope_read_data or {}
                 )

@@ -86,6 +86,7 @@ sequenceDiagram
 | `manual_provider_test_execution_switch` | local disabled switch over final release packet and switch-enable hashes |
 | `manual_provider_test_release_seal` | local disabled release seal over release-attestation, seal-material, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule` | local disabled execution capsule over release seal, final authorization, claim-boundary, and no-call counter hashes |
+| `manual_provider_test_execution_capsule_export` | local disabled execution capsule export/read-model over execution capsule, export metadata, claim-boundary, and no-call counter hashes |
 
 ## Persistence Boundary
 
@@ -411,6 +412,14 @@ counter hashes into one status/reason/hash/count projection. The capsule still
 reports `execution_authorization_capsule_execution_closed` and keeps
 `execution_permission_count=0`.
 
+`AW-LIVE-33` adds a disabled first-call execution capsule export/read-model.
+The export requires an execution capsule hash and a separate expected execution
+capsule hash match. It binds execution capsule, export metadata,
+claim-boundary, and no-call counter hashes into one status/reason/hash/count
+projection. The export read model exposes only the latest export hash and
+counts. The export still reports `execution_capsule_export_execution_closed`
+and keeps `execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -521,3 +530,6 @@ outside the current executable path.
 - execution authorization capsules must bind to release seal, final
   authorization, claim-boundary, and no-call counter hashes only and must not
   grant execution permission.
+- execution capsule exports/read models must bind to execution capsule, export
+  metadata, claim-boundary, and no-call counter hashes only and must not grant
+  execution permission.

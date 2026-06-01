@@ -167,6 +167,18 @@ LIVE_32_RUNBOOK_PATH = (
 LIVE_32_WORK_ORDER_PATH = (
     ROOT / "docs" / "work-orders" / "aw-live-32-execution-authorization-capsule.md"
 )
+LIVE_33_PATH = (
+    ROOT / "docs" / "evals" / "aw-live-33-execution-capsule-export-read-model.md"
+)
+LIVE_33_RUNBOOK_PATH = (
+    ROOT / "docs" / "runbooks" / "aw-live-33-execution-capsule-export-read-model.md"
+)
+LIVE_33_WORK_ORDER_PATH = (
+    ROOT
+    / "docs"
+    / "work-orders"
+    / "aw-live-33-execution-capsule-export-read-model.md"
+)
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -275,6 +287,9 @@ PUBLIC_CLAIM_DOCS = [
     LIVE_32_PATH,
     LIVE_32_RUNBOOK_PATH,
     LIVE_32_WORK_ORDER_PATH,
+    LIVE_33_PATH,
+    LIVE_33_RUNBOOK_PATH,
+    LIVE_33_WORK_ORDER_PATH,
 ]
 
 
