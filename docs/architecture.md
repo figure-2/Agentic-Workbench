@@ -80,6 +80,7 @@ sequenceDiagram
 | `manual_provider_test_handoff_packet` | final no-call packet with status, reason, handoff hash, and counts only |
 | `manual_provider_test_operator_opt_in` | local opt-in checklist bound to the handoff packet hash, still execution-closed |
 | `manual_provider_test_sealed_pre_execution_packet` | local sealed packet over handoff, opt-in, policy, rollback, and abort hashes |
+| `manual_provider_test_arming_record` | local arming record over sealed packet, operator, expiry, rollback, and abort hashes |
 
 ## Persistence Boundary
 
@@ -303,6 +304,12 @@ hashes into one status/reason/hash/count projection. The packet still reports
 `sealed_pre_execution_packet_execution_closed` and keeps
 `execution_permission_count=0`.
 
+`AW-LIVE-18` adds a no-call live execution arming record. The record requires a
+sealed packet hash and a separate expected sealed packet hash match. It binds
+operator, expiry, rollback, and abort policy evidence as hashes and counts
+only. The record still reports `arming_record_execution_closed` and keeps
+`execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -378,3 +385,5 @@ outside the current executable path.
   must not grant execution permission.
 - sealed pre-execution packets must bind to no-call evidence hashes only and
   must not grant execution permission.
+- arming records must bind to sealed packet and operator intent hashes only
+  and must not grant execution permission.

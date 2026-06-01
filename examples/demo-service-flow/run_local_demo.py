@@ -33,6 +33,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     provider_manual_test_operator_opt_in_summary,
     provider_manual_test_preflight_summary,
     provider_manual_test_proposal_summary,
+    provider_manual_test_sealed_pre_execution_packet_summary,
     provider_precheck_operator_policy_summary,
 )
 from packages.core.live_open_policy import LIVE_OPEN_REQUIRED_CONTROLS
@@ -197,6 +198,21 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
     }
     opt_in_summary = provider_manual_test_operator_opt_in_summary(payload)
     payload["expected_operator_opt_in_hash"] = opt_in_summary["operator_opt_in_hash"]
+    sealed_summary = provider_manual_test_sealed_pre_execution_packet_summary(payload)
+    payload["expected_sealed_packet_hash"] = sealed_summary["sealed_packet_hash"]
+    payload["manual_test_live_execution_arming"] = {
+        "sealed_packet_hash": sealed_summary["sealed_packet_hash"],
+        "operator_ref": "local-demo-operator",
+        "armed_at": "2026-06-01T00:20:00Z",
+        "expires_at": "2026-06-01T00:25:00Z",
+        "rollback_abort_hash": sealed_summary["rollback_abort_hash"],
+        "abort_policy_hash": stable_contract_hash(
+            {
+                "abort_policy": "local-demo-manual-provider-test-stop-policy",
+                "run_id": run_id,
+            }
+        ),
+    }
     return payload
 
 
@@ -310,6 +326,14 @@ def _checks(
             and sealed_packet.get("reason")
             == "sealed_pre_execution_packet_execution_closed"
             and int(sealed_packet.get("execution_permission_count", -1)) == 0
+        )
+        arming_record = provider_envelope_data.get(
+            "manual_provider_test_arming_record", {}
+        )
+        checks["provider_arming_record_blocked"] = (
+            arming_record.get("status") == "blocked"
+            and arming_record.get("reason") == "arming_record_execution_closed"
+            and int(arming_record.get("execution_permission_count", -1)) == 0
         )
     return checks
 
@@ -623,6 +647,45 @@ def run_demo(
                 ).get("component_hash_count"),
                 "sealed_packet_execution_permission_count": provider_envelope_data.get(
                     "manual_provider_test_sealed_pre_execution_packet", {}
+                ).get("execution_permission_count"),
+                "arming_record_status": provider_envelope_data.get(
+                    "manual_provider_test_arming_record", {}
+                ).get("status"),
+                "arming_record_reason": provider_envelope_data.get(
+                    "manual_provider_test_arming_record", {}
+                ).get("reason"),
+                "arming_record_hash": provider_envelope_data.get(
+                    "manual_provider_test_arming_record", {}
+                ).get("arming_record_hash"),
+                "arming_record_sealed_packet_hash": provider_envelope_data.get(
+                    "manual_provider_test_arming_record", {}
+                ).get("sealed_packet_hash"),
+                "arming_record_operator_hash": provider_envelope_data.get(
+                    "manual_provider_test_arming_record", {}
+                ).get("operator_hash"),
+                "arming_record_expiry_hash": provider_envelope_data.get(
+                    "manual_provider_test_arming_record", {}
+                ).get("expiry_hash"),
+                "arming_record_rollback_abort_hash": provider_envelope_data.get(
+                    "manual_provider_test_arming_record", {}
+                ).get("rollback_abort_hash"),
+                "arming_record_abort_policy_hash": provider_envelope_data.get(
+                    "manual_provider_test_arming_record", {}
+                ).get("abort_policy_hash"),
+                "arming_record_component_count": provider_envelope_data.get(
+                    "manual_provider_test_arming_record", {}
+                ).get("component_count"),
+                "arming_record_passed_component_count": provider_envelope_data.get(
+                    "manual_provider_test_arming_record", {}
+                ).get("passed_component_count"),
+                "arming_record_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_arming_record", {}
+                ).get("mismatch_count"),
+                "arming_record_component_hash_count": provider_envelope_data.get(
+                    "manual_provider_test_arming_record", {}
+                ).get("component_hash_count"),
+                "arming_record_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_arming_record", {}
                 ).get("execution_permission_count"),
                 "review_packet_read_model_status": (
                     provider_envelope_read_data or {}

@@ -9,6 +9,7 @@ from apps.api.agentic_workbench_api.services.evidence_read_model import Evidence
 from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     MANUAL_PROVIDER_TEST_EXECUTOR_VERSION,
     ProviderEnvelopeRepositoryConfig,
+    provider_manual_test_arming_record_summary,
     provider_manual_test_handoff_packet_summary,
     provider_manual_test_operator_opt_in_summary,
     provider_manual_test_preflight_summary,
@@ -113,6 +114,9 @@ def _provider_envelope_precheck_payload(
     operator_opt_in_handoff_hash_override: str | None = None,
     include_sealed_pre_execution_packet: bool = False,
     sealed_operator_opt_in_hash_override: str | None = None,
+    include_arming_record: bool = False,
+    arming_expected_sealed_hash_override: str | None = None,
+    arming_record_sealed_hash_override: str | None = None,
 ) -> dict:
     payload = {
         "run_id": run_id,
@@ -255,6 +259,31 @@ def _provider_envelope_precheck_payload(
         payload["manual_test_sealed_pre_execution_packet"] = {
             "authorization_material": "API17_SEALED_AUTH_SENTINEL",
             "provider_payload": "API17_SEALED_PROVIDER_PAYLOAD_SENTINEL",
+        }
+    if include_arming_record:
+        sealed_summary = provider_manual_test_sealed_pre_execution_packet_summary(payload)
+        abort_policy_hash = stable_contract_hash(
+            {
+                "abort_policy": "manual-provider-test-stop-policy",
+                "run_id": run_id,
+            }
+        )
+        payload["expected_sealed_packet_hash"] = (
+            arming_expected_sealed_hash_override
+            or sealed_summary["sealed_packet_hash"]
+        )
+        payload["manual_test_live_execution_arming"] = {
+            "sealed_packet_hash": (
+                arming_record_sealed_hash_override
+                or sealed_summary["sealed_packet_hash"]
+            ),
+            "operator_ref": "local-operator",
+            "armed_at": "2026-06-01T00:20:00Z",
+            "expires_at": "2026-06-01T00:25:00Z",
+            "rollback_abort_hash": sealed_summary["rollback_abort_hash"],
+            "abort_policy_hash": abort_policy_hash,
+            "authorization_material": "API18_ARMING_AUTH_SENTINEL",
+            "provider_payload": "API18_ARMING_PROVIDER_PAYLOAD_SENTINEL",
         }
     return payload
 
@@ -2911,6 +2940,241 @@ def test_provider_envelope_precheck_api_blocks_sealed_packet_operator_hash_misma
     for forbidden in (
         "API17_SEALED_AUTH_SENTINEL",
         "API17_SEALED_PROVIDER_PAYLOAD_SENTINEL",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_arming_record_without_expected_sealed_hash(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-arming-missing-expected",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+        include_operator_opt_in=True,
+        include_sealed_pre_execution_packet=True,
+    )
+    expected_handoff = provider_manual_test_handoff_packet_summary(request_payload)
+    expected_sealed = provider_manual_test_sealed_pre_execution_packet_summary(
+        request_payload
+    )
+    request_payload["expected_handoff_packet_hash"] = expected_handoff[
+        "handoff_packet_hash"
+    ]
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    arming = data["manual_provider_test_arming_record"]
+
+    assert set(arming) == {
+        "status",
+        "reason",
+        "arming_record_hash",
+        "sealed_packet_hash",
+        "operator_hash",
+        "expiry_hash",
+        "rollback_abort_hash",
+        "abort_policy_hash",
+        "component_count",
+        "passed_component_count",
+        "mismatch_count",
+        "component_hash_count",
+        "execution_permission_count",
+    }
+    assert arming["status"] == "blocked"
+    assert arming["reason"] == "expected_sealed_packet_hash_required"
+    assert arming["arming_record_hash"] == ""
+    assert arming["sealed_packet_hash"] == expected_sealed["sealed_packet_hash"]
+    assert arming["operator_hash"] == ""
+    assert arming["expiry_hash"] == ""
+    assert arming["rollback_abort_hash"] == ""
+    assert arming["abort_policy_hash"] == ""
+    assert arming["component_count"] == 8
+    assert arming["passed_component_count"] == 1
+    assert arming["mismatch_count"] == 7
+    assert arming["component_hash_count"] == 1
+    assert arming["execution_permission_count"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API18_ARMING_AUTH_SENTINEL",
+        "API18_ARMING_PROVIDER_PAYLOAD_SENTINEL",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_builds_arming_record_but_keeps_execution_disabled(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-arming-present",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+        include_operator_opt_in=True,
+        include_sealed_pre_execution_packet=True,
+        include_arming_record=True,
+    )
+    expected_handoff = provider_manual_test_handoff_packet_summary(request_payload)
+    expected_sealed = provider_manual_test_sealed_pre_execution_packet_summary(
+        request_payload
+    )
+    expected_arming = provider_manual_test_arming_record_summary(request_payload)
+    request_payload["expected_handoff_packet_hash"] = expected_handoff[
+        "handoff_packet_hash"
+    ]
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    arming = data["manual_provider_test_arming_record"]
+
+    assert arming["status"] == "blocked"
+    assert arming["reason"] == "arming_record_execution_closed"
+    assert arming["arming_record_hash"] == expected_arming["arming_record_hash"]
+    assert arming["sealed_packet_hash"] == expected_sealed["sealed_packet_hash"]
+    assert arming["operator_hash"] == expected_arming["operator_hash"]
+    assert arming["expiry_hash"] == expected_arming["expiry_hash"]
+    assert arming["rollback_abort_hash"] == expected_sealed["rollback_abort_hash"]
+    assert arming["abort_policy_hash"] == request_payload[
+        "manual_test_live_execution_arming"
+    ]["abort_policy_hash"]
+    assert arming["component_count"] == 8
+    assert arming["passed_component_count"] == 8
+    assert arming["mismatch_count"] == 0
+    assert arming["component_hash_count"] == 5
+    assert arming["execution_permission_count"] == 0
+    assert data["provider_envelope_admission"]["adapter_reached"] is True
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API18_ARMING_AUTH_SENTINEL",
+        "API18_ARMING_PROVIDER_PAYLOAD_SENTINEL",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_arming_record_sealed_hash_mismatch(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-arming-mismatch",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+        include_operator_opt_in=True,
+        include_sealed_pre_execution_packet=True,
+        include_arming_record=True,
+        arming_record_sealed_hash_override="f" * 64,
+    )
+    expected_handoff = provider_manual_test_handoff_packet_summary(request_payload)
+    expected_sealed = provider_manual_test_sealed_pre_execution_packet_summary(
+        request_payload
+    )
+    request_payload["expected_handoff_packet_hash"] = expected_handoff[
+        "handoff_packet_hash"
+    ]
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    arming = data["manual_provider_test_arming_record"]
+
+    assert arming["status"] == "blocked"
+    assert arming["reason"] == "arming_record_sealed_hash_mismatch"
+    assert arming["arming_record_hash"] == ""
+    assert arming["sealed_packet_hash"] == expected_sealed["sealed_packet_hash"]
+    assert arming["operator_hash"]
+    assert arming["expiry_hash"]
+    assert arming["rollback_abort_hash"] == expected_sealed["rollback_abort_hash"]
+    assert arming["abort_policy_hash"] == request_payload[
+        "manual_test_live_execution_arming"
+    ]["abort_policy_hash"]
+    assert arming["component_count"] == 8
+    assert arming["passed_component_count"] == 7
+    assert arming["mismatch_count"] == 1
+    assert arming["component_hash_count"] == 5
+    assert arming["execution_permission_count"] == 0
+    assert data["provider_envelope_admission"]["adapter_reached"] is True
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API18_ARMING_AUTH_SENTINEL",
+        "API18_ARMING_PROVIDER_PAYLOAD_SENTINEL",
         "authorization_material",
         "provider_payload",
         "raw_prompt",

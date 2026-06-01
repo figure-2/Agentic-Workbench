@@ -49,6 +49,8 @@ Agentic Workbench is a local/dev AI agent workflow harness prototype. It may cla
   with execution permission closed
 - Sealed pre-execution packet over handoff, opt-in, cost/timeout/quota, and
   rollback/abort hashes, with execution permission closed
+- No-call arming record over sealed packet, operator, expiry, rollback, and
+  abort policy hashes, with execution permission closed
 - Sanitized public summaries and correlation hashes
 - Fixture-based smoke tests and local regression tests
 
@@ -128,6 +130,8 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
   permission, hosted execution, or production provider readiness
 - sealed pre-execution packet described as external provider behavior,
   execution permission, hosted execution, or production provider readiness
+- arming record described as external provider behavior, execution permission,
+  hosted execution, or production provider readiness
 
 ## Public Artifact Rules
 
@@ -175,3 +179,4 @@ Allowed replacements:
 | Handoff Packet Gate | Manual provider test handoff packet remains blocked and exposes only status/reason/hash/count |
 | Operator Opt-In Checklist Gate | Operator opt-in binds to the handoff packet hash but remains blocked and exposes only status/reason/hash/count |
 | Sealed Pre-Execution Packet Gate | Sealed packet binds handoff, opt-in, policy, rollback, and abort hashes but remains execution-closed |
+| Arming Record Gate | Arming record binds sealed packet, operator, expiry, rollback, and abort hashes but remains execution-closed |

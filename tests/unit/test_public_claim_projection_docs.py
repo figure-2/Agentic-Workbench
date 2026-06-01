@@ -94,6 +94,9 @@ LIVE_17_RUNBOOK_PATH = (
 LIVE_17_WORK_ORDER_PATH = (
     ROOT / "docs" / "work-orders" / "aw-live-17-sealed-pre-execution-packet.md"
 )
+LIVE_18_PATH = ROOT / "docs" / "evals" / "aw-live-18-arming-record.md"
+LIVE_18_RUNBOOK_PATH = ROOT / "docs" / "runbooks" / "aw-live-18-arming-record.md"
+LIVE_18_WORK_ORDER_PATH = ROOT / "docs" / "work-orders" / "aw-live-18-arming-record.md"
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -157,6 +160,9 @@ PUBLIC_CLAIM_DOCS = [
     LIVE_17_PATH,
     LIVE_17_RUNBOOK_PATH,
     LIVE_17_WORK_ORDER_PATH,
+    LIVE_18_PATH,
+    LIVE_18_RUNBOOK_PATH,
+    LIVE_18_WORK_ORDER_PATH,
 ]
 
 

@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-17` sealed pre-execution packet boundary.
+Current snapshot after `AW-LIVE-18` no-call arming record boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 183 |
-| Counted code/doc files, excluding cache and private SoT | 181 |
-| Project lines, excluding cache and private SoT | 35,357 |
+| Project files, excluding cache and private SoT | 186 |
+| Counted code/doc files, excluding cache and private SoT | 184 |
+| Project lines, excluding cache and private SoT | 36,133 |
 | Python files | 76 |
-| Markdown files | 100 |
+| Markdown files | 103 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 420 |
-| Pytest passed cases | 420 |
+| Pytest collected cases | 423 |
+| Pytest passed cases | 423 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -2063,4 +2063,48 @@ Measured after adding the blocked sealed pre-execution packet boundary.
 Interpretation: this adds a local no-call sealed pre-execution packet for a
 later manual provider test candidate. It does not add an external call path,
 SDK integration, env value access, network access, provider response parsing,
+hosted execution, or production provider readiness.
+
+## AW-LIVE-18 Live Execution Arming Record Metrics
+
+Measured after adding the blocked no-call live execution arming record.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 423 |
+| Pytest passed cases | 423 |
+| Regression delta vs AW-LIVE-17 baseline | +3 |
+| API arming record integration tests | 3 |
+| Provider envelope API integration tests | 28 |
+| Demo provider envelope smoke tests | 1 |
+| Arming record public summary fields | 13 |
+| Arming record component count | 8 |
+| Arming record component hash count | 5 |
+| Arming record passed count with missing expected sealed hash | 1 |
+| Arming record mismatch count with missing expected sealed hash | 7 |
+| Arming record passed count with complete record | 8 |
+| Execution permission count with complete record | 0 |
+| Missing expected sealed hash reason | expected_sealed_packet_hash_required |
+| Complete record reason | arming_record_execution_closed |
+| Arming sealed hash mismatch reason | arming_record_sealed_hash_mismatch |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| sealed packet hash exists before arming | covered |
+| expected sealed packet hash must match | covered |
+| operator and expiry are represented as hashes | covered |
+| rollback/abort and abort policy hashes are included | covered |
+| public arming record exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local no-call arming record for a later manual
+provider test candidate. It does not add an external call path, SDK
+integration, env value access, network access, provider response parsing,
 hosted execution, or production provider readiness.

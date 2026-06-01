@@ -184,6 +184,21 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert envelope["sealed_packet_mismatch_count"] == 0
     assert envelope["sealed_packet_component_hash_count"] == 4
     assert envelope["sealed_packet_execution_permission_count"] == 0
+    assert envelope["arming_record_status"] == "blocked"
+    assert envelope["arming_record_reason"] == "arming_record_execution_closed"
+    assert envelope["arming_record_hash"]
+    assert envelope["arming_record_sealed_packet_hash"] == envelope["sealed_packet_hash"]
+    assert envelope["arming_record_operator_hash"]
+    assert envelope["arming_record_expiry_hash"]
+    assert envelope["arming_record_rollback_abort_hash"] == envelope[
+        "sealed_packet_rollback_abort_hash"
+    ]
+    assert envelope["arming_record_abort_policy_hash"]
+    assert envelope["arming_record_component_count"] == 8
+    assert envelope["arming_record_passed_component_count"] == 8
+    assert envelope["arming_record_mismatch_count"] == 0
+    assert envelope["arming_record_component_hash_count"] == 5
+    assert envelope["arming_record_execution_permission_count"] == 0
     assert envelope["review_packet_read_model_status"] == "available"
     assert envelope["review_packet_read_export_hash"] == envelope["review_packet_hash"]
     assert envelope["review_packet_read_export_count"] == 1
@@ -198,6 +213,7 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert checks["provider_handoff_packet_blocked"] is True
     assert checks["provider_operator_opt_in_blocked"] is True
     assert checks["provider_sealed_packet_blocked"] is True
+    assert checks["provider_arming_record_blocked"] is True
     assert envelope["execution_boundary"]["provider_calls"] == 0
     assert envelope["execution_boundary"]["network_calls"] == 0
     assert envelope["execution_boundary"]["solar_live_api_calls"] == 0
