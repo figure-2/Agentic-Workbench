@@ -103,6 +103,9 @@ LIVE_19_WORK_ORDER_PATH = ROOT / "docs" / "work-orders" / "aw-live-19-release-pr
 LIVE_20_PATH = ROOT / "docs" / "evals" / "aw-live-20-final-release-packet.md"
 LIVE_20_RUNBOOK_PATH = ROOT / "docs" / "runbooks" / "aw-live-20-final-release-packet.md"
 LIVE_20_WORK_ORDER_PATH = ROOT / "docs" / "work-orders" / "aw-live-20-final-release-packet.md"
+LIVE_21_PATH = ROOT / "docs" / "evals" / "aw-live-21-execution-switch.md"
+LIVE_21_RUNBOOK_PATH = ROOT / "docs" / "runbooks" / "aw-live-21-execution-switch.md"
+LIVE_21_WORK_ORDER_PATH = ROOT / "docs" / "work-orders" / "aw-live-21-execution-switch.md"
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -175,6 +178,9 @@ PUBLIC_CLAIM_DOCS = [
     LIVE_20_PATH,
     LIVE_20_RUNBOOK_PATH,
     LIVE_20_WORK_ORDER_PATH,
+    LIVE_21_PATH,
+    LIVE_21_RUNBOOK_PATH,
+    LIVE_21_WORK_ORDER_PATH,
 ]
 
 

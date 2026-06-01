@@ -30,6 +30,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     MANUAL_PROVIDER_TEST_EXECUTOR_VERSION,
     ProviderEnvelopeRepositoryConfig,
     provider_manual_test_arming_record_summary,
+    provider_manual_test_final_release_packet_summary,
     provider_manual_test_release_proposal_summary,
     provider_manual_test_handoff_packet_summary,
     provider_manual_test_operator_opt_in_summary,
@@ -230,6 +231,14 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
     payload["manual_test_final_release_packet"] = {
         "release_proposal_hash": release_summary["release_proposal_hash"],
     }
+    final_summary = provider_manual_test_final_release_packet_summary(payload)
+    payload["expected_final_release_packet_hash"] = final_summary[
+        "final_release_packet_hash"
+    ]
+    payload["manual_test_execution_switch"] = {
+        "final_release_packet_hash": final_summary["final_release_packet_hash"],
+        "enable_requested": True,
+    }
     return payload
 
 
@@ -367,6 +376,14 @@ def _checks(
             final_release_packet.get("status") == "blocked"
             and final_release_packet.get("reason") == "final_release_packet_execution_closed"
             and int(final_release_packet.get("execution_permission_count", -1)) == 0
+        )
+        execution_switch = provider_envelope_data.get(
+            "manual_provider_test_execution_switch", {}
+        )
+        checks["provider_execution_switch_blocked"] = (
+            execution_switch.get("status") == "blocked"
+            and execution_switch.get("reason") == "execution_switch_disabled_by_default"
+            and int(execution_switch.get("execution_permission_count", -1)) == 0
         )
     return checks
 
@@ -794,6 +811,39 @@ def run_demo(
                 ).get("component_hash_count"),
                 "final_release_packet_execution_permission_count": provider_envelope_data.get(
                     "manual_provider_test_final_release_packet", {}
+                ).get("execution_permission_count"),
+                "execution_switch_status": provider_envelope_data.get(
+                    "manual_provider_test_execution_switch", {}
+                ).get("status"),
+                "execution_switch_reason": provider_envelope_data.get(
+                    "manual_provider_test_execution_switch", {}
+                ).get("reason"),
+                "execution_switch_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_switch", {}
+                ).get("execution_switch_hash"),
+                "execution_switch_final_release_packet_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_switch", {}
+                ).get("final_release_packet_hash"),
+                "execution_switch_enable_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_switch", {}
+                ).get("switch_enable_hash"),
+                "execution_switch_component_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_switch", {}
+                ).get("component_count"),
+                "execution_switch_passed_component_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_switch", {}
+                ).get("passed_component_count"),
+                "execution_switch_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_switch", {}
+                ).get("mismatch_count"),
+                "execution_switch_component_hash_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_switch", {}
+                ).get("component_hash_count"),
+                "execution_switch_enable_request_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_switch", {}
+                ).get("enable_request_count"),
+                "execution_switch_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_switch", {}
                 ).get("execution_permission_count"),
                 "review_packet_read_model_status": (
                     provider_envelope_read_data or {}

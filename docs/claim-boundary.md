@@ -55,6 +55,8 @@ Agentic Workbench is a local/dev AI agent workflow harness prototype. It may cla
   rollback/abort hashes, with execution permission closed
 - No-call final release packet over release proposal, arming record, operator,
   release window, and rollback/abort hashes, with execution permission closed
+- Disabled first-call execution switch over final release packet and
+  switch-enable hashes, with execution permission closed
 - Sanitized public summaries and correlation hashes
 - Fixture-based smoke tests and local regression tests
 
@@ -140,6 +142,8 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
   permission, hosted execution, or production provider readiness
 - final release packet described as external provider behavior, execution
   permission, hosted execution, or production provider readiness
+- execution switch described as external provider behavior, execution
+  permission, hosted execution, or production provider readiness
 
 ## Public Artifact Rules
 
@@ -190,3 +194,4 @@ Allowed replacements:
 | Arming Record Gate | Arming record binds sealed packet, operator, expiry, rollback, and abort hashes but remains execution-closed |
 | Release Proposal Gate | Release proposal binds arming record, operator, release window, and rollback hashes but remains execution-closed |
 | Final Release Packet Gate | Final release packet binds release proposal, arming record, operator, release window, and rollback hashes but remains execution-closed |
+| Execution Switch Gate | Execution switch binds final release packet and switch-enable hashes but remains execution-closed |

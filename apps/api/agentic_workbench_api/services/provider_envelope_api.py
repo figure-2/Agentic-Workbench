@@ -91,6 +91,9 @@ MANUAL_PROVIDER_TEST_RELEASE_PROPOSAL_VERSION = (
 MANUAL_PROVIDER_TEST_FINAL_RELEASE_PACKET_VERSION = (
     "manual-provider-test-final-release-packet-v1"
 )
+MANUAL_PROVIDER_TEST_EXECUTION_SWITCH_VERSION = (
+    "manual-provider-test-disabled-first-call-execution-switch-v1"
+)
 
 
 @dataclass(slots=True)
@@ -554,6 +557,24 @@ def _manual_provider_test_final_release_packet_blocked(reason: str) -> JsonDict:
             "passed_component_count": 0,
             "mismatch_count": 1,
             "component_hash_count": 0,
+            "execution_permission_count": 0,
+        }
+    )
+
+
+def _manual_provider_test_execution_switch_blocked(reason: str) -> JsonDict:
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "execution_switch_hash": "",
+            "final_release_packet_hash": "",
+            "switch_enable_hash": "",
+            "component_count": 0,
+            "passed_component_count": 0,
+            "mismatch_count": 1,
+            "component_hash_count": 0,
+            "enable_request_count": 0,
             "execution_permission_count": 0,
         }
     )
@@ -1596,6 +1617,104 @@ def _manual_provider_test_final_release_packet_projection(
     )
 
 
+def _manual_provider_test_execution_switch_projection(
+    *,
+    payload: dict[str, Any],
+    final_release_packet: JsonDict,
+) -> JsonDict:
+    final_release_packet_hash = str(
+        final_release_packet.get("final_release_packet_hash", "")
+    ).strip()
+    expected_final_release_packet_hash = str(
+        payload.get("expected_final_release_packet_hash", "")
+    ).strip()
+    switch_payload = (
+        payload.get("manual_test_execution_switch")
+        if isinstance(payload.get("manual_test_execution_switch"), dict)
+        else {}
+    )
+    supplied_final_release_packet_hash = str(
+        switch_payload.get("final_release_packet_hash", "")
+    ).strip()
+    switch_enable_requested = switch_payload.get("enable_requested") is True
+    switch_enable_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": MANUAL_PROVIDER_TEST_EXECUTION_SWITCH_VERSION,
+                "enable_requested": True,
+            }
+        )
+        if switch_enable_requested
+        else ""
+    )
+    component_checks = [
+        str(final_release_packet.get("status", "")) == "blocked"
+        and str(final_release_packet.get("reason", ""))
+        == "final_release_packet_execution_closed"
+        and bool(final_release_packet_hash),
+        bool(expected_final_release_packet_hash)
+        and expected_final_release_packet_hash == final_release_packet_hash,
+        bool(switch_payload),
+        bool(supplied_final_release_packet_hash)
+        and supplied_final_release_packet_hash == final_release_packet_hash,
+        switch_enable_requested,
+    ]
+    component_count = len(component_checks)
+    passed_component_count = sum(1 for check in component_checks if check)
+    mismatch_count = component_count - passed_component_count
+    component_hash_count = sum(
+        1
+        for value in (
+            final_release_packet_hash,
+            switch_enable_hash,
+        )
+        if value
+    )
+
+    if not component_checks[0]:
+        reason = "final_release_packet_missing_or_mismatched"
+    elif not expected_final_release_packet_hash:
+        reason = "expected_final_release_packet_hash_required"
+    elif expected_final_release_packet_hash != final_release_packet_hash:
+        reason = "final_release_packet_hash_mismatch"
+    elif not component_checks[2]:
+        reason = "execution_switch_required"
+    elif not component_checks[3]:
+        reason = "execution_switch_final_hash_mismatch"
+    elif not component_checks[4]:
+        reason = "execution_switch_enable_required"
+    else:
+        reason = "execution_switch_disabled_by_default"
+
+    execution_switch_hash = ""
+    if mismatch_count == 0:
+        execution_switch_hash = stable_contract_hash(
+            {
+                "projection_version": MANUAL_PROVIDER_TEST_EXECUTION_SWITCH_VERSION,
+                "final_release_packet_hash": final_release_packet_hash,
+                "switch_enable_hash": switch_enable_hash,
+                "component_count": component_count,
+                "execution_permission": "closed",
+            }
+        )
+
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "execution_switch_hash": execution_switch_hash,
+            "final_release_packet_hash": final_release_packet_hash,
+            "switch_enable_hash": switch_enable_hash,
+            "component_count": component_count,
+            "passed_component_count": passed_component_count,
+            "mismatch_count": mismatch_count,
+            "component_hash_count": component_hash_count,
+            "enable_request_count": 1 if switch_enable_requested else 0,
+            "execution_permission_count": 0,
+        }
+    )
+
+
 def _manual_test_proposal_projection(
     *,
     payload: dict[str, Any],
@@ -1975,6 +2094,15 @@ def provider_manual_test_final_release_packet_summary(payload: dict[str, Any]) -
     )
 
 
+def provider_manual_test_execution_switch_summary(payload: dict[str, Any]) -> dict[str, Any]:
+    """Build the public no-call disabled execution switch projection."""
+    final_release_packet = provider_manual_test_final_release_packet_summary(payload)
+    return _manual_provider_test_execution_switch_projection(
+        payload=payload,
+        final_release_packet=final_release_packet,
+    )
+
+
 def _review_packet_export_from_read_model(read_model: JsonDict) -> JsonDict:
     if str(read_model.get("status", "")) == "blocked":
         return _manual_provider_test_review_packet_export_blocked(
@@ -2098,6 +2226,7 @@ def _blocked_projection(
     manual_provider_test_arming_record: JsonDict | None = None,
     manual_provider_test_release_proposal: JsonDict | None = None,
     manual_provider_test_final_release_packet: JsonDict | None = None,
+    manual_provider_test_execution_switch: JsonDict | None = None,
 ) -> dict[str, Any]:
     selected_operator_approval = operator_approval_envelope or _operator_approval_missing_projection()
     selected_dry_admission = live_provider_dry_admission or _live_provider_dry_admission_checklist(
@@ -2180,6 +2309,12 @@ def _blocked_projection(
             "release_proposal_not_evaluated"
         )
     )
+    selected_execution_switch = (
+        manual_provider_test_execution_switch
+        or _manual_provider_test_execution_switch_blocked(
+            "final_release_packet_not_evaluated"
+        )
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -2219,6 +2354,7 @@ def _blocked_projection(
             "manual_provider_test_arming_record": selected_arming_record,
             "manual_provider_test_release_proposal": selected_release_proposal,
             "manual_provider_test_final_release_packet": selected_final_release_packet,
+            "manual_provider_test_execution_switch": selected_execution_switch,
             "provider_envelope_read_model": read_model or {},
             "checks": [{"name": check_name, "passed": False}],
             "errors": [message],
@@ -2578,6 +2714,10 @@ def _projection_from_result(
         payload=payload,
         release_proposal=release_proposal,
     )
+    execution_switch = _manual_provider_test_execution_switch_projection(
+        payload=payload,
+        final_release_packet=final_release_packet,
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -2613,6 +2753,7 @@ def _projection_from_result(
             "manual_provider_test_arming_record": arming_record,
             "manual_provider_test_release_proposal": release_proposal,
             "manual_provider_test_final_release_packet": final_release_packet,
+            "manual_provider_test_execution_switch": execution_switch,
             "provider_envelope_read_model": read_model,
             "checks": _check_map(result.checks),
             "errors": [str(error) for error in result.errors],
@@ -2787,6 +2928,11 @@ def run_provider_envelope_precheck(
                     "release_proposal_missing_or_mismatched"
                 )
             ),
+            manual_provider_test_execution_switch=(
+                _manual_provider_test_execution_switch_blocked(
+                    "final_release_packet_missing_or_mismatched"
+                )
+            ),
         )
     manual_provider_test_handoff_packet_preview = (
         _manual_provider_test_handoff_packet_projection(
@@ -2848,6 +2994,11 @@ def run_provider_envelope_precheck(
             manual_provider_test_final_release_packet=(
                 _manual_provider_test_final_release_packet_blocked(
                     "release_proposal_missing_or_mismatched"
+                )
+            ),
+            manual_provider_test_execution_switch=(
+                _manual_provider_test_execution_switch_blocked(
+                    "final_release_packet_missing_or_mismatched"
                 )
             ),
         )
@@ -3083,6 +3234,9 @@ def read_provider_envelope_precheck(
             "manual_provider_test_final_release_packet": _manual_provider_test_final_release_packet_blocked(
                 "release_proposal_missing_or_mismatched"
             ),
+            "manual_provider_test_execution_switch": _manual_provider_test_execution_switch_blocked(
+                "final_release_packet_missing_or_mismatched"
+            ),
             "provider_envelope_read_model": read_model,
             "checks": [{"name": "provider_envelope_read_model_available", "passed": True}],
             "errors": [],
@@ -3120,6 +3274,7 @@ __all__ = [
     "MANUAL_PROVIDER_TEST_ARMING_RECORD_VERSION",
     "MANUAL_PROVIDER_TEST_RELEASE_PROPOSAL_VERSION",
     "MANUAL_PROVIDER_TEST_FINAL_RELEASE_PACKET_VERSION",
+    "MANUAL_PROVIDER_TEST_EXECUTION_SWITCH_VERSION",
     "provider_manual_test_proposal_summary",
     "provider_manual_test_preflight_summary",
     "provider_manual_test_review_packet_summary",
@@ -3129,6 +3284,7 @@ __all__ = [
     "provider_manual_test_arming_record_summary",
     "provider_manual_test_release_proposal_summary",
     "provider_manual_test_final_release_packet_summary",
+    "provider_manual_test_execution_switch_summary",
     "provider_precheck_operator_policy_summary",
     "read_provider_envelope_precheck",
     "run_provider_envelope_precheck",

@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-20` no-call final release packet boundary.
+Current snapshot after `AW-LIVE-21` disabled execution switch boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 192 |
-| Counted code/doc files, excluding cache and private SoT | 190 |
-| Project lines, excluding cache and private SoT | 37,622 |
+| Project files, excluding cache and private SoT | 195 |
+| Counted code/doc files, excluding cache and private SoT | 193 |
+| Project lines, excluding cache and private SoT | 38,324 |
 | Python files | 76 |
-| Markdown files | 109 |
+| Markdown files | 112 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 429 |
-| Pytest passed cases | 429 |
+| Pytest collected cases | 432 |
+| Pytest passed cases | 432 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -2195,5 +2195,51 @@ Measured after adding the blocked no-call final release packet.
 
 Interpretation: this adds a local no-call final release packet for a later
 manual provider test candidate. It does not add an external call path, SDK
+integration, env value access, network access, provider response parsing,
+hosted execution, or production provider readiness.
+
+## AW-LIVE-21 Disabled Execution Switch Metrics
+
+Measured after adding the blocked disabled first-call execution switch.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 432 |
+| Pytest passed cases | 432 |
+| Regression delta vs AW-LIVE-20 baseline | +3 |
+| API execution switch integration tests | 3 |
+| Provider envelope API integration tests | 37 |
+| Demo provider envelope smoke tests | 1 |
+| Execution switch public summary fields | 11 |
+| Execution switch component count | 5 |
+| Execution switch component hash count | 2 |
+| Execution switch passed count with missing expected final hash | 1 |
+| Execution switch mismatch count with missing expected final hash | 4 |
+| Execution switch passed count without enable flag | 4 |
+| Execution switch mismatch count without enable flag | 1 |
+| Execution switch passed count with complete switch | 5 |
+| Execution permission count with complete switch | 0 |
+| Missing expected final hash reason | expected_final_release_packet_hash_required |
+| Missing enable flag reason | execution_switch_enable_required |
+| Complete switch reason | execution_switch_disabled_by_default |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| final release packet hash exists before switch | covered |
+| expected final release packet hash must match | covered |
+| separate enable flag is required | covered |
+| enable flag still leaves execution permission at 0 | covered |
+| public execution switch exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled execution switch for a later manual
+provider test candidate. It does not add an external call path, SDK
 integration, env value access, network access, provider response parsing,
 hosted execution, or production provider readiness.

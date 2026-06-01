@@ -83,6 +83,7 @@ sequenceDiagram
 | `manual_provider_test_arming_record` | local arming record over sealed packet, operator, expiry, rollback, and abort hashes |
 | `manual_provider_test_release_proposal` | local release proposal over arming record, operator, release window, and rollback hashes |
 | `manual_provider_test_final_release_packet` | local final packet over release proposal, arming record, operator, release window, and rollback hashes |
+| `manual_provider_test_execution_switch` | local disabled switch over final release packet and switch-enable hashes |
 
 ## Persistence Boundary
 
@@ -325,6 +326,12 @@ into one status/reason/hash/count projection. The packet still reports
 `final_release_packet_execution_closed` and keeps
 `execution_permission_count=0`.
 
+`AW-LIVE-21` adds a disabled first-call execution switch. The switch requires a
+final release packet hash and a separate expected final release packet hash
+match. It also requires a separate local enable flag, but the complete switch
+still reports `execution_switch_disabled_by_default` and keeps
+`execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -407,3 +414,5 @@ outside the current executable path.
 - final release packets must bind to release proposal, arming record, operator,
   release window, and rollback hashes only and must not grant execution
   permission.
+- execution switches must bind to final release packet and switch-enable hashes
+  only and must not grant execution permission.
