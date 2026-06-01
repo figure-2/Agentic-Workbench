@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-21` disabled execution switch boundary.
+Current snapshot after `AW-LIVE-22` disabled executor preflight boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 195 |
-| Counted code/doc files, excluding cache and private SoT | 193 |
-| Project lines, excluding cache and private SoT | 38,324 |
+| Project files, excluding cache and private SoT | 196 |
+| Counted code/doc files, excluding cache and private SoT | 196 |
+| Project lines, excluding cache and private SoT | 39,113 |
 | Python files | 76 |
-| Markdown files | 112 |
+| Markdown files | 115 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 432 |
-| Pytest passed cases | 432 |
+| Pytest collected cases | 435 |
+| Pytest passed cases | 435 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -2240,6 +2240,53 @@ Measured after adding the blocked disabled first-call execution switch.
 | provider/runtime calls remain at 0 | covered |
 
 Interpretation: this adds a local disabled execution switch for a later manual
+provider test candidate. It does not add an external call path, SDK
+integration, env value access, network access, provider response parsing,
+hosted execution, or production provider readiness.
+
+## AW-LIVE-22 Disabled Executor Preflight Metrics
+
+Measured after adding the blocked disabled first-call executor preflight.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 435 |
+| Pytest passed cases | 435 |
+| Regression delta vs AW-LIVE-21 baseline | +3 |
+| API executor preflight integration tests | 3 |
+| Provider envelope API integration tests | 40 |
+| Demo provider envelope smoke tests | 1 |
+| Executor preflight public summary fields | 12 |
+| Executor preflight component count | 5 |
+| Executor preflight component hash count | 3 |
+| Executor preflight no-call counter count | 13 |
+| Executor preflight passed count with missing expected switch hash | 2 |
+| Executor preflight mismatch count with missing expected switch hash | 3 |
+| Executor preflight passed count without preflight payload | 3 |
+| Executor preflight mismatch count without preflight payload | 2 |
+| Executor preflight passed count with complete preflight | 5 |
+| Execution permission count with complete preflight | 0 |
+| Missing expected switch hash reason | expected_execution_switch_hash_required |
+| Missing preflight payload reason | executor_preflight_required |
+| Complete preflight reason | executor_preflight_execution_closed |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| execution switch hash exists before executor preflight | covered |
+| expected execution switch hash must match | covered |
+| executor preflight payload is required | covered |
+| no-call counters are represented as hash/count evidence | covered |
+| public executor preflight exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled executor preflight for a later manual
 provider test candidate. It does not add an external call path, SDK
 integration, env value access, network access, provider response parsing,
 hosted execution, or production provider readiness.

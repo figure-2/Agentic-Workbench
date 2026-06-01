@@ -332,6 +332,13 @@ match. It also requires a separate local enable flag, but the complete switch
 still reports `execution_switch_disabled_by_default` and keeps
 `execution_permission_count=0`.
 
+`AW-LIVE-22` adds a disabled first-call executor preflight. The preflight
+requires an execution switch hash and a separate expected execution switch hash
+match. It binds execution switch, final release packet, and no-call counter
+hashes into one status/reason/hash/count projection. The preflight still
+reports `executor_preflight_execution_closed` and keeps
+`execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -415,4 +422,6 @@ outside the current executable path.
   release window, and rollback hashes only and must not grant execution
   permission.
 - execution switches must bind to final release packet and switch-enable hashes
+  only and must not grant execution permission.
+- executor preflights must bind to execution switch and no-call counter hashes
   only and must not grant execution permission.

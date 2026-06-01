@@ -30,6 +30,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     MANUAL_PROVIDER_TEST_EXECUTOR_VERSION,
     ProviderEnvelopeRepositoryConfig,
     provider_manual_test_arming_record_summary,
+    provider_manual_test_execution_switch_summary,
     provider_manual_test_final_release_packet_summary,
     provider_manual_test_release_proposal_summary,
     provider_manual_test_handoff_packet_summary,
@@ -239,6 +240,13 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
         "final_release_packet_hash": final_summary["final_release_packet_hash"],
         "enable_requested": True,
     }
+    execution_switch_summary = provider_manual_test_execution_switch_summary(payload)
+    payload["expected_execution_switch_hash"] = execution_switch_summary[
+        "execution_switch_hash"
+    ]
+    payload["manual_test_executor_preflight"] = {
+        "execution_switch_hash": execution_switch_summary["execution_switch_hash"],
+    }
     return payload
 
 
@@ -384,6 +392,14 @@ def _checks(
             execution_switch.get("status") == "blocked"
             and execution_switch.get("reason") == "execution_switch_disabled_by_default"
             and int(execution_switch.get("execution_permission_count", -1)) == 0
+        )
+        executor_preflight = provider_envelope_data.get(
+            "manual_provider_test_executor_preflight", {}
+        )
+        checks["provider_executor_preflight_blocked"] = (
+            executor_preflight.get("status") == "blocked"
+            and executor_preflight.get("reason") == "executor_preflight_execution_closed"
+            and int(executor_preflight.get("execution_permission_count", -1)) == 0
         )
     return checks
 
@@ -844,6 +860,42 @@ def run_demo(
                 ).get("enable_request_count"),
                 "execution_switch_execution_permission_count": provider_envelope_data.get(
                     "manual_provider_test_execution_switch", {}
+                ).get("execution_permission_count"),
+                "executor_preflight_status": provider_envelope_data.get(
+                    "manual_provider_test_executor_preflight", {}
+                ).get("status"),
+                "executor_preflight_reason": provider_envelope_data.get(
+                    "manual_provider_test_executor_preflight", {}
+                ).get("reason"),
+                "executor_preflight_hash": provider_envelope_data.get(
+                    "manual_provider_test_executor_preflight", {}
+                ).get("executor_preflight_hash"),
+                "executor_preflight_execution_switch_hash": provider_envelope_data.get(
+                    "manual_provider_test_executor_preflight", {}
+                ).get("execution_switch_hash"),
+                "executor_preflight_final_release_packet_hash": provider_envelope_data.get(
+                    "manual_provider_test_executor_preflight", {}
+                ).get("final_release_packet_hash"),
+                "executor_preflight_no_call_counters_hash": provider_envelope_data.get(
+                    "manual_provider_test_executor_preflight", {}
+                ).get("no_call_counters_hash"),
+                "executor_preflight_component_count": provider_envelope_data.get(
+                    "manual_provider_test_executor_preflight", {}
+                ).get("component_count"),
+                "executor_preflight_passed_component_count": provider_envelope_data.get(
+                    "manual_provider_test_executor_preflight", {}
+                ).get("passed_component_count"),
+                "executor_preflight_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_executor_preflight", {}
+                ).get("mismatch_count"),
+                "executor_preflight_component_hash_count": provider_envelope_data.get(
+                    "manual_provider_test_executor_preflight", {}
+                ).get("component_hash_count"),
+                "executor_preflight_no_call_counter_count": provider_envelope_data.get(
+                    "manual_provider_test_executor_preflight", {}
+                ).get("no_call_counter_count"),
+                "executor_preflight_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_executor_preflight", {}
                 ).get("execution_permission_count"),
                 "review_packet_read_model_status": (
                     provider_envelope_read_data or {}

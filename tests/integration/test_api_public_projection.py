@@ -10,6 +10,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     MANUAL_PROVIDER_TEST_EXECUTOR_VERSION,
     ProviderEnvelopeRepositoryConfig,
     provider_manual_test_execution_switch_summary,
+    provider_manual_test_executor_preflight_summary,
     provider_manual_test_arming_record_summary,
     provider_manual_test_final_release_packet_summary,
     provider_manual_test_handoff_packet_summary,
@@ -130,6 +131,9 @@ def _provider_envelope_precheck_payload(
     execution_switch_expected_final_hash_override: str | None = None,
     execution_switch_final_hash_override: str | None = None,
     execution_switch_enable: bool = False,
+    include_executor_preflight: bool = False,
+    executor_preflight_expected_switch_hash_override: str | None = None,
+    executor_preflight_switch_hash_override: str | None = None,
 ) -> dict:
     payload = {
         "run_id": run_id,
@@ -347,6 +351,20 @@ def _provider_envelope_precheck_payload(
         }
         if execution_switch_enable:
             payload["manual_test_execution_switch"]["enable_requested"] = True
+    if include_executor_preflight:
+        switch_summary = provider_manual_test_execution_switch_summary(payload)
+        payload["expected_execution_switch_hash"] = (
+            executor_preflight_expected_switch_hash_override
+            or switch_summary["execution_switch_hash"]
+        )
+        payload["manual_test_executor_preflight"] = {
+            "execution_switch_hash": (
+                executor_preflight_switch_hash_override
+                or switch_summary["execution_switch_hash"]
+            ),
+            "authorization_material": "API22_PREFLIGHT_AUTH_SENTINEL",
+            "provider_payload": "API22_PREFLIGHT_PROVIDER_PAYLOAD_SENTINEL",
+        }
     return payload
 
 
@@ -3941,6 +3959,258 @@ def test_provider_envelope_precheck_api_builds_execution_switch_but_keeps_execut
         "authorization_material",
         "provider_payload",
         "enable_requested",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_executor_preflight_without_expected_switch_hash(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-preflight-missing-expected",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+        include_operator_opt_in=True,
+        include_sealed_pre_execution_packet=True,
+        include_arming_record=True,
+        include_release_proposal=True,
+        include_final_release_packet=True,
+        include_execution_switch=True,
+        execution_switch_enable=True,
+    )
+    expected_handoff = provider_manual_test_handoff_packet_summary(request_payload)
+    expected_switch = provider_manual_test_execution_switch_summary(request_payload)
+    request_payload["expected_handoff_packet_hash"] = expected_handoff[
+        "handoff_packet_hash"
+    ]
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    preflight = data["manual_provider_test_executor_preflight"]
+
+    assert set(preflight) == {
+        "status",
+        "reason",
+        "executor_preflight_hash",
+        "execution_switch_hash",
+        "final_release_packet_hash",
+        "no_call_counters_hash",
+        "component_count",
+        "passed_component_count",
+        "mismatch_count",
+        "component_hash_count",
+        "no_call_counter_count",
+        "execution_permission_count",
+    }
+    assert preflight["status"] == "blocked"
+    assert preflight["reason"] == "expected_execution_switch_hash_required"
+    assert preflight["executor_preflight_hash"] == ""
+    assert preflight["execution_switch_hash"] == expected_switch["execution_switch_hash"]
+    assert preflight["final_release_packet_hash"] == expected_switch[
+        "final_release_packet_hash"
+    ]
+    assert preflight["no_call_counters_hash"]
+    assert preflight["component_count"] == 5
+    assert preflight["passed_component_count"] == 2
+    assert preflight["mismatch_count"] == 3
+    assert preflight["component_hash_count"] == 3
+    assert preflight["no_call_counter_count"] == 13
+    assert preflight["execution_permission_count"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API22_PREFLIGHT_AUTH_SENTINEL",
+        "API22_PREFLIGHT_PROVIDER_PAYLOAD_SENTINEL",
+        "manual_test_executor_preflight",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_executor_preflight_without_preflight_payload(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-preflight-missing-payload",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+        include_operator_opt_in=True,
+        include_sealed_pre_execution_packet=True,
+        include_arming_record=True,
+        include_release_proposal=True,
+        include_final_release_packet=True,
+        include_execution_switch=True,
+        execution_switch_enable=True,
+    )
+    expected_handoff = provider_manual_test_handoff_packet_summary(request_payload)
+    expected_switch = provider_manual_test_execution_switch_summary(request_payload)
+    request_payload["expected_handoff_packet_hash"] = expected_handoff[
+        "handoff_packet_hash"
+    ]
+    request_payload["expected_execution_switch_hash"] = expected_switch[
+        "execution_switch_hash"
+    ]
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    preflight = data["manual_provider_test_executor_preflight"]
+
+    assert preflight["status"] == "blocked"
+    assert preflight["reason"] == "executor_preflight_required"
+    assert preflight["executor_preflight_hash"] == ""
+    assert preflight["execution_switch_hash"] == expected_switch["execution_switch_hash"]
+    assert preflight["final_release_packet_hash"] == expected_switch[
+        "final_release_packet_hash"
+    ]
+    assert preflight["no_call_counters_hash"]
+    assert preflight["component_count"] == 5
+    assert preflight["passed_component_count"] == 3
+    assert preflight["mismatch_count"] == 2
+    assert preflight["component_hash_count"] == 3
+    assert preflight["no_call_counter_count"] == 13
+    assert preflight["execution_permission_count"] == 0
+    assert data["provider_envelope_admission"]["adapter_reached"] is True
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API22_PREFLIGHT_AUTH_SENTINEL",
+        "API22_PREFLIGHT_PROVIDER_PAYLOAD_SENTINEL",
+        "manual_test_executor_preflight",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_builds_executor_preflight_but_keeps_execution_disabled(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-preflight-present",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+        include_operator_opt_in=True,
+        include_sealed_pre_execution_packet=True,
+        include_arming_record=True,
+        include_release_proposal=True,
+        include_final_release_packet=True,
+        include_execution_switch=True,
+        execution_switch_enable=True,
+        include_executor_preflight=True,
+    )
+    expected_handoff = provider_manual_test_handoff_packet_summary(request_payload)
+    expected_switch = provider_manual_test_execution_switch_summary(request_payload)
+    expected_preflight = provider_manual_test_executor_preflight_summary(
+        request_payload
+    )
+    request_payload["expected_handoff_packet_hash"] = expected_handoff[
+        "handoff_packet_hash"
+    ]
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    preflight = data["manual_provider_test_executor_preflight"]
+
+    assert preflight["status"] == "blocked"
+    assert preflight["reason"] == "executor_preflight_execution_closed"
+    assert preflight["executor_preflight_hash"] == expected_preflight[
+        "executor_preflight_hash"
+    ]
+    assert preflight["execution_switch_hash"] == expected_switch["execution_switch_hash"]
+    assert preflight["final_release_packet_hash"] == expected_switch[
+        "final_release_packet_hash"
+    ]
+    assert preflight["no_call_counters_hash"] == expected_preflight[
+        "no_call_counters_hash"
+    ]
+    assert preflight["component_count"] == 5
+    assert preflight["passed_component_count"] == 5
+    assert preflight["mismatch_count"] == 0
+    assert preflight["component_hash_count"] == 3
+    assert preflight["no_call_counter_count"] == 13
+    assert preflight["execution_permission_count"] == 0
+    assert data["provider_envelope_admission"]["adapter_reached"] is True
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API22_PREFLIGHT_AUTH_SENTINEL",
+        "API22_PREFLIGHT_PROVIDER_PAYLOAD_SENTINEL",
+        "manual_test_executor_preflight",
+        "authorization_material",
+        "provider_payload",
         "raw_prompt",
         request_payload["approval"]["nonce"],
         request_payload["approval"]["signature_id"],

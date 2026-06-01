@@ -57,6 +57,8 @@ Agentic Workbench is a local/dev AI agent workflow harness prototype. It may cla
   release window, and rollback/abort hashes, with execution permission closed
 - Disabled first-call execution switch over final release packet and
   switch-enable hashes, with execution permission closed
+- Disabled first-call executor preflight over execution switch, final release
+  packet, and no-call counter hashes, with execution permission closed
 - Sanitized public summaries and correlation hashes
 - Fixture-based smoke tests and local regression tests
 
@@ -143,6 +145,8 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
 - final release packet described as external provider behavior, execution
   permission, hosted execution, or production provider readiness
 - execution switch described as external provider behavior, execution
+  permission, hosted execution, or production provider readiness
+- executor preflight described as external provider behavior, execution
   permission, hosted execution, or production provider readiness
 
 ## Public Artifact Rules
