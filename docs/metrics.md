@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-28` disabled operator handback boundary.
+Current snapshot after `AW-LIVE-29` disabled operator decision packet boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 214 |
-| Counted code/doc files, excluding cache and private SoT | 214 |
-| Project lines, excluding cache and private SoT | 43,964 |
+| Project files, excluding cache and private SoT | 217 |
+| Counted code/doc files, excluding cache and private SoT | 217 |
+| Project lines, excluding cache and private SoT | 44,892 |
 | Python files | 76 |
-| Markdown files | 133 |
+| Markdown files | 136 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 453 |
-| Pytest passed cases | 453 |
+| Pytest collected cases | 456 |
+| Pytest passed cases | 456 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -2575,5 +2575,54 @@ Measured after adding the blocked disabled first-call operator handback.
 
 Interpretation: this adds a local disabled operator handback for a later manual
 provider test candidate. It does not add an external call path, SDK
+integration, env value access, network access, provider response parsing,
+hosted execution, live operator approval, or production provider readiness.
+
+## AW-LIVE-29 Disabled Operator Decision Packet Metrics
+
+Measured after adding the blocked disabled first-call operator decision packet.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 456 |
+| Pytest passed cases | 456 |
+| Regression delta vs AW-LIVE-28 baseline | +3 |
+| API operator decision packet integration tests | 3 |
+| Provider envelope API integration tests | 61 |
+| Demo provider envelope smoke tests | 1 |
+| Operator decision packet public summary fields | 16 |
+| Operator decision packet component count | 8 |
+| Operator decision packet component hash count | 4 |
+| Operator decision packet no-call counter count | 13 |
+| Claim-boundary check count | 3 |
+| Decision packet passed count with missing expected handback hash | 3 |
+| Decision packet mismatch count with missing expected handback hash | 5 |
+| Decision packet passed count without packet payload | 4 |
+| Decision packet mismatch count without packet payload | 4 |
+| Decision packet passed count with complete packet | 8 |
+| Execution permission count with complete packet | 0 |
+| Missing expected handback hash reason | expected_operator_handback_hash_required |
+| Missing packet payload reason | operator_decision_packet_required |
+| Complete packet reason | operator_decision_packet_execution_closed |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| operator handback hash exists before decision packet | covered |
+| expected operator handback hash must match | covered |
+| operator decision packet payload is required | covered |
+| operator decision is represented as hash/count evidence | covered |
+| claim boundary is represented as hash/count evidence | covered |
+| public packet exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled operator decision packet for a later
+manual provider test candidate. It does not add an external call path, SDK
 integration, env value access, network access, provider response parsing,
 hosted execution, live operator approval, or production provider readiness.

@@ -115,6 +115,9 @@ MANUAL_PROVIDER_TEST_CLOSEOUT_RECORD_VERSION = (
 MANUAL_PROVIDER_TEST_OPERATOR_HANDBACK_VERSION = (
     "manual-provider-test-disabled-first-call-operator-handback-v1"
 )
+MANUAL_PROVIDER_TEST_OPERATOR_DECISION_PACKET_VERSION = (
+    "manual-provider-test-disabled-first-call-operator-decision-packet-v1"
+)
 
 EXECUTOR_PREFLIGHT_NO_CALL_COUNTER_FIELDS = (
     "live_llm_calls",
@@ -757,6 +760,29 @@ def _manual_provider_test_operator_handback_blocked(reason: str) -> JsonDict:
             "claim_boundary_check_count": 0,
             "operator_review_count": 0,
             "handback_request_count": 0,
+            "execution_permission_count": 0,
+        }
+    )
+
+
+def _manual_provider_test_operator_decision_packet_blocked(reason: str) -> JsonDict:
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "operator_decision_packet_hash": "",
+            "operator_handback_hash": "",
+            "operator_decision_hash": "",
+            "claim_boundary_hash": "",
+            "no_call_counters_hash": "",
+            "component_count": 0,
+            "passed_component_count": 0,
+            "mismatch_count": 1,
+            "component_hash_count": 0,
+            "no_call_counter_count": 0,
+            "claim_boundary_check_count": 0,
+            "operator_decision_count": 0,
+            "decision_packet_request_count": 0,
             "execution_permission_count": 0,
         }
     )
@@ -2808,6 +2834,177 @@ def _manual_provider_test_operator_handback_projection(
     )
 
 
+def _manual_provider_test_operator_decision_packet_projection(
+    *,
+    payload: dict[str, Any],
+    operator_handback: JsonDict,
+    execution_boundary: JsonDict,
+) -> JsonDict:
+    operator_handback_hash = str(
+        operator_handback.get("operator_handback_hash", "")
+    ).strip()
+    expected_operator_handback_hash = str(
+        payload.get("expected_operator_handback_hash", "")
+    ).strip()
+    packet_payload = (
+        payload.get("manual_test_operator_decision_packet")
+        if isinstance(payload.get("manual_test_operator_decision_packet"), dict)
+        else {}
+    )
+    supplied_operator_handback_hash = str(
+        packet_payload.get("operator_handback_hash", "")
+    ).strip()
+    operator_decision = (
+        packet_payload.get("operator_decision")
+        if isinstance(packet_payload.get("operator_decision"), dict)
+        else {}
+    )
+    operator_decision_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": (
+                    MANUAL_PROVIDER_TEST_OPERATOR_DECISION_PACKET_VERSION
+                ),
+                "decision": str(operator_decision.get("decision", "")).strip(),
+                "decision_reason_code": str(
+                    operator_decision.get("decision_reason_code", "")
+                ).strip(),
+                "decided_at": str(operator_decision.get("decided_at", "")).strip(),
+                "operator_ref_hash": stable_contract_hash(
+                    {
+                        "operator_ref": str(
+                            operator_decision.get("operator_ref", "")
+                        ).strip()
+                    }
+                )
+                if str(operator_decision.get("operator_ref", "")).strip()
+                else "",
+            }
+        )
+        if operator_decision
+        else ""
+    )
+    packet_requested = packet_payload.get("packet_requested") is True
+    claim_boundary = _provider_envelope_claim_boundary_projection()
+    claim_boundary_closed = (
+        claim_boundary.get("external_provider_outcome") is False
+        and claim_boundary.get("target_runtime_outcome") is False
+        and claim_boundary.get("production_trust_claim") is False
+    )
+    claim_boundary_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": (
+                    MANUAL_PROVIDER_TEST_OPERATOR_DECISION_PACKET_VERSION
+                ),
+                "claim_boundary": claim_boundary,
+            }
+        )
+        if claim_boundary_closed
+        else ""
+    )
+    no_call_counters = _executor_preflight_no_call_counters(execution_boundary)
+    no_call_counters_closed = all(value == 0 for value in no_call_counters.values())
+    no_call_counters_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": (
+                    MANUAL_PROVIDER_TEST_OPERATOR_DECISION_PACKET_VERSION
+                ),
+                "no_call_counters": no_call_counters,
+            }
+        )
+        if no_call_counters_closed
+        else ""
+    )
+    component_checks = [
+        str(operator_handback.get("status", "")) == "blocked"
+        and str(operator_handback.get("reason", ""))
+        == "operator_handback_execution_closed"
+        and bool(operator_handback_hash),
+        bool(expected_operator_handback_hash)
+        and expected_operator_handback_hash == operator_handback_hash,
+        bool(packet_payload),
+        bool(supplied_operator_handback_hash)
+        and supplied_operator_handback_hash == operator_handback_hash,
+        bool(operator_decision_hash),
+        packet_requested,
+        claim_boundary_closed,
+        no_call_counters_closed,
+    ]
+    component_count = len(component_checks)
+    passed_component_count = sum(1 for check in component_checks if check)
+    mismatch_count = component_count - passed_component_count
+    component_hash_count = sum(
+        1
+        for value in (
+            operator_handback_hash,
+            operator_decision_hash,
+            claim_boundary_hash,
+            no_call_counters_hash,
+        )
+        if value
+    )
+
+    if not component_checks[0]:
+        reason = "operator_handback_missing_or_mismatched"
+    elif not expected_operator_handback_hash:
+        reason = "expected_operator_handback_hash_required"
+    elif expected_operator_handback_hash != operator_handback_hash:
+        reason = "operator_handback_hash_mismatch"
+    elif not component_checks[2]:
+        reason = "operator_decision_packet_required"
+    elif not component_checks[3]:
+        reason = "operator_decision_packet_handback_hash_mismatch"
+    elif not component_checks[4]:
+        reason = "operator_decision_required"
+    elif not component_checks[5]:
+        reason = "operator_decision_packet_request_required"
+    elif not component_checks[6]:
+        reason = "operator_decision_packet_claim_boundary_mismatch"
+    elif not component_checks[7]:
+        reason = "operator_decision_packet_no_call_counters_mismatch"
+    else:
+        reason = "operator_decision_packet_execution_closed"
+
+    operator_decision_packet_hash = ""
+    if mismatch_count == 0:
+        operator_decision_packet_hash = stable_contract_hash(
+            {
+                "projection_version": (
+                    MANUAL_PROVIDER_TEST_OPERATOR_DECISION_PACKET_VERSION
+                ),
+                "operator_handback_hash": operator_handback_hash,
+                "operator_decision_hash": operator_decision_hash,
+                "claim_boundary_hash": claim_boundary_hash,
+                "no_call_counters_hash": no_call_counters_hash,
+                "component_count": component_count,
+                "execution_permission": "closed",
+            }
+        )
+
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "operator_decision_packet_hash": operator_decision_packet_hash,
+            "operator_handback_hash": operator_handback_hash,
+            "operator_decision_hash": operator_decision_hash,
+            "claim_boundary_hash": claim_boundary_hash,
+            "no_call_counters_hash": no_call_counters_hash,
+            "component_count": component_count,
+            "passed_component_count": passed_component_count,
+            "mismatch_count": mismatch_count,
+            "component_hash_count": component_hash_count,
+            "no_call_counter_count": len(no_call_counters),
+            "claim_boundary_check_count": 3,
+            "operator_decision_count": 1 if operator_decision_hash else 0,
+            "decision_packet_request_count": 1 if packet_requested else 0,
+            "execution_permission_count": 0,
+        }
+    )
+
+
 def _manual_test_proposal_projection(
     *,
     payload: dict[str, Any],
@@ -3278,6 +3475,18 @@ def provider_manual_test_operator_handback_summary(
     )
 
 
+def provider_manual_test_operator_decision_packet_summary(
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the public no-call first-call operator decision packet projection."""
+    operator_handback = provider_manual_test_operator_handback_summary(payload)
+    return _manual_provider_test_operator_decision_packet_projection(
+        payload=payload,
+        operator_handback=operator_handback,
+        execution_boundary=_zero_execution_boundary(),
+    )
+
+
 def _review_packet_export_from_read_model(read_model: JsonDict) -> JsonDict:
     if str(read_model.get("status", "")) == "blocked":
         return _manual_provider_test_review_packet_export_blocked(
@@ -3409,6 +3618,7 @@ def _blocked_projection(
     manual_provider_test_completion_summary: JsonDict | None = None,
     manual_provider_test_closeout_record: JsonDict | None = None,
     manual_provider_test_operator_handback: JsonDict | None = None,
+    manual_provider_test_operator_decision_packet: JsonDict | None = None,
 ) -> dict[str, Any]:
     selected_operator_approval = operator_approval_envelope or _operator_approval_missing_projection()
     selected_dry_admission = live_provider_dry_admission or _live_provider_dry_admission_checklist(
@@ -3539,6 +3749,12 @@ def _blocked_projection(
             "closeout_record_not_evaluated"
         )
     )
+    selected_operator_decision_packet = (
+        manual_provider_test_operator_decision_packet
+        or _manual_provider_test_operator_decision_packet_blocked(
+            "operator_handback_not_evaluated"
+        )
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -3590,6 +3806,9 @@ def _blocked_projection(
             "manual_provider_test_completion_summary": selected_completion_summary,
             "manual_provider_test_closeout_record": selected_closeout_record,
             "manual_provider_test_operator_handback": selected_operator_handback,
+            "manual_provider_test_operator_decision_packet": (
+                selected_operator_decision_packet
+            ),
             "provider_envelope_read_model": read_model or {},
             "checks": [{"name": check_name, "passed": False}],
             "errors": [message],
@@ -3988,6 +4207,11 @@ def _projection_from_result(
         closeout_record=closeout_record,
         execution_boundary=execution_boundary,
     )
+    operator_decision_packet = _manual_provider_test_operator_decision_packet_projection(
+        payload=payload,
+        operator_handback=operator_handback,
+        execution_boundary=execution_boundary,
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -4031,6 +4255,9 @@ def _projection_from_result(
             "manual_provider_test_completion_summary": completion_summary,
             "manual_provider_test_closeout_record": closeout_record,
             "manual_provider_test_operator_handback": operator_handback,
+            "manual_provider_test_operator_decision_packet": (
+                operator_decision_packet
+            ),
             "provider_envelope_read_model": read_model,
             "checks": _check_map(result.checks),
             "errors": [str(error) for error in result.errors],
@@ -4547,6 +4774,11 @@ def read_provider_envelope_precheck(
                     "closeout_record_missing_or_mismatched"
                 )
             ),
+            "manual_provider_test_operator_decision_packet": (
+                _manual_provider_test_operator_decision_packet_blocked(
+                    "operator_handback_missing_or_mismatched"
+                )
+            ),
             "provider_envelope_read_model": read_model,
             "checks": [{"name": "provider_envelope_read_model_available", "passed": True}],
             "errors": [],
@@ -4592,6 +4824,7 @@ __all__ = [
     "MANUAL_PROVIDER_TEST_COMPLETION_SUMMARY_VERSION",
     "MANUAL_PROVIDER_TEST_CLOSEOUT_RECORD_VERSION",
     "MANUAL_PROVIDER_TEST_OPERATOR_HANDBACK_VERSION",
+    "MANUAL_PROVIDER_TEST_OPERATOR_DECISION_PACKET_VERSION",
     "provider_manual_test_proposal_summary",
     "provider_manual_test_preflight_summary",
     "provider_manual_test_review_packet_summary",
@@ -4609,6 +4842,7 @@ __all__ = [
     "provider_manual_test_completion_summary",
     "provider_manual_test_closeout_record_summary",
     "provider_manual_test_operator_handback_summary",
+    "provider_manual_test_operator_decision_packet_summary",
     "provider_precheck_operator_policy_summary",
     "read_provider_envelope_precheck",
     "run_provider_envelope_precheck",

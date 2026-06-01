@@ -17,6 +17,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     provider_manual_test_completion_summary,
     provider_manual_test_closeout_record_summary,
     provider_manual_test_operator_handback_summary,
+    provider_manual_test_operator_decision_packet_summary,
     provider_manual_test_arming_record_summary,
     provider_manual_test_final_release_packet_summary,
     provider_manual_test_handoff_packet_summary,
@@ -158,6 +159,9 @@ def _provider_envelope_precheck_payload(
     include_operator_handback: bool = False,
     handback_expected_closeout_hash_override: str | None = None,
     handback_closeout_hash_override: str | None = None,
+    include_operator_decision_packet: bool = False,
+    decision_expected_handback_hash_override: str | None = None,
+    decision_packet_handback_hash_override: str | None = None,
 ) -> dict:
     payload = {
         "run_id": run_id,
@@ -486,6 +490,27 @@ def _provider_envelope_precheck_payload(
             },
             "authorization_material": "API28_HANDBACK_AUTH_SENTINEL",
             "provider_payload": "API28_HANDBACK_PROVIDER_PAYLOAD_SENTINEL",
+        }
+    if include_operator_decision_packet:
+        handback_summary = provider_manual_test_operator_handback_summary(payload)
+        payload["expected_operator_handback_hash"] = (
+            decision_expected_handback_hash_override
+            or handback_summary["operator_handback_hash"]
+        )
+        payload["manual_test_operator_decision_packet"] = {
+            "operator_handback_hash": (
+                decision_packet_handback_hash_override
+                or handback_summary["operator_handback_hash"]
+            ),
+            "packet_requested": True,
+            "operator_decision": {
+                "decision": "acknowledged",
+                "decision_reason_code": "local-no-call-decision-reviewed",
+                "decided_at": "2026-06-01T00:55:00Z",
+                "operator_ref": "API29_OPERATOR_REF_SENTINEL",
+            },
+            "authorization_material": "API29_DECISION_AUTH_SENTINEL",
+            "provider_payload": "API29_DECISION_PROVIDER_PAYLOAD_SENTINEL",
         }
     return payload
 
@@ -6004,6 +6029,310 @@ def test_provider_envelope_precheck_api_builds_operator_handback_but_keeps_execu
         "handback_requested",
         "API28_OPERATOR_REF_SENTINEL",
         "local-no-call-handback-reviewed",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_operator_decision_packet_without_expected_handback_hash(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-decision-no-expected-handback",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+        include_operator_opt_in=True,
+        include_sealed_pre_execution_packet=True,
+        include_arming_record=True,
+        include_release_proposal=True,
+        include_final_release_packet=True,
+        include_execution_switch=True,
+        execution_switch_enable=True,
+        include_executor_preflight=True,
+        include_executor_dispatch_record=True,
+        include_invocation_receipt=True,
+        include_post_invocation_audit=True,
+        include_completion_summary=True,
+        include_closeout_record=True,
+        include_operator_handback=True,
+    )
+    expected_handoff = provider_manual_test_handoff_packet_summary(request_payload)
+    expected_handback = provider_manual_test_operator_handback_summary(request_payload)
+    request_payload["expected_handoff_packet_hash"] = expected_handoff[
+        "handoff_packet_hash"
+    ]
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    decision_packet = data["manual_provider_test_operator_decision_packet"]
+
+    assert set(decision_packet) == {
+        "status",
+        "reason",
+        "operator_decision_packet_hash",
+        "operator_handback_hash",
+        "operator_decision_hash",
+        "claim_boundary_hash",
+        "no_call_counters_hash",
+        "component_count",
+        "passed_component_count",
+        "mismatch_count",
+        "component_hash_count",
+        "no_call_counter_count",
+        "claim_boundary_check_count",
+        "operator_decision_count",
+        "decision_packet_request_count",
+        "execution_permission_count",
+    }
+    assert decision_packet["status"] == "blocked"
+    assert decision_packet["reason"] == "expected_operator_handback_hash_required"
+    assert decision_packet["operator_decision_packet_hash"] == ""
+    assert decision_packet["operator_handback_hash"] == expected_handback[
+        "operator_handback_hash"
+    ]
+    assert decision_packet["operator_decision_hash"] == ""
+    assert decision_packet["claim_boundary_hash"]
+    assert decision_packet["no_call_counters_hash"]
+    assert decision_packet["component_count"] == 8
+    assert decision_packet["passed_component_count"] == 3
+    assert decision_packet["mismatch_count"] == 5
+    assert decision_packet["component_hash_count"] == 3
+    assert decision_packet["no_call_counter_count"] == 13
+    assert decision_packet["claim_boundary_check_count"] == 3
+    assert decision_packet["operator_decision_count"] == 0
+    assert decision_packet["decision_packet_request_count"] == 0
+    assert decision_packet["execution_permission_count"] == 0
+    assert data["provider_envelope_admission"]["adapter_reached"] is True
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API29_DECISION_AUTH_SENTINEL",
+        "API29_DECISION_PROVIDER_PAYLOAD_SENTINEL",
+        "manual_test_operator_decision_packet",
+        "packet_requested",
+        "API29_OPERATOR_REF_SENTINEL",
+        "local-no-call-decision-reviewed",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_operator_decision_packet_without_packet_payload(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-decision-no-payload",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+        include_operator_opt_in=True,
+        include_sealed_pre_execution_packet=True,
+        include_arming_record=True,
+        include_release_proposal=True,
+        include_final_release_packet=True,
+        include_execution_switch=True,
+        execution_switch_enable=True,
+        include_executor_preflight=True,
+        include_executor_dispatch_record=True,
+        include_invocation_receipt=True,
+        include_post_invocation_audit=True,
+        include_completion_summary=True,
+        include_closeout_record=True,
+        include_operator_handback=True,
+    )
+    expected_handoff = provider_manual_test_handoff_packet_summary(request_payload)
+    expected_handback = provider_manual_test_operator_handback_summary(request_payload)
+    request_payload["expected_handoff_packet_hash"] = expected_handoff[
+        "handoff_packet_hash"
+    ]
+    request_payload["expected_operator_handback_hash"] = expected_handback[
+        "operator_handback_hash"
+    ]
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    decision_packet = data["manual_provider_test_operator_decision_packet"]
+
+    assert decision_packet["status"] == "blocked"
+    assert decision_packet["reason"] == "operator_decision_packet_required"
+    assert decision_packet["operator_decision_packet_hash"] == ""
+    assert decision_packet["operator_handback_hash"] == expected_handback[
+        "operator_handback_hash"
+    ]
+    assert decision_packet["operator_decision_hash"] == ""
+    assert decision_packet["claim_boundary_hash"]
+    assert decision_packet["no_call_counters_hash"]
+    assert decision_packet["component_count"] == 8
+    assert decision_packet["passed_component_count"] == 4
+    assert decision_packet["mismatch_count"] == 4
+    assert decision_packet["component_hash_count"] == 3
+    assert decision_packet["no_call_counter_count"] == 13
+    assert decision_packet["claim_boundary_check_count"] == 3
+    assert decision_packet["operator_decision_count"] == 0
+    assert decision_packet["decision_packet_request_count"] == 0
+    assert decision_packet["execution_permission_count"] == 0
+    assert data["provider_envelope_admission"]["adapter_reached"] is True
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API29_DECISION_AUTH_SENTINEL",
+        "API29_DECISION_PROVIDER_PAYLOAD_SENTINEL",
+        "manual_test_operator_decision_packet",
+        "packet_requested",
+        "API29_OPERATOR_REF_SENTINEL",
+        "local-no-call-decision-reviewed",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_builds_operator_decision_packet_but_keeps_execution_disabled(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-decision-present",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+        include_operator_opt_in=True,
+        include_sealed_pre_execution_packet=True,
+        include_arming_record=True,
+        include_release_proposal=True,
+        include_final_release_packet=True,
+        include_execution_switch=True,
+        execution_switch_enable=True,
+        include_executor_preflight=True,
+        include_executor_dispatch_record=True,
+        include_invocation_receipt=True,
+        include_post_invocation_audit=True,
+        include_completion_summary=True,
+        include_closeout_record=True,
+        include_operator_handback=True,
+        include_operator_decision_packet=True,
+    )
+    expected_handoff = provider_manual_test_handoff_packet_summary(request_payload)
+    expected_handback = provider_manual_test_operator_handback_summary(request_payload)
+    expected_decision_packet = provider_manual_test_operator_decision_packet_summary(
+        request_payload
+    )
+    request_payload["expected_handoff_packet_hash"] = expected_handoff[
+        "handoff_packet_hash"
+    ]
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    decision_packet = data["manual_provider_test_operator_decision_packet"]
+
+    assert decision_packet["status"] == "blocked"
+    assert decision_packet["reason"] == "operator_decision_packet_execution_closed"
+    assert decision_packet["operator_decision_packet_hash"] == (
+        expected_decision_packet["operator_decision_packet_hash"]
+    )
+    assert decision_packet["operator_handback_hash"] == expected_handback[
+        "operator_handback_hash"
+    ]
+    assert decision_packet["operator_decision_hash"] == expected_decision_packet[
+        "operator_decision_hash"
+    ]
+    assert decision_packet["operator_decision_hash"]
+    assert decision_packet["claim_boundary_hash"] == expected_decision_packet[
+        "claim_boundary_hash"
+    ]
+    assert decision_packet["no_call_counters_hash"] == expected_decision_packet[
+        "no_call_counters_hash"
+    ]
+    assert decision_packet["component_count"] == 8
+    assert decision_packet["passed_component_count"] == 8
+    assert decision_packet["mismatch_count"] == 0
+    assert decision_packet["component_hash_count"] == 4
+    assert decision_packet["no_call_counter_count"] == 13
+    assert decision_packet["claim_boundary_check_count"] == 3
+    assert decision_packet["operator_decision_count"] == 1
+    assert decision_packet["decision_packet_request_count"] == 1
+    assert decision_packet["execution_permission_count"] == 0
+    assert data["provider_envelope_admission"]["adapter_reached"] is True
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API29_DECISION_AUTH_SENTINEL",
+        "API29_DECISION_PROVIDER_PAYLOAD_SENTINEL",
+        "manual_test_operator_decision_packet",
+        "packet_requested",
+        "API29_OPERATOR_REF_SENTINEL",
+        "local-no-call-decision-reviewed",
         "authorization_material",
         "provider_payload",
         "raw_prompt",

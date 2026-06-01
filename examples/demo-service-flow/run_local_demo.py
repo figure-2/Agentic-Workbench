@@ -39,6 +39,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     provider_manual_test_invocation_receipt_summary,
     provider_manual_test_release_proposal_summary,
     provider_manual_test_handoff_packet_summary,
+    provider_manual_test_operator_handback_summary,
     provider_manual_test_operator_opt_in_summary,
     provider_manual_test_post_invocation_audit_summary,
     provider_manual_test_preflight_summary,
@@ -320,6 +321,20 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
             "review_reason_code": "local-demo-no-call-handback-reviewed",
         },
     }
+    operator_handback_hash = provider_manual_test_operator_handback_summary(payload)[
+        "operator_handback_hash"
+    ]
+    payload["expected_operator_handback_hash"] = operator_handback_hash
+    payload["manual_test_operator_decision_packet"] = {
+        "operator_handback_hash": operator_handback_hash,
+        "packet_requested": True,
+        "operator_decision": {
+            "operator_ref": "local-demo-operator",
+            "decided_at": "2026-06-01T00:50:00Z",
+            "decision": "acknowledged",
+            "decision_reason_code": "local-demo-no-call-decision-reviewed",
+        },
+    }
     return payload
 
 
@@ -523,6 +538,15 @@ def _checks(
             operator_handback.get("status") == "blocked"
             and operator_handback.get("reason") == "operator_handback_execution_closed"
             and int(operator_handback.get("execution_permission_count", -1)) == 0
+        )
+        decision_packet = provider_envelope_data.get(
+            "manual_provider_test_operator_decision_packet", {}
+        )
+        checks["provider_operator_decision_packet_blocked"] = (
+            decision_packet.get("status") == "blocked"
+            and decision_packet.get("reason")
+            == "operator_decision_packet_execution_closed"
+            and int(decision_packet.get("execution_permission_count", -1)) == 0
         )
     return checks
 
@@ -1271,6 +1295,54 @@ def run_demo(
                 ).get("handback_request_count"),
                 "operator_handback_execution_permission_count": provider_envelope_data.get(
                     "manual_provider_test_operator_handback", {}
+                ).get("execution_permission_count"),
+                "operator_decision_packet_status": provider_envelope_data.get(
+                    "manual_provider_test_operator_decision_packet", {}
+                ).get("status"),
+                "operator_decision_packet_reason": provider_envelope_data.get(
+                    "manual_provider_test_operator_decision_packet", {}
+                ).get("reason"),
+                "operator_decision_packet_hash": provider_envelope_data.get(
+                    "manual_provider_test_operator_decision_packet", {}
+                ).get("operator_decision_packet_hash"),
+                "operator_decision_packet_operator_handback_hash": provider_envelope_data.get(
+                    "manual_provider_test_operator_decision_packet", {}
+                ).get("operator_handback_hash"),
+                "operator_decision_packet_operator_decision_hash": provider_envelope_data.get(
+                    "manual_provider_test_operator_decision_packet", {}
+                ).get("operator_decision_hash"),
+                "operator_decision_packet_claim_boundary_hash": provider_envelope_data.get(
+                    "manual_provider_test_operator_decision_packet", {}
+                ).get("claim_boundary_hash"),
+                "operator_decision_packet_no_call_counters_hash": provider_envelope_data.get(
+                    "manual_provider_test_operator_decision_packet", {}
+                ).get("no_call_counters_hash"),
+                "operator_decision_packet_component_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_decision_packet", {}
+                ).get("component_count"),
+                "operator_decision_packet_passed_component_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_decision_packet", {}
+                ).get("passed_component_count"),
+                "operator_decision_packet_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_decision_packet", {}
+                ).get("mismatch_count"),
+                "operator_decision_packet_component_hash_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_decision_packet", {}
+                ).get("component_hash_count"),
+                "operator_decision_packet_no_call_counter_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_decision_packet", {}
+                ).get("no_call_counter_count"),
+                "operator_decision_packet_claim_boundary_check_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_decision_packet", {}
+                ).get("claim_boundary_check_count"),
+                "operator_decision_packet_operator_decision_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_decision_packet", {}
+                ).get("operator_decision_count"),
+                "operator_decision_packet_request_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_decision_packet", {}
+                ).get("decision_packet_request_count"),
+                "operator_decision_packet_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_decision_packet", {}
                 ).get("execution_permission_count"),
                 "review_packet_read_model_status": (
                     provider_envelope_read_data or {}

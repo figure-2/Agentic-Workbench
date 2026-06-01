@@ -379,6 +379,13 @@ hashes into one status/reason/hash/count projection. The handback still
 reports `operator_handback_execution_closed` and keeps
 `execution_permission_count=0`.
 
+`AW-LIVE-29` adds a disabled first-call operator decision packet. The packet
+requires an operator handback hash and a separate expected operator handback
+hash match. It binds handback, operator-decision, claim-boundary, and no-call
+counter hashes into one status/reason/hash/count projection. The packet still
+reports `operator_decision_packet_execution_closed` and keeps
+`execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -477,3 +484,6 @@ outside the current executable path.
   no-call counter hashes only and must not grant execution permission.
 - operator handbacks must bind to closeout, operator-review, claim-boundary,
   and no-call counter hashes only and must not grant execution permission.
+- operator decision packets must bind to handback, operator-decision,
+  claim-boundary, and no-call counter hashes only and must not grant execution
+  permission.

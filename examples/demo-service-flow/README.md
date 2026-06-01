@@ -87,4 +87,5 @@ load `.env` values, call Solar Pro 3, or run the DAACS target runtime.
   post-invocation audit remains blocked and exposes only hashes and counts.
   The completion summary remains blocked and exposes only hashes and counts.
   The closeout record remains blocked and exposes only hashes and counts. The
-  operator handback remains blocked and exposes only hashes and counts.
+  operator handback remains blocked and exposes only hashes and counts. The
+  operator decision packet remains blocked and exposes only hashes and counts.
