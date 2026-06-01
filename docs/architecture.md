@@ -244,6 +244,14 @@ and `planned_call_hash`. An accepted proposal without an executor flag reports
 value reads, network calls, external API calls, and DAACS target runtime calls
 closed.
 
+`AW-LIVE-10` adds a blocked one-shot permission contract projection. The
+projection fingerprints a candidate run id, proposal hash, planned call hash,
+cost, timeout, quota, rollback, abort criteria hash/count, and expiry, but it
+returns only status, reason, hash, expiry, and count in public output. A valid
+candidate still reports `executor_blocked`, so provider SDK imports, env value
+reads, network calls, external API calls, and DAACS target runtime calls remain
+closed.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit

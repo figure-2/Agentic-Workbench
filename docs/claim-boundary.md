@@ -38,6 +38,8 @@ Agentic Workbench is a local/dev AI agent workflow harness prototype. It may cla
   execution permission closed
 - Local manual provider test proposal gate that remains disabled by default
 - Disabled local executor boundary for manual provider test proposals
+- Blocked one-shot permission contract projection for a local manual provider
+  test candidate
 - Sanitized public summaries and correlation hashes
 - Fixture-based smoke tests and local regression tests
 
@@ -101,6 +103,8 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
   readiness
 - disabled manual provider test executor boundary described as external
   provider behavior, hosted execution, or production provider readiness
+- one-shot permission contract described as external provider behavior,
+  execution permission, hosted execution, or production provider readiness
 
 ## Public Artifact Rules
 

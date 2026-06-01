@@ -120,8 +120,13 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert envelope["manual_test_disabled_by_default"] is True
     assert envelope["manual_test_abort_criteria_count"] == 2
     assert envelope["manual_test_executor_status"] == "blocked"
-    assert envelope["manual_test_executor_reason"] == "executor_enable_required"
+    assert envelope["manual_test_executor_reason"] == "executor_disabled_by_default"
     assert envelope["manual_test_executor_planned_call_hash"]
+    assert envelope["one_shot_permission_status"] == "blocked"
+    assert envelope["one_shot_permission_reason"] == "executor_blocked"
+    assert envelope["one_shot_permission_hash"]
+    assert envelope["one_shot_permission_expires_at"] == "2099-01-01T00:00:00Z"
+    assert envelope["one_shot_permission_field_count"] == 11
     assert envelope["read_model_status"] == "available"
     assert checks["provider_envelope_precheck_recorded"] is True
     assert checks["provider_envelope_adapter_reached_disabled_path"] is True

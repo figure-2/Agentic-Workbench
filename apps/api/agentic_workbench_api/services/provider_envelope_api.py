@@ -58,6 +58,7 @@ OPERATOR_APPROVAL_ENVELOPE_VERSION = "provider-precheck-operator-approval-envelo
 LIVE_PROVIDER_DRY_ADMISSION_VERSION = "live-provider-dry-admission-checklist-v1"
 MANUAL_PROVIDER_TEST_PROPOSAL_VERSION = "manual-provider-test-proposal-gate-v1"
 MANUAL_PROVIDER_TEST_EXECUTOR_VERSION = "manual-provider-test-executor-boundary-v1"
+ONE_SHOT_LIVE_PERMISSION_VERSION = "one-shot-live-call-permission-contract-v1"
 
 
 @dataclass(slots=True)
@@ -342,6 +343,18 @@ def _manual_provider_test_executor_projection(
     )
 
 
+def _one_shot_live_permission_blocked(reason: str) -> JsonDict:
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "permission_contract_hash": "",
+            "expires_at": "",
+            "permission_field_count": 0,
+        }
+    )
+
+
 def _manual_test_proposal_policy(policy: SolarCostTimeoutPolicy) -> JsonDict:
     return {
         "request_timeout_seconds": int(policy.request_timeout_seconds or 0),
@@ -350,6 +363,106 @@ def _manual_test_proposal_policy(policy: SolarCostTimeoutPolicy) -> JsonDict:
         "max_output_unit_budget": int(policy.max_output_tokens or 0),
         "retry_count": int(policy.retry_count),
     }
+
+
+def _coerce_int(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _one_shot_live_permission_projection(
+    *,
+    payload: dict[str, Any],
+    request: ProviderRequest,
+    policy: SolarCostTimeoutPolicy,
+    manual_provider_test_proposal: JsonDict,
+    manual_provider_test_executor: JsonDict,
+) -> JsonDict:
+    permission_payload = (
+        payload.get("one_shot_live_permission")
+        if isinstance(payload.get("one_shot_live_permission"), dict)
+        else {}
+    )
+    if not permission_payload:
+        return _one_shot_live_permission_blocked("one_shot_permission_required")
+
+    proposal_fields = (
+        manual_provider_test_proposal.get("proposal_fields")
+        if isinstance(manual_provider_test_proposal.get("proposal_fields"), dict)
+        else {}
+    )
+    policy_limits = _manual_test_proposal_policy(policy)
+    proposal_hash = str(manual_provider_test_proposal.get("proposal_hash", "")).strip()
+    planned_call_hash = str(manual_provider_test_executor.get("planned_call_hash", "")).strip()
+    rollback_plan_id = str(proposal_fields.get("rollback_plan_id", "")).strip()
+    abort_criteria_hash = str(proposal_fields.get("abort_criteria_hash", "")).strip()
+    abort_criteria_count = _coerce_int(proposal_fields.get("abort_criteria_count", 0))
+    expires_at = str(permission_payload.get("expires_at", "")).strip()
+
+    canonical_permission = {
+        "projection_version": ONE_SHOT_LIVE_PERMISSION_VERSION,
+        "run_id": request.run_id,
+        "proposal_hash": proposal_hash,
+        "planned_call_hash": planned_call_hash,
+        "request_timeout_seconds": policy_limits["request_timeout_seconds"],
+        "max_cost_units": policy_limits["max_cost_units"],
+        "max_live_api_calls": policy_limits["max_live_api_calls"],
+        "max_output_unit_budget": policy_limits["max_output_unit_budget"],
+        "rollback_plan_id": rollback_plan_id,
+        "abort_criteria_hash": abort_criteria_hash,
+        "abort_criteria_count": abort_criteria_count,
+        "expires_at": expires_at,
+    }
+    required_checks = [
+        str(permission_payload.get("run_id", "")).strip() == request.run_id,
+        str(permission_payload.get("proposal_hash", "")).strip() == proposal_hash,
+        str(permission_payload.get("planned_call_hash", "")).strip() == planned_call_hash,
+        _coerce_int(permission_payload.get("request_timeout_seconds", 0))
+        == policy_limits["request_timeout_seconds"],
+        _coerce_int(permission_payload.get("max_cost_units", 0))
+        == policy_limits["max_cost_units"],
+        _coerce_int(permission_payload.get("max_live_api_calls", 0))
+        == policy_limits["max_live_api_calls"],
+        _coerce_int(permission_payload.get("max_output_unit_budget", 0))
+        == policy_limits["max_output_unit_budget"],
+        str(permission_payload.get("rollback_plan_id", "")).strip() == rollback_plan_id,
+        str(permission_payload.get("abort_criteria_hash", "")).strip()
+        == abort_criteria_hash,
+        _coerce_int(permission_payload.get("abort_criteria_count", 0))
+        == abort_criteria_count,
+        bool(expires_at),
+    ]
+    structural_checks = [
+        bool(proposal_hash),
+        bool(planned_call_hash),
+        bool(rollback_plan_id),
+        bool(abort_criteria_hash),
+        abort_criteria_count > 0,
+    ]
+    contract_matches = all(required_checks) and all(structural_checks)
+    executor_status = str(manual_provider_test_executor.get("status", "blocked"))
+    if not contract_matches:
+        reason = "one_shot_permission_contract_mismatch"
+        permission_contract_hash = ""
+    else:
+        reason = (
+            "executor_blocked"
+            if executor_status == "blocked"
+            else "execution_disabled_by_default"
+        )
+        permission_contract_hash = stable_contract_hash(canonical_permission)
+
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "permission_contract_hash": permission_contract_hash,
+            "expires_at": expires_at if contract_matches else "",
+            "permission_field_count": len(required_checks) if contract_matches else 0,
+        }
+    )
 
 
 def _manual_test_proposal_projection(
@@ -549,6 +662,7 @@ def _blocked_projection(
     live_provider_dry_admission: JsonDict | None = None,
     manual_provider_test_proposal: JsonDict | None = None,
     manual_provider_test_executor: JsonDict | None = None,
+    one_shot_live_permission: JsonDict | None = None,
 ) -> dict[str, Any]:
     selected_operator_approval = operator_approval_envelope or _operator_approval_missing_projection()
     selected_dry_admission = live_provider_dry_admission or _live_provider_dry_admission_checklist(
@@ -564,6 +678,9 @@ def _blocked_projection(
         "reason": "manual_provider_test_proposal_required",
         "planned_call_hash": "",
     }
+    selected_one_shot_permission = one_shot_live_permission or _one_shot_live_permission_blocked(
+        "one_shot_permission_required"
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -589,6 +706,7 @@ def _blocked_projection(
             "live_provider_dry_admission": selected_dry_admission,
             "manual_provider_test_proposal": selected_manual_proposal,
             "manual_provider_test_executor": selected_manual_executor,
+            "one_shot_live_permission": selected_one_shot_permission,
             "provider_envelope_read_model": read_model or {},
             "checks": [{"name": check_name, "passed": False}],
             "errors": [message],
@@ -860,6 +978,7 @@ def _projection_from_result(
     live_provider_dry_admission: JsonDict,
     manual_provider_test_proposal: JsonDict,
     manual_provider_test_executor: JsonDict,
+    one_shot_live_permission: JsonDict,
 ) -> dict[str, Any]:
     metrics = dict(result.metrics)
     request_hash = ""
@@ -896,6 +1015,7 @@ def _projection_from_result(
             "live_provider_dry_admission": live_provider_dry_admission,
             "manual_provider_test_proposal": manual_provider_test_proposal,
             "manual_provider_test_executor": manual_provider_test_executor,
+            "one_shot_live_permission": one_shot_live_permission,
             "provider_envelope_read_model": read_model,
             "checks": _check_map(result.checks),
             "errors": [str(error) for error in result.errors],
@@ -963,6 +1083,13 @@ def run_provider_envelope_precheck(
         manual_provider_test_proposal=manual_provider_test_proposal,
         executor_enable_requested=payload.get("manual_test_executor_enable") is True,
     )
+    one_shot_live_permission = _one_shot_live_permission_projection(
+        payload=payload,
+        request=request,
+        policy=policy,
+        manual_provider_test_proposal=manual_provider_test_proposal,
+        manual_provider_test_executor=manual_provider_test_executor,
+    )
     if operator_errors:
         return _blocked_projection(
             run_id=request.run_id,
@@ -974,6 +1101,7 @@ def run_provider_envelope_precheck(
             live_provider_dry_admission=live_provider_dry_admission,
             manual_provider_test_proposal=manual_provider_test_proposal,
             manual_provider_test_executor=manual_provider_test_executor,
+            one_shot_live_permission=one_shot_live_permission,
         )
 
     if not selected_provider.configured:
@@ -987,6 +1115,7 @@ def run_provider_envelope_precheck(
             live_provider_dry_admission=live_provider_dry_admission,
             manual_provider_test_proposal=manual_provider_test_proposal,
             manual_provider_test_executor=manual_provider_test_executor,
+            one_shot_live_permission=one_shot_live_permission,
         )
 
     request_result = build_solar_request_contract_fixture(request, policy)
@@ -1009,6 +1138,7 @@ def run_provider_envelope_precheck(
             live_provider_dry_admission=live_provider_dry_admission,
             manual_provider_test_proposal=manual_provider_test_proposal,
             manual_provider_test_executor=manual_provider_test_executor,
+            one_shot_live_permission=one_shot_live_permission,
         )
 
     try:
@@ -1024,6 +1154,7 @@ def run_provider_envelope_precheck(
             live_provider_dry_admission=live_provider_dry_admission,
             manual_provider_test_proposal=manual_provider_test_proposal,
             manual_provider_test_executor=manual_provider_test_executor,
+            one_shot_live_permission=one_shot_live_permission,
         )
 
     service = ProviderEnvelopeAdmissionService(repository)
@@ -1051,6 +1182,7 @@ def run_provider_envelope_precheck(
         live_provider_dry_admission=live_provider_dry_admission,
         manual_provider_test_proposal=manual_provider_test_proposal,
         manual_provider_test_executor=manual_provider_test_executor,
+        one_shot_live_permission=one_shot_live_permission,
     )
 
 
@@ -1129,6 +1261,9 @@ def read_provider_envelope_precheck(
                 "reason": "manual_provider_test_proposal_required",
                 "planned_call_hash": "",
             },
+            "one_shot_live_permission": _one_shot_live_permission_blocked(
+                "one_shot_permission_required"
+            ),
             "provider_envelope_read_model": read_model,
             "checks": [{"name": "provider_envelope_read_model_available", "passed": True}],
             "errors": [],
@@ -1155,6 +1290,7 @@ __all__ = [
     "LIVE_PROVIDER_DRY_ADMISSION_VERSION",
     "MANUAL_PROVIDER_TEST_PROPOSAL_VERSION",
     "MANUAL_PROVIDER_TEST_EXECUTOR_VERSION",
+    "ONE_SHOT_LIVE_PERMISSION_VERSION",
     "provider_manual_test_proposal_summary",
     "provider_precheck_operator_policy_summary",
     "read_provider_envelope_precheck",

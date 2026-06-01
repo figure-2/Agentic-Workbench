@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-09` disabled manual provider test executor boundary.
+Current snapshot after `AW-LIVE-10` one-shot permission contract boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 161 |
-| Counted code/doc files, excluding cache and private SoT | 158 |
-| Project lines, excluding cache and private SoT | 30,165 |
+| Project files, excluding cache and private SoT | 162 |
+| Counted code/doc files, excluding cache and private SoT | 160 |
+| Project lines, excluding cache and private SoT | 30,475 |
 | Python files | 76 |
-| Markdown files | 76 |
+| Markdown files | 79 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 400 |
-| Pytest passed cases | 400 |
+| Pytest collected cases | 401 |
+| Pytest passed cases | 401 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -1737,3 +1737,40 @@ Measured after adding the disabled manual provider test executor boundary.
 Interpretation: this adds a disabled local executor boundary. It does not add
 an external call path, SDK integration, env value access, network access,
 provider response parsing, hosted execution, or production provider readiness.
+
+## AW-LIVE-10 One-Shot Permission Contract Metrics
+
+Measured after adding the blocked one-shot permission contract projection.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 401 |
+| Pytest passed cases | 401 |
+| Regression delta vs AW-LIVE-09 baseline | +1 |
+| API one-shot permission integration tests | 1 |
+| Provider envelope API integration tests | 8 |
+| Demo provider envelope smoke tests | 1 |
+| Permission public projection fields | 5 |
+| Permission required field count | 11 |
+| Permission status with valid candidate and blocked executor | blocked |
+| Permission reason with valid candidate and blocked executor | executor_blocked |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| executor blocked state keeps permission blocked | covered |
+| one-shot candidate binds run/proposal/planned-call hashes | covered |
+| cost/timeout/quota/rollback/abort hash/count included | covered |
+| permission projection narrowed to status/reason/hash/expiry/count | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a blocked local permission contract projection for a
+later manual provider test candidate. It does not add an external call path,
+SDK integration, env value access, network access, provider response parsing,
+hosted execution, or production provider readiness.

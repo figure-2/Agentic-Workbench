@@ -7,6 +7,7 @@ from apps.api.agentic_workbench_api.main import create_app
 from apps.api.agentic_workbench_api.services.canonical_run_store import RunArtifactRepositoryConfig
 from apps.api.agentic_workbench_api.services.evidence_read_model import EvidenceRepositoryConfig
 from apps.api.agentic_workbench_api.services.provider_envelope_api import (
+    MANUAL_PROVIDER_TEST_EXECUTOR_VERSION,
     ProviderEnvelopeRepositoryConfig,
     provider_manual_test_proposal_summary,
     provider_precheck_operator_policy_summary,
@@ -99,6 +100,7 @@ def _provider_envelope_precheck_payload(
     include_manual_test_proposal: bool = False,
     include_manual_test_operator_approval: bool = True,
     manual_test_executor_enable: bool = False,
+    include_one_shot_live_permission: bool = False,
 ) -> dict:
     payload = {
         "run_id": run_id,
@@ -177,6 +179,34 @@ def _provider_envelope_precheck_payload(
             }
     if manual_test_executor_enable:
         payload["manual_test_executor_enable"] = True
+    if include_one_shot_live_permission:
+        proposal_summary = provider_manual_test_proposal_summary(payload)
+        planned_call_hash = stable_contract_hash(
+            {
+                "projection_version": MANUAL_PROVIDER_TEST_EXECUTOR_VERSION,
+                "run_id": run_id,
+                "prompt_contract_hash": payload["prompt_contract_hash"],
+                "provider_name": "solar-pro-3",
+                "model_name": "solar-pro-3",
+                "proposal_hash": proposal_summary["proposal_hash"],
+                "executor_enable_requested": bool(manual_test_executor_enable),
+            }
+        )
+        payload["one_shot_live_permission"] = {
+            "run_id": run_id,
+            "proposal_hash": proposal_summary["proposal_hash"],
+            "planned_call_hash": planned_call_hash,
+            "request_timeout_seconds": 30,
+            "max_cost_units": 1,
+            "max_live_api_calls": 1,
+            "max_output_unit_budget": 512,
+            "rollback_plan_id": f"rollback-{run_id}",
+            "abort_criteria_hash": proposal_summary["proposal_fields"]["abort_criteria_hash"],
+            "abort_criteria_count": 2,
+            "expires_at": "2099-01-01T00:00:00Z",
+            "authorization_material": "API10_PERMISSION_AUTH_SENTINEL",
+            "provider_payload": "API10_PERMISSION_PROVIDER_PAYLOAD_SENTINEL",
+        }
     return payload
 
 
@@ -1279,6 +1309,7 @@ def test_provider_envelope_precheck_api_persists_hash_read_model_without_externa
     dry_admission = data["live_provider_dry_admission"]
     manual_proposal = data["manual_provider_test_proposal"]
     manual_executor = data["manual_provider_test_executor"]
+    one_shot_permission = data["one_shot_live_permission"]
     checklist_by_id = {item["id"]: item for item in dry_admission["checklist"]}
 
     assert data["projection_version"] == "provider-envelope-admission-api-public-v1"
@@ -1340,6 +1371,17 @@ def test_provider_envelope_precheck_api_persists_hash_read_model_without_externa
     assert manual_executor["status"] == "blocked"
     assert manual_executor["reason"] == "manual_provider_test_proposal_required"
     assert manual_executor["planned_call_hash"] == ""
+    assert set(one_shot_permission) == {
+        "status",
+        "reason",
+        "permission_contract_hash",
+        "expires_at",
+        "permission_field_count",
+    }
+    assert one_shot_permission["status"] == "blocked"
+    assert one_shot_permission["reason"] == "one_shot_permission_required"
+    assert one_shot_permission["permission_contract_hash"] == ""
+    assert one_shot_permission["permission_field_count"] == 0
     assert data["repository_boundary"]["provider_envelope_backend"] == "sqlite"
     assert data["repository_boundary"]["root_path_returned"] is False
     assert data["execution_boundary"]["adapter_invocation_count"] == 1
@@ -1553,6 +1595,70 @@ def test_provider_envelope_precheck_api_blocks_manual_executor_even_when_enable_
         "authorization_material",
         "raw_prompt",
         "provider_payload",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_one_shot_permission_when_executor_blocked(tmp_path):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-one-shot-permission",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+    )
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    manual_executor = data["manual_provider_test_executor"]
+    one_shot_permission = data["one_shot_live_permission"]
+
+    assert manual_executor["status"] == "blocked"
+    assert manual_executor["reason"] == "executor_disabled_by_default"
+    assert one_shot_permission["status"] == "blocked"
+    assert one_shot_permission["reason"] == "executor_blocked"
+    assert set(one_shot_permission) == {
+        "status",
+        "reason",
+        "permission_contract_hash",
+        "expires_at",
+        "permission_field_count",
+    }
+    assert one_shot_permission["permission_contract_hash"]
+    assert one_shot_permission["expires_at"] == "2099-01-01T00:00:00Z"
+    assert one_shot_permission["permission_field_count"] == 11
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["live_api_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["provider_envelope_env_value_reads"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API08_ABORT_CRITERIA_SENTINEL",
+        "API08_MANUAL_TEST_AUTH_SENTINEL",
+        "API10_PERMISSION_AUTH_SENTINEL",
+        "API10_PERMISSION_PROVIDER_PAYLOAD_SENTINEL",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
         request_payload["approval"]["nonce"],
         request_payload["approval"]["signature_id"],
         request_payload["approval"]["signed_contract_hash"],

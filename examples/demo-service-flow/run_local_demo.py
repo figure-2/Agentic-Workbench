@@ -27,6 +27,7 @@ from apps.api.agentic_workbench_api.services.evidence_read_model import (
     EvidenceRepositoryConfig,
 )
 from apps.api.agentic_workbench_api.services.provider_envelope_api import (
+    MANUAL_PROVIDER_TEST_EXECUTOR_VERSION,
     ProviderEnvelopeRepositoryConfig,
     provider_manual_test_proposal_summary,
     provider_precheck_operator_policy_summary,
@@ -150,6 +151,31 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
         "approved_at": "2026-06-01T00:05:00Z",
         "decision": "approved",
         "approved_proposal_hash": proposal_summary["proposal_hash"],
+    }
+    payload["manual_test_executor_enable"] = True
+    planned_call_hash = stable_contract_hash(
+        {
+            "projection_version": MANUAL_PROVIDER_TEST_EXECUTOR_VERSION,
+            "run_id": run_id,
+            "prompt_contract_hash": prompt_contract_hash,
+            "provider_name": "solar-pro-3",
+            "model_name": "solar-pro-3",
+            "proposal_hash": proposal_summary["proposal_hash"],
+            "executor_enable_requested": True,
+        }
+    )
+    payload["one_shot_live_permission"] = {
+        "run_id": run_id,
+        "proposal_hash": proposal_summary["proposal_hash"],
+        "planned_call_hash": planned_call_hash,
+        "request_timeout_seconds": 30,
+        "max_cost_units": 1,
+        "max_live_api_calls": 1,
+        "max_output_unit_budget": 512,
+        "rollback_plan_id": f"rollback-{run_id}",
+        "abort_criteria_hash": proposal_summary["proposal_fields"]["abort_criteria_hash"],
+        "abort_criteria_count": 2,
+        "expires_at": "2099-01-01T00:00:00Z",
     }
     return payload
 
@@ -341,6 +367,21 @@ def run_demo(
                 "manual_test_executor_planned_call_hash": provider_envelope_data.get(
                     "manual_provider_test_executor", {}
                 ).get("planned_call_hash"),
+                "one_shot_permission_status": provider_envelope_data.get(
+                    "one_shot_live_permission", {}
+                ).get("status"),
+                "one_shot_permission_reason": provider_envelope_data.get(
+                    "one_shot_live_permission", {}
+                ).get("reason"),
+                "one_shot_permission_hash": provider_envelope_data.get(
+                    "one_shot_live_permission", {}
+                ).get("permission_contract_hash"),
+                "one_shot_permission_expires_at": provider_envelope_data.get(
+                    "one_shot_live_permission", {}
+                ).get("expires_at"),
+                "one_shot_permission_field_count": provider_envelope_data.get(
+                    "one_shot_live_permission", {}
+                ).get("permission_field_count"),
                 "read_model_status": (
                     provider_envelope_read_data or {}
                 ).get("status"),

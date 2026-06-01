@@ -72,3 +72,5 @@ load `.env` values, call Solar Pro 3, or run the DAACS target runtime.
 - The composed read model remains local and fixture-based.
 - Provider and target runtime call counts remain `0`.
 - The static UI marks live policy as `closed / eligible only`.
+- When `--include-provider-precheck` is used, manual proposal, disabled
+  executor, and one-shot permission summaries remain blocked and hash-only.

@@ -50,6 +50,13 @@ LIVE_09_RUNBOOK_PATH = (
 LIVE_09_WORK_ORDER_PATH = (
     ROOT / "docs" / "work-orders" / "aw-live-09-disabled-manual-provider-test-executor.md"
 )
+LIVE_10_PATH = ROOT / "docs" / "evals" / "aw-live-10-one-shot-live-permission-contract.md"
+LIVE_10_RUNBOOK_PATH = (
+    ROOT / "docs" / "runbooks" / "aw-live-10-one-shot-live-permission-contract.md"
+)
+LIVE_10_WORK_ORDER_PATH = (
+    ROOT / "docs" / "work-orders" / "aw-live-10-one-shot-live-permission-contract.md"
+)
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -89,6 +96,9 @@ PUBLIC_CLAIM_DOCS = [
     LIVE_09_PATH,
     LIVE_09_RUNBOOK_PATH,
     LIVE_09_WORK_ORDER_PATH,
+    LIVE_10_PATH,
+    LIVE_10_RUNBOOK_PATH,
+    LIVE_10_WORK_ORDER_PATH,
 ]
 
 
