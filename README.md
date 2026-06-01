@@ -74,6 +74,7 @@ Current implementation:
 - Canonical run/artifact read APIs for sanitized local run-session and artifact rows
 - Composed canonical run/evidence read API that keeps canonical run state primary and evidence as a sanitized summary
 - Local service-shaped demo script over the public API and composed read model
+- Minimal Markdown/CLI run status surface over the local demo summary
 - Test-only DIV/DAACS source identity fixtures for parity reference
 - Fixture-based source identity smoke path from planning artifact to dry-run report
 - Source-to-target trace and portfolio-safe claim projection for parity evidence
@@ -116,7 +117,7 @@ Latest documented local baseline:
 
 ```text
 Measurement date: 2026-06-01
-Pytest: 352 / 352 passed
+Pytest: 354 / 354 passed
 Live LLM calls in offline/dry-run/fake paths: 0
 Live API calls in offline/dry-run/fake paths: 0
 Provider calls/imports in the latest documented eval: 0
@@ -145,6 +146,7 @@ Allowed public summary:
 - SQLite-backed canonical run/artifact read APIs for local projection rows
 - Composed canonical run/evidence read models for local projection rows
 - Local fixture/dry-run service-shaped demo over the public API boundary
+- Minimal local Markdown/CLI run status surface over fixture/dry-run projections
 - Public output designed around sanitized summaries and correlation hashes
 
 Do not interpret current results as:
@@ -158,6 +160,6 @@ Do not interpret current results as:
 
 ## Status
 
-Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection, source identity golden path smoke coverage, claim-safe trace projection, hash/count repository boundaries, SQLite adapter skeletons for runner/report/audit evidence, approval/replay evidence, and canonical run/artifact rows, canonical approval persistence service wiring before replay claim, sanitized fake admission API demo paths, explicit SQLite-backed fake admission API wiring, sanitized evidence read-model API skeleton, optional fixture evidence persistence, canonical run/artifact read APIs, composed canonical run/evidence read API, and local service-shaped demo script for local projection rows.
+Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection, source identity golden path smoke coverage, claim-safe trace projection, hash/count repository boundaries, SQLite adapter skeletons for runner/report/audit evidence, approval/replay evidence, and canonical run/artifact rows, canonical approval persistence service wiring before replay claim, sanitized fake admission API demo paths, explicit SQLite-backed fake admission API wiring, sanitized evidence read-model API skeleton, optional fixture evidence persistence, canonical run/artifact read APIs, composed canonical run/evidence read API, local service-shaped demo script, and minimal Markdown/CLI run status surface for local projection rows.
 
-Next implementation track: minimal user-facing run status surface over the composed read model, or live-open policy gate before any Solar Pro 3 / DAACS target runtime call.
+Next implementation track: optional static UI shell over the same public projection, or live-open policy gate before any Solar Pro 3 / DAACS target runtime call.

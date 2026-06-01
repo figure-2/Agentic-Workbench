@@ -38,6 +38,19 @@ zero-call execution metrics. It does not include raw prompts, provider payloads,
 runtime payloads, logs, file bodies, raw approval signatures, raw nonces, or
 local database root paths.
 
+## Human-Readable Status Surface
+
+For a reviewer-friendly Markdown report:
+
+```powershell
+python examples/demo-service-flow/render_status_surface.py
+```
+
+The status surface reads the same local API demo path and prints sections for
+run state, artifact chain, DIV identity signals, DAACS identity signals,
+evidence summary, execution boundary, claim boundary, checks, and next action.
+It does not read repository tables directly and does not open live execution.
+
 ## Expected Signals
 
 - DIV identity is represented by planning and PRD artifacts.

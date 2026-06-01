@@ -22,6 +22,7 @@ Agentic Workbench is a local/dev AI agent workflow harness prototype. It may cla
 - Composed canonical run and evidence read models when described as sanitized
   local read-model composition only
 - Local service-shaped fixture/dry-run demo over public API projections
+- Minimal Markdown/CLI run status surface over local fixture/dry-run projections
 - Sanitized public summaries and correlation hashes
 - Fixture-based smoke tests and local regression tests
 
@@ -59,6 +60,7 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
 - canonical run/artifact read API described as provider outcome, target runtime outcome, generated app outcome, hosted persistence, production database layer, or repository trust certification
 - composed run/evidence read model described as live observability, production monitoring, provider outcome, target runtime outcome, or generated app delivery
 - local service-shaped demo described as hosted service, live execution, generated app delivery, or production demo
+- Markdown/CLI status surface described as web dashboard, hosted observability, live runtime monitor, or production UI
 
 ## Public Artifact Rules
 

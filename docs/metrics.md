@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-DEMO-01` local service-shaped demo.
+Current snapshot after `AW-DEMO-02` minimal run status surface.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 113 |
-| Counted code/doc files, excluding cache and private SoT | 113 |
-| Project lines, excluding cache and private SoT | 25,199 |
-| Python files | 61 |
-| Markdown files | 47 |
-| Test files | 24 |
+| Project files, excluding cache and private SoT | 117 |
+| Counted code/doc files, excluding cache and private SoT | 117 |
+| Project lines, excluding cache and private SoT | 25,707 |
+| Python files | 63 |
+| Markdown files | 49 |
+| Test files | 25 |
 | Unit test files | 19 |
-| Smoke test files | 4 |
+| Smoke test files | 5 |
 | Integration test files | 1 |
-| Pytest collected cases | 352 |
-| Pytest passed cases | 352 |
+| Pytest collected cases | 354 |
+| Pytest passed cases | 354 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -1300,3 +1300,35 @@ Interpretation: this is a local fixture/dry-run demo over the public API and
 composed read model. It does not add Solar Pro 3 integration, DAACS target
 runtime execution, original DIV live graph execution, generated app delivery,
 hosted demo behavior, production persistence, or production observability.
+
+## AW-DEMO-02 Minimal Run Status Surface Metrics
+
+Measured after adding the reviewer-facing Markdown/CLI status surface.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 354 |
+| Pytest passed cases | 354 |
+| Regression delta vs AW-DEMO-01 baseline | +2 |
+| Status surface scripts | 1 |
+| Status surface smoke tests | 2 |
+| Status report sections | 9 |
+| Raw prompt findings | 0 |
+| Raw artifact body findings | 0 |
+| Raw provider/runtime payload findings | 0 |
+| Raw approval signature/nonce value findings | 0 |
+| Local store path findings | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| `render_status_surface(summary)` returns Markdown report | covered |
+| report includes run, artifact chain, DIV, DAACS, evidence, execution, claim, checks, next action | covered |
+| report consumes public demo summary rather than SQLite internals | covered |
+| report keeps provider/runtime calls at 0 | covered |
+
+Interpretation: this adds a local reviewer-facing status surface over sanitized
+fixture/dry-run projections. It does not add a web dashboard, hosted
+observability, live runtime monitoring, provider integration, target runtime
+execution, or generated app delivery.

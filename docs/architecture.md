@@ -152,6 +152,12 @@ rows, reads `/api/v1/runs/{run_id}`, and prints a sanitized summary. It does
 not start a server, call providers, run DAACS target runtime, install packages,
 or build generated applications.
 
+`AW-DEMO-02` adds a minimal reviewer-facing Markdown/CLI status surface over the
+`AW-DEMO-01` summary. The surface renders run state, artifact chain, source
+identity signals, evidence counts, repository boundary, execution boundary,
+claim boundary, and next action. It consumes public projections only and does
+not read repository tables directly.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -193,3 +199,5 @@ intentionally outside the current executable path.
   evidence as sanitized counts, checks, and linkage markers only.
 - local service-shaped demo scripts must consume public API projections and
   keep provider/runtime calls at 0.
+- run status surfaces must render sanitized projection summaries only and must
+  not become a second source of truth.
