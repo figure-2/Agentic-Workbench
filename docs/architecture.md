@@ -146,6 +146,12 @@ endpoint now returns canonical run state and artifact metadata plus an optional
 artifact metadata endpoint. Evidence rows are summarized as counts, checks, and
 linkage markers only.
 
+`AW-DEMO-01` adds a local service-shaped demo over the same public API boundary.
+The demo posts one idea to `/api/v1/runs`, persists configured local projection
+rows, reads `/api/v1/runs/{run_id}`, and prints a sanitized summary. It does
+not start a server, call providers, run DAACS target runtime, install packages,
+or build generated applications.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -185,3 +191,5 @@ intentionally outside the current executable path.
   response, and keep provider/runtime calls at 0.
 - composed run/evidence read APIs keep canonical run state primary and attach
   evidence as sanitized counts, checks, and linkage markers only.
+- local service-shaped demo scripts must consume public API projections and
+  keep provider/runtime calls at 0.

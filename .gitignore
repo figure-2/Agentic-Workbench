@@ -11,6 +11,8 @@ venv/
 dist/
 build/
 *.egg-info/
+.local/
+examples/**/.local/
 
 # Internal source-of-truth documents.
 # Do not publish source project analysis, clone/reimplementation strategy,

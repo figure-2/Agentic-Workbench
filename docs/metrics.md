@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-API-06` canonical run/evidence read-model composition.
+Current snapshot after `AW-DEMO-01` local service-shaped demo.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 110 |
-| Counted code/doc files, excluding cache and private SoT | 110 |
-| Project lines, excluding cache and private SoT | 24,876 |
-| Python files | 59 |
-| Markdown files | 46 |
-| Test files | 23 |
+| Project files, excluding cache and private SoT | 113 |
+| Counted code/doc files, excluding cache and private SoT | 113 |
+| Project lines, excluding cache and private SoT | 25,199 |
+| Python files | 61 |
+| Markdown files | 47 |
+| Test files | 24 |
 | Unit test files | 19 |
-| Smoke test files | 3 |
+| Smoke test files | 4 |
 | Integration test files | 1 |
-| Pytest collected cases | 350 |
-| Pytest passed cases | 350 |
+| Pytest collected cases | 352 |
+| Pytest passed cases | 352 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -1264,3 +1264,39 @@ Interpretation: this adds local read-model composition for sanitized projection
 rows. It does not add live observability, production monitoring, external
 provider outcome, target runtime outcome, generated app delivery, hosted
 persistence, or repository trust certification.
+
+## AW-DEMO-01 Local Service-Shaped Demo Metrics
+
+Measured after adding the local demo script and smoke tests.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 352 |
+| Pytest passed cases | 352 |
+| Regression delta vs AW-API-06 baseline | +2 |
+| Demo scripts | 1 |
+| Demo README files | 1 |
+| Demo smoke tests | 2 |
+| Demo artifact count in current fixture | 6 |
+| Demo runner plan evidence count | 1 |
+| Demo verification report evidence count | 1 |
+| Demo audit event evidence count | 3 |
+| Structural repeatability fixtures | 2 fresh stores |
+| Raw prompt/log/file/provider/runtime findings | 0 |
+| Raw approval authorization material findings | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| demo creates a run through `POST /api/v1/runs` | covered |
+| demo reads composed run state through `GET /api/v1/runs/{run_id}` | covered |
+| demo uses canonical and evidence SQLite stores configured server-side | covered |
+| DIV identity signals appear through planning/PRD artifacts | covered |
+| DAACS identity signals appear through BuildSpec, ImplementationBrief, RunnerPlan, VerificationReport | covered |
+| public demo summary keeps provider/runtime calls at 0 | covered |
+
+Interpretation: this is a local fixture/dry-run demo over the public API and
+composed read model. It does not add Solar Pro 3 integration, DAACS target
+runtime execution, original DIV live graph execution, generated app delivery,
+hosted demo behavior, production persistence, or production observability.
