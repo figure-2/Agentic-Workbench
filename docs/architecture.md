@@ -89,6 +89,7 @@ sequenceDiagram
 | `manual_provider_test_execution_capsule_export` | local disabled execution capsule export/read-model over execution capsule, export metadata, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_handoff_packet` | local disabled execution capsule handoff packet over export, export read-model, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_operator_review` | local disabled execution capsule operator review over handoff packet, operator-review, claim-boundary, and no-call counter hashes |
+| `manual_provider_test_execution_capsule_operator_decision` | local disabled execution capsule operator decision over operator review, operator-decision, claim-boundary, and no-call counter hashes |
 
 ## Persistence Boundary
 
@@ -438,6 +439,14 @@ status/reason/hash/count projection. The review still reports
 `execution_capsule_operator_review_execution_closed` and keeps
 `execution_permission_count=0`.
 
+`AW-LIVE-36` adds a disabled first-call execution capsule operator decision. The
+decision requires an execution capsule operator review hash and a separate
+expected operator review hash match. It binds execution capsule operator
+review, operator decision, claim-boundary, and no-call counter hashes into one
+status/reason/hash/count projection. The decision still reports
+`execution_capsule_operator_decision_execution_closed` and keeps
+`execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -557,3 +566,6 @@ outside the current executable path.
 - execution capsule operator reviews must bind to execution capsule handoff
   packet, operator-review, claim-boundary, and no-call counter hashes only and
   must not grant execution permission.
+- execution capsule operator decisions must bind to execution capsule operator
+  review, operator-decision, claim-boundary, and no-call counter hashes only
+  and must not grant execution permission.

@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-35` disabled execution capsule operator review boundary.
+Current snapshot after `AW-LIVE-36` disabled execution capsule operator decision boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 235 |
-| Counted code/doc files, excluding cache and private SoT | 235 |
-| Project lines, excluding cache and private SoT | 50,798 |
+| Project files, excluding cache and private SoT | 238 |
+| Counted code/doc files, excluding cache and private SoT | 238 |
+| Project lines, excluding cache and private SoT | 51,786 |
 | Python files | 76 |
-| Markdown files | 154 |
+| Markdown files | 157 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 474 |
-| Pytest passed cases | 474 |
+| Pytest collected cases | 477 |
+| Pytest passed cases | 477 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -2928,6 +2928,57 @@ operator review boundary.
 | provider/runtime calls remain at 0 | covered |
 
 Interpretation: this adds a local disabled execution capsule operator review
+for a later manual provider test candidate. It does not add an external call
+path, SDK integration, env value access, network access, provider response
+parsing, hosted execution, live operator approval, or production provider
+readiness.
+
+## AW-LIVE-36 Disabled Execution Capsule Operator Decision Metrics
+
+Measured after adding the blocked disabled first-call execution capsule
+operator decision boundary.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 477 |
+| Pytest passed cases | 477 |
+| Regression delta vs AW-LIVE-35 baseline | +3 |
+| API execution capsule operator decision integration tests | 3 |
+| Provider envelope API integration tests | 82 |
+| Demo provider envelope smoke tests | 1 |
+| Execution capsule operator decision public summary fields | 16 |
+| Execution capsule operator decision component count | 8 |
+| Execution capsule operator decision component hash count | 4 |
+| Execution capsule operator decision no-call counter count | 13 |
+| Claim-boundary check count | 3 |
+| Decision passed count with missing expected review hash | 7 |
+| Decision mismatch count with missing expected review hash | 1 |
+| Decision passed count without decision payload | 4 |
+| Decision mismatch count without decision payload | 4 |
+| Decision passed count with complete decision | 8 |
+| Execution permission count with complete decision | 0 |
+| Missing expected review hash reason | expected_execution_capsule_operator_review_hash_required |
+| Missing decision payload reason | execution_capsule_operator_decision_required |
+| Complete decision reason | execution_capsule_operator_decision_execution_closed |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| execution capsule operator review hash exists before decision | covered |
+| expected execution capsule operator review hash must match | covered |
+| execution capsule operator decision payload is required | covered |
+| operator decision is represented as hash/count evidence | covered |
+| claim boundary is represented as hash/count evidence | covered |
+| public decision exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled execution capsule operator decision
 for a later manual provider test candidate. It does not add an external call
 path, SDK integration, env value access, network access, provider response
 parsing, hosted execution, live operator approval, or production provider

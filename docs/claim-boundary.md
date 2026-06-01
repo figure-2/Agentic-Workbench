@@ -91,6 +91,9 @@ Agentic Workbench is a local/dev AI agent workflow harness prototype. It may cla
 - Disabled first-call execution capsule operator review over handoff packet,
   operator-review, claim-boundary, and no-call counter hashes, with execution
   permission closed
+- Disabled first-call execution capsule operator decision over operator review,
+  operator-decision, claim-boundary, and no-call counter hashes, with execution
+  permission closed
 - Sanitized public summaries and correlation hashes
 - Fixture-based smoke tests and local regression tests
 
@@ -215,6 +218,9 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
 - execution capsule operator review described as external provider behavior,
   provider result, live operator approval, execution permission, hosted
   execution, or production provider readiness
+- execution capsule operator decision described as external provider behavior,
+  provider result, live operator approval, execution permission, hosted
+  execution, or production provider readiness
 
 ## Public Artifact Rules
 
@@ -266,3 +272,4 @@ Allowed replacements:
 | Release Proposal Gate | Release proposal binds arming record, operator, release window, and rollback hashes but remains execution-closed |
 | Final Release Packet Gate | Final release packet binds release proposal, arming record, operator, release window, and rollback hashes but remains execution-closed |
 | Execution Switch Gate | Execution switch binds final release packet and switch-enable hashes but remains execution-closed |
+| Execution Capsule Operator Decision Gate | Execution capsule operator decision binds operator review, operator-decision, claim-boundary, and no-call counter hashes but remains execution-closed |
