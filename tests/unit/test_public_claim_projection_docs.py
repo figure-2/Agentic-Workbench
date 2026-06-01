@@ -62,6 +62,11 @@ LIVE_11_RUNBOOK_PATH = ROOT / "docs" / "runbooks" / "aw-live-11-preflight-audit-
 LIVE_11_WORK_ORDER_PATH = (
     ROOT / "docs" / "work-orders" / "aw-live-11-preflight-audit-bundle.md"
 )
+LIVE_12_PATH = ROOT / "docs" / "evals" / "aw-live-12-readiness-decision-record.md"
+LIVE_12_RUNBOOK_PATH = ROOT / "docs" / "runbooks" / "aw-live-12-readiness-decision-record.md"
+LIVE_12_WORK_ORDER_PATH = (
+    ROOT / "docs" / "work-orders" / "aw-live-12-readiness-decision-record.md"
+)
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -107,6 +112,9 @@ PUBLIC_CLAIM_DOCS = [
     LIVE_11_PATH,
     LIVE_11_RUNBOOK_PATH,
     LIVE_11_WORK_ORDER_PATH,
+    LIVE_12_PATH,
+    LIVE_12_RUNBOOK_PATH,
+    LIVE_12_WORK_ORDER_PATH,
 ]
 
 

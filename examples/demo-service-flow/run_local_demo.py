@@ -29,6 +29,7 @@ from apps.api.agentic_workbench_api.services.evidence_read_model import (
 from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     MANUAL_PROVIDER_TEST_EXECUTOR_VERSION,
     ProviderEnvelopeRepositoryConfig,
+    provider_manual_test_preflight_summary,
     provider_manual_test_proposal_summary,
     provider_precheck_operator_policy_summary,
 )
@@ -177,6 +178,14 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
         "abort_criteria_count": 2,
         "expires_at": "2099-01-01T00:00:00Z",
     }
+    preflight_summary = provider_manual_test_preflight_summary(payload)
+    payload["manual_test_readiness_decision"] = {
+        "preflight_audit_hash": preflight_summary["preflight_audit_hash"],
+        "decision": "approve",
+        "operator_ref": "local-demo-operator",
+        "decided_at": "2026-06-01T00:10:00Z",
+        "decision_reason_code": "local-demo-readiness-reviewed",
+    }
     return payload
 
 
@@ -244,6 +253,11 @@ def _checks(
         checks["provider_preflight_audit_blocked"] = (
             preflight.get("status") == "blocked"
             and preflight.get("reason") == "preflight_execution_closed"
+        )
+        readiness = provider_envelope_data.get("manual_provider_test_readiness_decision", {})
+        checks["provider_readiness_decision_blocked"] = (
+            readiness.get("status") == "blocked"
+            and readiness.get("reason") == "readiness_execution_closed"
         )
     return checks
 
@@ -411,6 +425,27 @@ def run_demo(
                 "preflight_no_call_counter_mismatch_count": provider_envelope_data.get(
                     "manual_provider_test_preflight_audit", {}
                 ).get("no_call_counter_mismatch_count"),
+                "readiness_decision_status": provider_envelope_data.get(
+                    "manual_provider_test_readiness_decision", {}
+                ).get("status"),
+                "readiness_decision_reason": provider_envelope_data.get(
+                    "manual_provider_test_readiness_decision", {}
+                ).get("reason"),
+                "readiness_decision_hash": provider_envelope_data.get(
+                    "manual_provider_test_readiness_decision", {}
+                ).get("readiness_decision_hash"),
+                "readiness_decision_count": provider_envelope_data.get(
+                    "manual_provider_test_readiness_decision", {}
+                ).get("decision_count"),
+                "readiness_approve_decision_count": provider_envelope_data.get(
+                    "manual_provider_test_readiness_decision", {}
+                ).get("approve_decision_count"),
+                "readiness_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_readiness_decision", {}
+                ).get("mismatch_count"),
+                "readiness_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_readiness_decision", {}
+                ).get("execution_permission_count"),
                 "read_model_status": (
                     provider_envelope_read_data or {}
                 ).get("status"),

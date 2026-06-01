@@ -260,6 +260,13 @@ still reports `preflight_execution_closed`; missing or mismatched components
 return component-specific blocked reasons. No adapter, provider, or target
 runtime path is opened.
 
+`AW-LIVE-12` adds a blocked readiness decision record. The record binds a
+private operator decision to the current preflight audit hash and represents
+approve, reject, and defer as count fields. Public output remains limited to
+status, reason, hash, and counts. Even an approve decision reports
+`readiness_execution_closed`, keeps `execution_permission_count=0`, and does
+not open provider or target runtime paths.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit

@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-11` manual provider test preflight audit bundle.
+Current snapshot after `AW-LIVE-12` readiness decision record.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 165 |
-| Counted code/doc files, excluding cache and private SoT | 163 |
-| Project lines, excluding cache and private SoT | 30,993 |
+| Project files, excluding cache and private SoT | 168 |
+| Counted code/doc files, excluding cache and private SoT | 166 |
+| Project lines, excluding cache and private SoT | 31,651 |
 | Python files | 76 |
-| Markdown files | 82 |
+| Markdown files | 85 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 402 |
-| Pytest passed cases | 402 |
+| Pytest collected cases | 405 |
+| Pytest passed cases | 405 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -1811,6 +1811,47 @@ Measured after adding the blocked manual provider test preflight audit bundle.
 | provider/runtime calls remain at 0 | covered |
 
 Interpretation: this adds a blocked local preflight audit bundle for a later
+manual provider test candidate. It does not add an external call path, SDK
+integration, env value access, network access, provider response parsing,
+hosted execution, or production provider readiness.
+
+## AW-LIVE-12 Readiness Decision Record Metrics
+
+Measured after adding the blocked readiness decision record.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 405 |
+| Pytest passed cases | 405 |
+| Regression delta vs AW-LIVE-11 baseline | +3 |
+| API readiness decision integration tests | 3 |
+| Provider envelope API integration tests | 11 |
+| Demo provider envelope smoke tests | 1 |
+| Readiness decision public projection fields | 9 |
+| Supported decision values | 3 |
+| Execution permission count with approve decision | 0 |
+| Decision reason with approve | readiness_execution_closed |
+| Decision reason with reject | readiness_rejected |
+| Decision reason with defer | readiness_deferred |
+| Decision reason with preflight hash mismatch | preflight_hash_mismatch |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| readiness decision binds current preflight hash | covered |
+| approve/reject/defer represented by count fields | covered |
+| execution permission remains 0 | covered |
+| preflight hash mismatch blocked | covered |
+| projection narrowed to status/reason/hash/count fields | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a blocked local readiness decision record for a later
 manual provider test candidate. It does not add an external call path, SDK
 integration, env value access, network access, provider response parsing,
 hosted execution, or production provider readiness.

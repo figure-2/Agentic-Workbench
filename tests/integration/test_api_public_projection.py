@@ -9,6 +9,7 @@ from apps.api.agentic_workbench_api.services.evidence_read_model import Evidence
 from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     MANUAL_PROVIDER_TEST_EXECUTOR_VERSION,
     ProviderEnvelopeRepositoryConfig,
+    provider_manual_test_preflight_summary,
     provider_manual_test_proposal_summary,
     provider_precheck_operator_policy_summary,
 )
@@ -101,6 +102,9 @@ def _provider_envelope_precheck_payload(
     include_manual_test_operator_approval: bool = True,
     manual_test_executor_enable: bool = False,
     include_one_shot_live_permission: bool = False,
+    include_readiness_decision: bool = False,
+    readiness_decision: str = "approve",
+    readiness_preflight_hash_override: str | None = None,
 ) -> dict:
     payload = {
         "run_id": run_id,
@@ -206,6 +210,20 @@ def _provider_envelope_precheck_payload(
             "expires_at": "2099-01-01T00:00:00Z",
             "authorization_material": "API10_PERMISSION_AUTH_SENTINEL",
             "provider_payload": "API10_PERMISSION_PROVIDER_PAYLOAD_SENTINEL",
+        }
+    if include_readiness_decision:
+        preflight_summary = provider_manual_test_preflight_summary(payload)
+        payload["manual_test_readiness_decision"] = {
+            "preflight_audit_hash": (
+                readiness_preflight_hash_override
+                or preflight_summary["preflight_audit_hash"]
+            ),
+            "decision": readiness_decision,
+            "operator_ref": "local-operator",
+            "decided_at": "2026-06-01T00:10:00Z",
+            "decision_reason_code": "manual-provider-test-candidate-reviewed",
+            "authorization_material": "API12_READINESS_AUTH_SENTINEL",
+            "provider_payload": "API12_READINESS_PROVIDER_PAYLOAD_SENTINEL",
         }
     return payload
 
@@ -1311,6 +1329,7 @@ def test_provider_envelope_precheck_api_persists_hash_read_model_without_externa
     manual_executor = data["manual_provider_test_executor"]
     one_shot_permission = data["one_shot_live_permission"]
     preflight_audit = data["manual_provider_test_preflight_audit"]
+    readiness_decision = data["manual_provider_test_readiness_decision"]
     checklist_by_id = {item["id"]: item for item in dry_admission["checklist"]}
 
     assert data["projection_version"] == "provider-envelope-admission-api-public-v1"
@@ -1399,6 +1418,22 @@ def test_provider_envelope_precheck_api_persists_hash_read_model_without_externa
     assert preflight_audit["component_count"] == 5
     assert preflight_audit["mismatch_count"] >= 1
     assert preflight_audit["no_call_counter_mismatch_count"] == 0
+    assert set(readiness_decision) == {
+        "status",
+        "reason",
+        "readiness_decision_hash",
+        "decision_count",
+        "approve_decision_count",
+        "reject_decision_count",
+        "defer_decision_count",
+        "mismatch_count",
+        "execution_permission_count",
+    }
+    assert readiness_decision["status"] == "blocked"
+    assert readiness_decision["reason"] == "readiness_decision_required"
+    assert readiness_decision["readiness_decision_hash"] == ""
+    assert readiness_decision["decision_count"] == 0
+    assert readiness_decision["execution_permission_count"] == 0
     assert data["repository_boundary"]["provider_envelope_backend"] == "sqlite"
     assert data["repository_boundary"]["root_path_returned"] is False
     assert data["execution_boundary"]["adapter_invocation_count"] == 1
@@ -1764,6 +1799,178 @@ def test_provider_envelope_precheck_api_marks_preflight_mismatch_without_raw_ech
         str(tmp_path),
     ):
         assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_records_readiness_decision_without_execution(tmp_path):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-readiness-decision",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+    )
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    readiness_decision = data["manual_provider_test_readiness_decision"]
+
+    assert readiness_decision["status"] == "blocked"
+    assert readiness_decision["reason"] == "readiness_execution_closed"
+    assert set(readiness_decision) == {
+        "status",
+        "reason",
+        "readiness_decision_hash",
+        "decision_count",
+        "approve_decision_count",
+        "reject_decision_count",
+        "defer_decision_count",
+        "mismatch_count",
+        "execution_permission_count",
+    }
+    assert readiness_decision["readiness_decision_hash"]
+    assert readiness_decision["decision_count"] == 1
+    assert readiness_decision["approve_decision_count"] == 1
+    assert readiness_decision["reject_decision_count"] == 0
+    assert readiness_decision["defer_decision_count"] == 0
+    assert readiness_decision["mismatch_count"] == 0
+    assert readiness_decision["execution_permission_count"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["live_api_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["provider_envelope_env_value_reads"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API08_ABORT_CRITERIA_SENTINEL",
+        "API08_MANUAL_TEST_AUTH_SENTINEL",
+        "API10_PERMISSION_AUTH_SENTINEL",
+        "API10_PERMISSION_PROVIDER_PAYLOAD_SENTINEL",
+        "API12_READINESS_AUTH_SENTINEL",
+        "API12_READINESS_PROVIDER_PAYLOAD_SENTINEL",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_readiness_decision_hash_mismatch(tmp_path):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-readiness-mismatch",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+        readiness_preflight_hash_override="mismatched-preflight-hash",
+    )
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    readiness_decision = data["manual_provider_test_readiness_decision"]
+
+    assert readiness_decision["status"] == "blocked"
+    assert readiness_decision["reason"] == "preflight_hash_mismatch"
+    assert readiness_decision["readiness_decision_hash"] == ""
+    assert readiness_decision["decision_count"] == 1
+    assert readiness_decision["approve_decision_count"] == 1
+    assert readiness_decision["mismatch_count"] >= 1
+    assert readiness_decision["execution_permission_count"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["live_api_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["provider_envelope_env_value_reads"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API08_ABORT_CRITERIA_SENTINEL",
+        "API08_MANUAL_TEST_AUTH_SENTINEL",
+        "API10_PERMISSION_AUTH_SENTINEL",
+        "API10_PERMISSION_PROVIDER_PAYLOAD_SENTINEL",
+        "API12_READINESS_AUTH_SENTINEL",
+        "API12_READINESS_PROVIDER_PAYLOAD_SENTINEL",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_represents_reject_and_defer_decisions(tmp_path):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+
+    for decision, expected_reason, count_field in (
+        ("reject", "readiness_rejected", "reject_decision_count"),
+        ("defer", "readiness_deferred", "defer_decision_count"),
+    ):
+        request_payload = _provider_envelope_precheck_payload(
+            run_id=f"run-api-envelope-readiness-{decision}",
+            include_manual_test_proposal=True,
+            manual_test_executor_enable=True,
+            include_one_shot_live_permission=True,
+            include_readiness_decision=True,
+            readiness_decision=decision,
+        )
+        response = client.post(
+            "/api/v1/admissions/provider/envelope/precheck",
+            json=request_payload,
+        )
+
+        assert response.status_code == 200
+        data = response.json()["data"]
+        readiness_decision = data["manual_provider_test_readiness_decision"]
+
+        assert readiness_decision["status"] == "blocked"
+        assert readiness_decision["reason"] == expected_reason
+        assert readiness_decision["readiness_decision_hash"]
+        assert readiness_decision["decision_count"] == 1
+        assert readiness_decision[count_field] == 1
+        assert readiness_decision["mismatch_count"] == 0
+        assert readiness_decision["execution_permission_count"] == 0
+        assert data["execution_boundary"]["provider_calls"] == 0
+        assert data["execution_boundary"]["network_calls"] == 0
+        assert data["execution_boundary"]["solar_live_api_calls"] == 0
 
 
 def test_provider_envelope_precheck_api_blocks_missing_store_before_adapter():

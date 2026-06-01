@@ -135,11 +135,19 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert envelope["preflight_audit_mismatch_count"] == 0
     assert envelope["preflight_no_call_counter_count"] >= 10
     assert envelope["preflight_no_call_counter_mismatch_count"] == 0
+    assert envelope["readiness_decision_status"] == "blocked"
+    assert envelope["readiness_decision_reason"] == "readiness_execution_closed"
+    assert envelope["readiness_decision_hash"]
+    assert envelope["readiness_decision_count"] == 1
+    assert envelope["readiness_approve_decision_count"] == 1
+    assert envelope["readiness_mismatch_count"] == 0
+    assert envelope["readiness_execution_permission_count"] == 0
     assert envelope["read_model_status"] == "available"
     assert checks["provider_envelope_precheck_recorded"] is True
     assert checks["provider_envelope_adapter_reached_disabled_path"] is True
     assert checks["provider_envelope_calls_zero"] is True
     assert checks["provider_preflight_audit_blocked"] is True
+    assert checks["provider_readiness_decision_blocked"] is True
     assert envelope["execution_boundary"]["provider_calls"] == 0
     assert envelope["execution_boundary"]["network_calls"] == 0
     assert envelope["execution_boundary"]["solar_live_api_calls"] == 0

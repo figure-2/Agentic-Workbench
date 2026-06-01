@@ -41,6 +41,7 @@ Agentic Workbench is a local/dev AI agent workflow harness prototype. It may cla
 - Blocked one-shot permission contract projection for a local manual provider
   test candidate
 - Blocked local preflight audit bundle for a manual provider test candidate
+- Blocked readiness decision record for a local manual provider test candidate
 - Sanitized public summaries and correlation hashes
 - Fixture-based smoke tests and local regression tests
 
@@ -107,6 +108,8 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
 - one-shot permission contract described as external provider behavior,
   execution permission, hosted execution, or production provider readiness
 - preflight audit bundle described as external provider behavior, execution
+  permission, hosted execution, or production provider readiness
+- readiness decision record described as external provider behavior, execution
   permission, hosted execution, or production provider readiness
 
 ## Public Artifact Rules
