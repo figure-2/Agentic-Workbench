@@ -70,6 +70,13 @@ LIVE_12_WORK_ORDER_PATH = (
 LIVE_13_PATH = ROOT / "docs" / "evals" / "aw-live-13-review-packet.md"
 LIVE_13_RUNBOOK_PATH = ROOT / "docs" / "runbooks" / "aw-live-13-review-packet.md"
 LIVE_13_WORK_ORDER_PATH = ROOT / "docs" / "work-orders" / "aw-live-13-review-packet.md"
+LIVE_14_PATH = ROOT / "docs" / "evals" / "aw-live-14-review-packet-export-read-model.md"
+LIVE_14_RUNBOOK_PATH = (
+    ROOT / "docs" / "runbooks" / "aw-live-14-review-packet-export-read-model.md"
+)
+LIVE_14_WORK_ORDER_PATH = (
+    ROOT / "docs" / "work-orders" / "aw-live-14-review-packet-export-read-model.md"
+)
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -121,6 +128,9 @@ PUBLIC_CLAIM_DOCS = [
     LIVE_13_PATH,
     LIVE_13_RUNBOOK_PATH,
     LIVE_13_WORK_ORDER_PATH,
+    LIVE_14_PATH,
+    LIVE_14_RUNBOOK_PATH,
+    LIVE_14_WORK_ORDER_PATH,
 ]
 
 

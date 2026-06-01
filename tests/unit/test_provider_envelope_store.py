@@ -24,6 +24,8 @@ from packages.daacs_builder.provider_envelope_store import (
     provider_envelope_public_read_model,
     provider_envelope_public_read_model_from_sqlite,
     provider_envelope_record_from_contract_result,
+    provider_review_packet_export_public_read_model,
+    provider_review_packet_export_record_from_projection,
 )
 from packages.daacs_builder.solar_contracts import (
     SolarCostTimeoutPolicy,
@@ -98,6 +100,43 @@ def _sqlite_rows(path):
         ]
 
 
+def _sqlite_review_packet_rows(path):
+    with sqlite3.connect(path) as connection:
+        connection.row_factory = sqlite3.Row
+        return [
+            dict(row)
+            for row in connection.execute(
+                """
+                SELECT * FROM provider_review_packet_exports
+                ORDER BY created_at ASC, export_id ASC
+                """
+            )
+        ]
+
+
+def _review_packet_projection(**overrides):
+    fields = {
+        "status": "blocked",
+        "reason": "review_packet_execution_closed",
+        "review_packet_hash": stable_contract_hash(
+            {
+                "purpose": "provider review packet export",
+                "input": "hash only",
+            }
+        ),
+        "component_count": 3,
+        "passed_component_count": 3,
+        "mismatch_count": 0,
+        "component_hash_count": 3,
+        "execution_permission_count": 0,
+        "raw_prompt": "LIVE14_RAW_PROMPT_SENTINEL",
+        "provider_payload": "LIVE14_PROVIDER_PAYLOAD_SENTINEL",
+        "authorization_material": "LIVE14_AUTH_SENTINEL",
+    }
+    fields.update(overrides)
+    return fields
+
+
 def test_provider_envelope_record_persists_request_and_response_contract_hashes():
     result = _contract_result()
     record = provider_envelope_record_from_contract_result(
@@ -117,6 +156,70 @@ def test_provider_envelope_record_persists_request_and_response_contract_hashes(
     assert envelope["prompt_contract_hash"] == _prompt_hash()
     assert envelope["status"] == "projected_fixture"
     assert find_forbidden_public_keys(read_model) == []
+    assert_public_projection_safe(read_model)
+
+
+def test_provider_review_packet_export_rows_do_not_store_raw_material(tmp_path):
+    store = SQLiteProviderEnvelopeStore(root=tmp_path)
+    record = provider_review_packet_export_record_from_projection(
+        _review_packet_projection(),
+        run_id="run-live-03",
+        created_at="2026-06-01T00:00:00+00:00",
+    )
+
+    store.repository().save_review_packet_export(record)
+    serialized = _serialized(_sqlite_review_packet_rows(store.path))
+
+    for sentinel in (
+        "LIVE14_RAW_PROMPT_SENTINEL",
+        "LIVE14_PROVIDER_PAYLOAD_SENTINEL",
+        "LIVE14_AUTH_SENTINEL",
+        "raw_prompt",
+        "provider_payload",
+        "authorization_material",
+    ):
+        assert sentinel not in serialized
+    assert record.review_packet_hash in serialized
+    assert record.content_hash in serialized
+
+
+def test_provider_review_packet_export_read_model_returns_hash_status_count_only(tmp_path):
+    store = SQLiteProviderEnvelopeStore(root=tmp_path)
+    record = provider_review_packet_export_record_from_projection(
+        _review_packet_projection(),
+        run_id="run-live-03",
+        created_at="2026-06-01T00:00:00+00:00",
+    )
+    store.repository().save_review_packet_export(record)
+
+    read_model = provider_review_packet_export_public_read_model(
+        store.repository(),
+        run_id="run-live-03",
+    )
+    export = read_model["review_packet_exports"][0]
+
+    assert set(export) == {
+        "status",
+        "reason",
+        "review_packet_hash",
+        "review_packet_export_hash",
+        "component_count",
+        "passed_component_count",
+        "mismatch_count",
+        "component_hash_count",
+        "execution_permission_count",
+    }
+    assert read_model["status"] == "available"
+    assert read_model["counts"]["review_packet_export_count"] == 1
+    assert read_model["counts"]["execution_permission_count"] == 0
+    assert read_model["repository_boundary"]["raw_row_returned"] is False
+    assert read_model["repository_boundary"]["root_path_returned"] is False
+    assert read_model["execution_boundary"] == {
+        "sdk_imports": 0,
+        "env_value_reads": 0,
+        "api_calls": 0,
+        "network_calls": 0,
+    }
     assert_public_projection_safe(read_model)
 
 

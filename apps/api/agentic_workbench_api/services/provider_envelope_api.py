@@ -37,6 +37,8 @@ from packages.daacs_builder.provider_envelope_store import (
     PROVIDER_ENVELOPE_DB_NAME,
     SQLiteProviderEnvelopeStore,
     provider_envelope_public_read_model,
+    provider_review_packet_export_public_read_model,
+    provider_review_packet_export_record_from_projection,
 )
 from packages.daacs_builder.runner_provider import safe_public_run_id
 from packages.daacs_builder.solar_contracts import (
@@ -67,6 +69,9 @@ MANUAL_PROVIDER_TEST_READINESS_DECISION_VERSION = (
 )
 MANUAL_PROVIDER_TEST_REVIEW_PACKET_VERSION = (
     "manual-provider-test-review-packet-v1"
+)
+MANUAL_PROVIDER_TEST_REVIEW_PACKET_EXPORT_VERSION = (
+    "manual-provider-test-review-packet-export-v1"
 )
 
 
@@ -401,6 +406,23 @@ def _manual_provider_test_review_packet_blocked(reason: str) -> JsonDict:
             "status": "blocked",
             "reason": reason,
             "review_packet_hash": "",
+            "component_count": 0,
+            "passed_component_count": 0,
+            "mismatch_count": 1,
+            "component_hash_count": 0,
+            "execution_permission_count": 0,
+        }
+    )
+
+
+def _manual_provider_test_review_packet_export_blocked(reason: str) -> JsonDict:
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "review_packet_hash": "",
+            "review_packet_export_hash": "",
+            "export_count": 0,
             "component_count": 0,
             "passed_component_count": 0,
             "mismatch_count": 1,
@@ -1009,6 +1031,94 @@ def provider_manual_test_review_packet_summary(payload: dict[str, Any]) -> dict[
     )
 
 
+def _review_packet_export_from_read_model(read_model: JsonDict) -> JsonDict:
+    if str(read_model.get("status", "")) == "blocked":
+        return _manual_provider_test_review_packet_export_blocked(
+            "review_packet_export_store_unavailable"
+        )
+    exports = (
+        read_model.get("review_packet_exports")
+        if isinstance(read_model.get("review_packet_exports"), list)
+        else []
+    )
+    if not exports:
+        return _manual_provider_test_review_packet_export_blocked(
+            "review_packet_export_not_found"
+        )
+    selected = exports[-1] if isinstance(exports[-1], dict) else {}
+    counts = read_model.get("counts") if isinstance(read_model.get("counts"), dict) else {}
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": str(selected.get("reason", "review_packet_export_execution_closed")),
+            "review_packet_hash": str(selected.get("review_packet_hash", "")),
+            "review_packet_export_hash": str(selected.get("review_packet_export_hash", "")),
+            "export_count": _coerce_int(counts.get("review_packet_export_count", 0)),
+            "component_count": _coerce_int(selected.get("component_count", 0)),
+            "passed_component_count": _coerce_int(
+                selected.get("passed_component_count", 0)
+            ),
+            "mismatch_count": _coerce_int(selected.get("mismatch_count", 0)),
+            "component_hash_count": _coerce_int(selected.get("component_hash_count", 0)),
+            "execution_permission_count": _coerce_int(
+                selected.get("execution_permission_count", 0)
+            ),
+        }
+    )
+
+
+def _persist_review_packet_export(
+    *,
+    run_id: str,
+    repository_provider: ProviderEnvelopeRepositoryProvider,
+    review_packet: JsonDict,
+    expected_review_packet_hash: str = "",
+) -> tuple[JsonDict, JsonDict]:
+    actual_hash = str(review_packet.get("review_packet_hash", "")).strip()
+    if expected_review_packet_hash and expected_review_packet_hash != actual_hash:
+        return (
+            _manual_provider_test_review_packet_export_blocked(
+                "review_packet_hash_mismatch"
+            ),
+            {},
+        )
+    if not actual_hash:
+        return (
+            _manual_provider_test_review_packet_export_blocked(
+                "review_packet_hash_missing"
+            ),
+            {},
+        )
+    try:
+        repository = repository_provider.repository()
+        record = provider_review_packet_export_record_from_projection(
+            review_packet,
+            run_id=run_id,
+        )
+        try:
+            repository.save_review_packet_export(record)
+        except ValueError as exc:
+            if "duplicate" not in str(exc).lower() and "conflict" not in str(exc).lower():
+                return (
+                    _manual_provider_test_review_packet_export_blocked(
+                        "review_packet_export_store_unavailable"
+                    ),
+                    {},
+                )
+        read_model = provider_review_packet_export_public_read_model(
+            repository,
+            run_id=run_id,
+        )
+    except Exception:
+        return (
+            _manual_provider_test_review_packet_export_blocked(
+                "review_packet_export_store_unavailable"
+            ),
+            {},
+        )
+    return _review_packet_export_from_read_model(read_model), read_model
+
+
 def _blocked_projection(
     *,
     run_id: str,
@@ -1025,6 +1135,8 @@ def _blocked_projection(
     one_shot_live_permission: JsonDict | None = None,
     manual_provider_test_readiness_decision: JsonDict | None = None,
     manual_provider_test_review_packet: JsonDict | None = None,
+    manual_provider_test_review_packet_export: JsonDict | None = None,
+    manual_provider_test_review_packet_export_read_model: JsonDict | None = None,
 ) -> dict[str, Any]:
     selected_operator_approval = operator_approval_envelope or _operator_approval_missing_projection()
     selected_dry_admission = live_provider_dry_admission or _live_provider_dry_admission_checklist(
@@ -1067,6 +1179,12 @@ def _blocked_projection(
             readiness_decision=selected_readiness_decision,
         )
     )
+    selected_review_packet_export = (
+        manual_provider_test_review_packet_export
+        or _manual_provider_test_review_packet_export_blocked(
+            "review_packet_export_not_available"
+        )
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -1096,6 +1214,10 @@ def _blocked_projection(
             "manual_provider_test_preflight_audit": selected_preflight_audit,
             "manual_provider_test_readiness_decision": selected_readiness_decision,
             "manual_provider_test_review_packet": selected_review_packet,
+            "manual_provider_test_review_packet_export": selected_review_packet_export,
+            "manual_provider_test_review_packet_export_read_model": (
+                manual_provider_test_review_packet_export_read_model or {}
+            ),
             "provider_envelope_read_model": read_model or {},
             "checks": [{"name": check_name, "passed": False}],
             "errors": [message],
@@ -1406,6 +1528,12 @@ def _projection_from_result(
         preflight_audit=preflight_audit,
         readiness_decision=readiness_decision,
     )
+    review_packet_export, review_packet_export_read_model = _persist_review_packet_export(
+        run_id=run_id,
+        repository_provider=repository_provider,
+        review_packet=review_packet,
+        expected_review_packet_hash=str(payload.get("expected_review_packet_hash", "")).strip(),
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -1431,6 +1559,10 @@ def _projection_from_result(
             "manual_provider_test_preflight_audit": preflight_audit,
             "manual_provider_test_readiness_decision": readiness_decision,
             "manual_provider_test_review_packet": review_packet,
+            "manual_provider_test_review_packet_export": review_packet_export,
+            "manual_provider_test_review_packet_export_read_model": (
+                review_packet_export_read_model
+            ),
             "provider_envelope_read_model": read_model,
             "checks": _check_map(result.checks),
             "errors": [str(error) for error in result.errors],
@@ -1516,6 +1648,30 @@ def run_provider_envelope_precheck(
         preflight_audit=preflight_audit_for_decision,
         readiness_decision=manual_provider_test_readiness_decision,
     )
+    expected_review_packet_hash = str(payload.get("expected_review_packet_hash", "")).strip()
+    actual_review_packet_hash = str(
+        manual_provider_test_review_packet.get("review_packet_hash", "")
+    ).strip()
+    if expected_review_packet_hash and expected_review_packet_hash != actual_review_packet_hash:
+        return _blocked_projection(
+            run_id=request.run_id,
+            repository_provider=selected_provider,
+            check_name="manual_provider_test_review_packet_hash_match",
+            message="manual provider test review packet hash mismatch.",
+            operator_policy_summary=operator_policy_summary,
+            operator_approval_envelope=operator_approval,
+            live_provider_dry_admission=live_provider_dry_admission,
+            manual_provider_test_proposal=manual_provider_test_proposal,
+            manual_provider_test_executor=manual_provider_test_executor,
+            one_shot_live_permission=one_shot_live_permission,
+            manual_provider_test_readiness_decision=manual_provider_test_readiness_decision,
+            manual_provider_test_review_packet=manual_provider_test_review_packet,
+            manual_provider_test_review_packet_export=(
+                _manual_provider_test_review_packet_export_blocked(
+                    "review_packet_hash_mismatch"
+                )
+            ),
+        )
     if operator_errors:
         return _blocked_projection(
             run_id=request.run_id,
@@ -1636,8 +1792,13 @@ def read_provider_envelope_precheck(
             message="provider envelope repository is not configured.",
         )
     try:
+        repository = selected_provider.repository()
         read_model = provider_envelope_public_read_model(
-            selected_provider.repository(),
+            repository,
+            run_id=run_id,
+        )
+        review_packet_export_read_model = provider_review_packet_export_public_read_model(
+            repository,
             run_id=run_id,
         )
     except Exception:
@@ -1647,6 +1808,9 @@ def read_provider_envelope_precheck(
             check_name="provider_envelope_repository_available",
             message="provider envelope repository is unavailable.",
         )
+    review_packet_export = _review_packet_export_from_read_model(
+        review_packet_export_read_model
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -1708,6 +1872,10 @@ def read_provider_envelope_precheck(
             "manual_provider_test_review_packet": _manual_provider_test_review_packet_blocked(
                 "policy_summary_missing_or_mismatched"
             ),
+            "manual_provider_test_review_packet_export": review_packet_export,
+            "manual_provider_test_review_packet_export_read_model": (
+                review_packet_export_read_model
+            ),
             "provider_envelope_read_model": read_model,
             "checks": [{"name": "provider_envelope_read_model_available", "passed": True}],
             "errors": [],
@@ -1738,6 +1906,7 @@ __all__ = [
     "MANUAL_PROVIDER_TEST_PREFLIGHT_AUDIT_VERSION",
     "MANUAL_PROVIDER_TEST_READINESS_DECISION_VERSION",
     "MANUAL_PROVIDER_TEST_REVIEW_PACKET_VERSION",
+    "MANUAL_PROVIDER_TEST_REVIEW_PACKET_EXPORT_VERSION",
     "provider_manual_test_proposal_summary",
     "provider_manual_test_preflight_summary",
     "provider_manual_test_review_packet_summary",

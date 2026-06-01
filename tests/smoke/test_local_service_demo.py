@@ -150,6 +150,14 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert envelope["review_packet_mismatch_count"] == 0
     assert envelope["review_packet_component_hash_count"] == 3
     assert envelope["review_packet_execution_permission_count"] == 0
+    assert envelope["review_packet_export_status"] == "blocked"
+    assert envelope["review_packet_export_reason"] == "review_packet_execution_closed"
+    assert envelope["review_packet_export_hash"]
+    assert envelope["review_packet_export_count"] == 1
+    assert envelope["review_packet_export_execution_permission_count"] == 0
+    assert envelope["review_packet_read_model_status"] == "available"
+    assert envelope["review_packet_read_export_hash"] == envelope["review_packet_hash"]
+    assert envelope["review_packet_read_export_count"] == 1
     assert envelope["read_model_status"] == "available"
     assert checks["provider_envelope_precheck_recorded"] is True
     assert checks["provider_envelope_adapter_reached_disabled_path"] is True
@@ -157,6 +165,7 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert checks["provider_preflight_audit_blocked"] is True
     assert checks["provider_readiness_decision_blocked"] is True
     assert checks["provider_review_packet_blocked"] is True
+    assert checks["provider_review_packet_export_blocked"] is True
     assert envelope["execution_boundary"]["provider_calls"] == 0
     assert envelope["execution_boundary"]["network_calls"] == 0
     assert envelope["execution_boundary"]["solar_live_api_calls"] == 0

@@ -24,11 +24,12 @@ from .runner_provider import is_safe_run_id, safe_public_run_id
 from .solar_contracts import SolarContractFixtureResult
 
 
-PROVIDER_ENVELOPE_SCHEMA_VERSION = 1
+PROVIDER_ENVELOPE_SCHEMA_VERSION = 2
 PROVIDER_ENVELOPE_DB_NAME = "provider-envelopes.sqlite3"
 PROVIDER_ENVELOPE_EXPECTED_TABLES = {
     "schema_migrations",
     "provider_envelopes",
+    "provider_review_packet_exports",
 }
 PROVIDER_ENVELOPE_EXPECTED_COLUMNS = {
     "schema_migrations": {"version", "applied_at"},
@@ -47,6 +48,20 @@ PROVIDER_ENVELOPE_EXPECTED_COLUMNS = {
         "response_field_count",
         "policy_check_count",
         "summary",
+        "created_at",
+    },
+    "provider_review_packet_exports": {
+        "export_id",
+        "run_id",
+        "status",
+        "reason",
+        "review_packet_hash",
+        "content_hash",
+        "component_count",
+        "passed_component_count",
+        "mismatch_count",
+        "component_hash_count",
+        "execution_permission_count",
         "created_at",
     },
 }
@@ -80,6 +95,27 @@ class ProviderEnvelopeRecord:
         return sanitize_public_payload(asdict(self))
 
 
+@dataclass(frozen=True, slots=True)
+class ProviderReviewPacketExportRecord:
+    """Hash-only manual provider test review packet export projection."""
+
+    export_id: str
+    run_id: str
+    status: str
+    reason: str
+    review_packet_hash: str
+    content_hash: str
+    component_count: int
+    passed_component_count: int
+    mismatch_count: int
+    component_hash_count: int
+    execution_permission_count: int
+    created_at: str
+
+    def to_dict(self) -> JsonDict:
+        return sanitize_public_payload(asdict(self))
+
+
 class ProviderEnvelopeRepository(Protocol):
     """Repository contract for sanitized provider envelope records."""
 
@@ -89,12 +125,27 @@ class ProviderEnvelopeRepository(Protocol):
     def list_for_run(self, run_id: str) -> list[ProviderEnvelopeRecord]:
         ...
 
+    def save_review_packet_export(
+        self,
+        record: ProviderReviewPacketExportRecord,
+    ) -> ProviderReviewPacketExportRecord:
+        ...
+
+    def list_review_packet_exports_for_run(
+        self,
+        run_id: str,
+    ) -> list[ProviderReviewPacketExportRecord]:
+        ...
+
 
 @dataclass(slots=True)
 class InMemoryProviderEnvelopeRepository:
     """In-memory provider envelope repository for contract tests."""
 
     records: dict[str, ProviderEnvelopeRecord] = field(default_factory=dict)
+    review_packet_exports: dict[str, ProviderReviewPacketExportRecord] = field(
+        default_factory=dict
+    )
 
     def save(self, record: ProviderEnvelopeRecord) -> ProviderEnvelopeRecord:
         _assert_record_safe(record)
@@ -107,6 +158,30 @@ class InMemoryProviderEnvelopeRepository:
     def list_for_run(self, run_id: str) -> list[ProviderEnvelopeRecord]:
         return sorted(
             (record for record in self.records.values() if record.run_id == run_id),
+            key=lambda record: record.created_at,
+        )
+
+    def save_review_packet_export(
+        self,
+        record: ProviderReviewPacketExportRecord,
+    ) -> ProviderReviewPacketExportRecord:
+        _assert_review_packet_export_record_safe(record)
+        existing = self.review_packet_exports.get(record.export_id)
+        if existing is not None and existing != record:
+            raise ValueError("provider review packet export id conflict")
+        self.review_packet_exports[record.export_id] = record
+        return record
+
+    def list_review_packet_exports_for_run(
+        self,
+        run_id: str,
+    ) -> list[ProviderReviewPacketExportRecord]:
+        return sorted(
+            (
+                record
+                for record in self.review_packet_exports.values()
+                if record.run_id == run_id
+            ),
             key=lambda record: record.created_at,
         )
 
@@ -145,6 +220,32 @@ def _assert_record_safe(record: ProviderEnvelopeRecord) -> None:
         raise ValueError("provider envelope status is unsupported")
     if record.request_field_count < 0 or record.response_field_count < 0:
         raise ValueError("provider envelope field counts must be non-negative")
+    _assert_projection_safe(record.to_dict())
+
+
+def _assert_review_packet_export_record_safe(
+    record: ProviderReviewPacketExportRecord,
+) -> None:
+    if not is_safe_run_id(record.run_id):
+        raise ValueError("provider review packet export run_id is unsafe")
+    if record.status != "blocked":
+        raise ValueError("provider review packet export status must be blocked")
+    if not record.reason:
+        raise ValueError("provider review packet export reason is required")
+    for field_name in ("review_packet_hash", "content_hash"):
+        if not _hash_valid(getattr(record, field_name)):
+            raise ValueError(f"{field_name} must be a contract hash")
+    for field_name in (
+        "component_count",
+        "passed_component_count",
+        "mismatch_count",
+        "component_hash_count",
+        "execution_permission_count",
+    ):
+        if int(getattr(record, field_name)) < 0:
+            raise ValueError(f"{field_name} must be non-negative")
+    if record.execution_permission_count != 0:
+        raise ValueError("provider review packet export execution permission must be closed")
     _assert_projection_safe(record.to_dict())
 
 
@@ -196,6 +297,55 @@ def provider_envelope_record_from_contract_result(
         created_at=created_at or utc_now(),
     )
     _assert_record_safe(record)
+    return record
+
+
+def provider_review_packet_export_record_from_projection(
+    projection: JsonDict,
+    *,
+    run_id: str,
+    created_at: str | None = None,
+) -> ProviderReviewPacketExportRecord:
+    """Convert a no-call review packet projection into a hash-only export row."""
+    _assert_projection_safe(projection)
+    review_packet_hash = str(projection.get("review_packet_hash", "")).strip()
+    if not _hash_valid(review_packet_hash):
+        raise ValueError("review packet export requires a review packet hash")
+    safe_run = safe_public_run_id(run_id)
+    content_hash = stable_contract_hash(
+        {
+            "run_id": safe_run,
+            "status": str(projection.get("status", "")),
+            "reason": str(projection.get("reason", "")),
+            "review_packet_hash": review_packet_hash,
+            "component_count": int(projection.get("component_count", 0)),
+            "passed_component_count": int(
+                projection.get("passed_component_count", 0)
+            ),
+            "mismatch_count": int(projection.get("mismatch_count", 0)),
+            "component_hash_count": int(projection.get("component_hash_count", 0)),
+            "execution_permission_count": int(
+                projection.get("execution_permission_count", 0)
+            ),
+        }
+    )
+    record = ProviderReviewPacketExportRecord(
+        export_id=f"review-packet-export-{content_hash[:24]}",
+        run_id=safe_run,
+        status=str(projection.get("status", "")),
+        reason=str(projection.get("reason", "")),
+        review_packet_hash=review_packet_hash,
+        content_hash=content_hash,
+        component_count=int(projection.get("component_count", 0)),
+        passed_component_count=int(projection.get("passed_component_count", 0)),
+        mismatch_count=int(projection.get("mismatch_count", 0)),
+        component_hash_count=int(projection.get("component_hash_count", 0)),
+        execution_permission_count=int(
+            projection.get("execution_permission_count", 0)
+        ),
+        created_at=created_at or utc_now(),
+    )
+    _assert_review_packet_export_record_safe(record)
     return record
 
 
@@ -254,10 +404,27 @@ class SQLiteProviderEnvelopeStore:
                     created_at TEXT NOT NULL
                 );
 
+                CREATE TABLE IF NOT EXISTS provider_review_packet_exports (
+                    export_id TEXT PRIMARY KEY,
+                    run_id TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    reason TEXT NOT NULL,
+                    review_packet_hash TEXT NOT NULL UNIQUE,
+                    content_hash TEXT NOT NULL UNIQUE,
+                    component_count INTEGER NOT NULL,
+                    passed_component_count INTEGER NOT NULL,
+                    mismatch_count INTEGER NOT NULL,
+                    component_hash_count INTEGER NOT NULL,
+                    execution_permission_count INTEGER NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+
                 CREATE INDEX IF NOT EXISTS idx_provider_envelopes_run_created
                     ON provider_envelopes(run_id, created_at);
                 CREATE INDEX IF NOT EXISTS idx_provider_envelopes_status_created
                     ON provider_envelopes(status, created_at);
+                CREATE INDEX IF NOT EXISTS idx_review_packet_exports_run_created
+                    ON provider_review_packet_exports(run_id, created_at);
                 """
             )
             connection.execute(
@@ -359,6 +526,67 @@ class SQLiteProviderEnvelopeRepository:
             ).fetchall()
         return [self._record_from_row(row) for row in rows]
 
+    def save_review_packet_export(
+        self,
+        record: ProviderReviewPacketExportRecord,
+    ) -> ProviderReviewPacketExportRecord:
+        _assert_review_packet_export_record_safe(record)
+        with self.store._connect() as connection:
+            self.store._assert_schema()
+            try:
+                connection.execute(
+                    """
+                    INSERT INTO provider_review_packet_exports(
+                        export_id,
+                        run_id,
+                        status,
+                        reason,
+                        review_packet_hash,
+                        content_hash,
+                        component_count,
+                        passed_component_count,
+                        mismatch_count,
+                        component_hash_count,
+                        execution_permission_count,
+                        created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        record.export_id,
+                        record.run_id,
+                        record.status,
+                        record.reason,
+                        record.review_packet_hash,
+                        record.content_hash,
+                        record.component_count,
+                        record.passed_component_count,
+                        record.mismatch_count,
+                        record.component_hash_count,
+                        record.execution_permission_count,
+                        record.created_at,
+                    ),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ValueError("provider review packet export duplicate hash or id") from exc
+            connection.commit()
+        return record
+
+    def list_review_packet_exports_for_run(
+        self,
+        run_id: str,
+    ) -> list[ProviderReviewPacketExportRecord]:
+        with self.store._connect() as connection:
+            self.store._assert_schema()
+            rows = connection.execute(
+                """
+                SELECT * FROM provider_review_packet_exports
+                WHERE run_id = ?
+                ORDER BY created_at ASC, export_id ASC
+                """,
+                (run_id,),
+            ).fetchall()
+        return [self._review_packet_export_record_from_row(row) for row in rows]
+
     def _record_from_row(self, row: sqlite3.Row) -> ProviderEnvelopeRecord:
         record = ProviderEnvelopeRecord(
             envelope_id=str(row["envelope_id"]),
@@ -378,6 +606,27 @@ class SQLiteProviderEnvelopeRepository:
             created_at=str(row["created_at"]),
         )
         _assert_record_safe(record)
+        return record
+
+    def _review_packet_export_record_from_row(
+        self,
+        row: sqlite3.Row,
+    ) -> ProviderReviewPacketExportRecord:
+        record = ProviderReviewPacketExportRecord(
+            export_id=str(row["export_id"]),
+            run_id=str(row["run_id"]),
+            status=str(row["status"]),
+            reason=str(row["reason"]),
+            review_packet_hash=str(row["review_packet_hash"]),
+            content_hash=str(row["content_hash"]),
+            component_count=int(row["component_count"]),
+            passed_component_count=int(row["passed_component_count"]),
+            mismatch_count=int(row["mismatch_count"]),
+            component_hash_count=int(row["component_hash_count"]),
+            execution_permission_count=int(row["execution_permission_count"]),
+            created_at=str(row["created_at"]),
+        )
+        _assert_review_packet_export_record_safe(record)
         return record
 
 
@@ -418,6 +667,66 @@ def provider_envelope_public_read_model(
         "provider_envelopes": envelopes,
         "repository_boundary": {
             "provider_envelope_store": "available",
+            "raw_row_returned": False,
+            "root_path_returned": False,
+        },
+        "execution_boundary": {
+            "sdk_imports": 0,
+            "env_value_reads": 0,
+            "api_calls": 0,
+            "network_calls": 0,
+        },
+    }
+    sanitized = sanitize_public_payload(read_model)
+    _assert_projection_safe(sanitized)
+    return sanitized
+
+
+def provider_review_packet_export_public_read_model(
+    repository: ProviderEnvelopeRepository,
+    *,
+    run_id: str,
+) -> JsonDict:
+    """Return sanitized review packet export rows for a provider precheck run."""
+    try:
+        records = repository.list_review_packet_exports_for_run(run_id)
+    except Exception:
+        return _blocked_provider_review_packet_export_read_model(run_id)
+
+    exports = [
+        {
+            "status": record.status,
+            "reason": record.reason,
+            "review_packet_hash": record.review_packet_hash,
+            "review_packet_export_hash": record.content_hash,
+            "component_count": record.component_count,
+            "passed_component_count": record.passed_component_count,
+            "mismatch_count": record.mismatch_count,
+            "component_hash_count": record.component_hash_count,
+            "execution_permission_count": record.execution_permission_count,
+        }
+        for record in records
+    ]
+    read_model = {
+        "projection_version": "provider-review-packet-export-read-model-public-v1",
+        "status": "available" if records else "not_found",
+        "run_id": safe_public_run_id(run_id),
+        "counts": {
+            "review_packet_export_count": len(records),
+            "review_packet_hash_count": len(
+                {record.review_packet_hash for record in records}
+            ),
+            "review_packet_export_hash_count": len(
+                {record.content_hash for record in records}
+            ),
+            "mismatch_count": sum(record.mismatch_count for record in records),
+            "execution_permission_count": sum(
+                record.execution_permission_count for record in records
+            ),
+        },
+        "review_packet_exports": exports,
+        "repository_boundary": {
+            "provider_review_packet_export_store": "available",
             "raw_row_returned": False,
             "root_path_returned": False,
         },
@@ -475,16 +784,49 @@ def _blocked_provider_envelope_read_model(run_id: str) -> JsonDict:
     return sanitized
 
 
+def _blocked_provider_review_packet_export_read_model(run_id: str) -> JsonDict:
+    read_model = {
+        "projection_version": "provider-review-packet-export-read-model-public-v1",
+        "status": "blocked",
+        "run_id": safe_public_run_id(run_id),
+        "counts": {
+            "review_packet_export_count": 0,
+            "review_packet_hash_count": 0,
+            "review_packet_export_hash_count": 0,
+            "mismatch_count": 1,
+            "execution_permission_count": 0,
+        },
+        "review_packet_exports": [],
+        "repository_boundary": {
+            "provider_review_packet_export_store": "blocked",
+            "raw_row_returned": False,
+            "root_path_returned": False,
+        },
+        "execution_boundary": {
+            "sdk_imports": 0,
+            "env_value_reads": 0,
+            "api_calls": 0,
+            "network_calls": 0,
+        },
+    }
+    sanitized = sanitize_public_payload(read_model)
+    _assert_projection_safe(sanitized)
+    return sanitized
+
+
 __all__ = [
     "PROVIDER_ENVELOPE_DB_NAME",
     "PROVIDER_ENVELOPE_SCHEMA_VERSION",
     "InMemoryProviderEnvelopeRepository",
     "ProviderEnvelopeRecord",
     "ProviderEnvelopeRepository",
+    "ProviderReviewPacketExportRecord",
     "ProviderEnvelopeStoreUnavailableError",
     "SQLiteProviderEnvelopeRepository",
     "SQLiteProviderEnvelopeStore",
     "provider_envelope_public_read_model",
     "provider_envelope_public_read_model_from_sqlite",
     "provider_envelope_record_from_contract_result",
+    "provider_review_packet_export_public_read_model",
+    "provider_review_packet_export_record_from_projection",
 ]

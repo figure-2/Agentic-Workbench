@@ -274,6 +274,12 @@ hash, and counts. Even when the readiness decision is approve, the packet
 reports `review_packet_execution_closed` and keeps
 `execution_permission_count=0`.
 
+`AW-LIVE-14` adds a review packet export/read-model. The export stores only
+status, reason, review packet hash, export hash, and counts. `GET`
+provider-envelope read paths can retrieve the stored packet evidence without
+raw prompt, provider body, provider payload, or authorization material. An
+expected packet hash mismatch blocks before adapter admission.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit

@@ -265,6 +265,15 @@ def _checks(
             and review_packet.get("reason") == "review_packet_execution_closed"
             and int(review_packet.get("execution_permission_count", -1)) == 0
         )
+        review_packet_export = provider_envelope_data.get(
+            "manual_provider_test_review_packet_export", {}
+        )
+        checks["provider_review_packet_export_blocked"] = (
+            review_packet_export.get("status") == "blocked"
+            and review_packet_export.get("reason") == "review_packet_execution_closed"
+            and int(review_packet_export.get("export_count", 0)) >= 1
+            and int(review_packet_export.get("execution_permission_count", -1)) == 0
+        )
     return checks
 
 
@@ -476,6 +485,36 @@ def run_demo(
                 "review_packet_execution_permission_count": provider_envelope_data.get(
                     "manual_provider_test_review_packet", {}
                 ).get("execution_permission_count"),
+                "review_packet_export_status": provider_envelope_data.get(
+                    "manual_provider_test_review_packet_export", {}
+                ).get("status"),
+                "review_packet_export_reason": provider_envelope_data.get(
+                    "manual_provider_test_review_packet_export", {}
+                ).get("reason"),
+                "review_packet_export_hash": provider_envelope_data.get(
+                    "manual_provider_test_review_packet_export", {}
+                ).get("review_packet_export_hash"),
+                "review_packet_export_count": provider_envelope_data.get(
+                    "manual_provider_test_review_packet_export", {}
+                ).get("export_count"),
+                "review_packet_export_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_review_packet_export", {}
+                ).get("execution_permission_count"),
+                "review_packet_read_model_status": (
+                    provider_envelope_read_data or {}
+                )
+                .get("manual_provider_test_review_packet_export_read_model", {})
+                .get("status"),
+                "review_packet_read_export_hash": (
+                    provider_envelope_read_data or {}
+                )
+                .get("manual_provider_test_review_packet_export", {})
+                .get("review_packet_hash"),
+                "review_packet_read_export_count": (
+                    provider_envelope_read_data or {}
+                )
+                .get("manual_provider_test_review_packet_export", {})
+                .get("export_count"),
                 "read_model_status": (
                     provider_envelope_read_data or {}
                 ).get("status"),
