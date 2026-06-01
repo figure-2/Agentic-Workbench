@@ -30,6 +30,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     MANUAL_PROVIDER_TEST_EXECUTOR_VERSION,
     ProviderEnvelopeRepositoryConfig,
     provider_manual_test_handoff_packet_summary,
+    provider_manual_test_operator_opt_in_summary,
     provider_manual_test_preflight_summary,
     provider_manual_test_proposal_summary,
     provider_precheck_operator_policy_summary,
@@ -194,6 +195,8 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
         "operator_ref": "local-demo-operator",
         "opted_in_at": "2026-06-01T00:15:00Z",
     }
+    opt_in_summary = provider_manual_test_operator_opt_in_summary(payload)
+    payload["expected_operator_opt_in_hash"] = opt_in_summary["operator_opt_in_hash"]
     return payload
 
 
@@ -298,6 +301,15 @@ def _checks(
             operator_opt_in.get("status") == "blocked"
             and operator_opt_in.get("reason") == "operator_opt_in_execution_closed"
             and int(operator_opt_in.get("execution_permission_count", -1)) == 0
+        )
+        sealed_packet = provider_envelope_data.get(
+            "manual_provider_test_sealed_pre_execution_packet", {}
+        )
+        checks["provider_sealed_packet_blocked"] = (
+            sealed_packet.get("status") == "blocked"
+            and sealed_packet.get("reason")
+            == "sealed_pre_execution_packet_execution_closed"
+            and int(sealed_packet.get("execution_permission_count", -1)) == 0
         )
     return checks
 
@@ -575,6 +587,42 @@ def run_demo(
                 ).get("mismatch_count"),
                 "operator_opt_in_execution_permission_count": provider_envelope_data.get(
                     "manual_provider_test_operator_opt_in", {}
+                ).get("execution_permission_count"),
+                "sealed_packet_status": provider_envelope_data.get(
+                    "manual_provider_test_sealed_pre_execution_packet", {}
+                ).get("status"),
+                "sealed_packet_reason": provider_envelope_data.get(
+                    "manual_provider_test_sealed_pre_execution_packet", {}
+                ).get("reason"),
+                "sealed_packet_hash": provider_envelope_data.get(
+                    "manual_provider_test_sealed_pre_execution_packet", {}
+                ).get("sealed_packet_hash"),
+                "sealed_packet_handoff_packet_hash": provider_envelope_data.get(
+                    "manual_provider_test_sealed_pre_execution_packet", {}
+                ).get("handoff_packet_hash"),
+                "sealed_packet_operator_opt_in_hash": provider_envelope_data.get(
+                    "manual_provider_test_sealed_pre_execution_packet", {}
+                ).get("operator_opt_in_hash"),
+                "sealed_packet_cost_timeout_quota_hash": provider_envelope_data.get(
+                    "manual_provider_test_sealed_pre_execution_packet", {}
+                ).get("cost_timeout_quota_hash"),
+                "sealed_packet_rollback_abort_hash": provider_envelope_data.get(
+                    "manual_provider_test_sealed_pre_execution_packet", {}
+                ).get("rollback_abort_hash"),
+                "sealed_packet_component_count": provider_envelope_data.get(
+                    "manual_provider_test_sealed_pre_execution_packet", {}
+                ).get("component_count"),
+                "sealed_packet_passed_component_count": provider_envelope_data.get(
+                    "manual_provider_test_sealed_pre_execution_packet", {}
+                ).get("passed_component_count"),
+                "sealed_packet_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_sealed_pre_execution_packet", {}
+                ).get("mismatch_count"),
+                "sealed_packet_component_hash_count": provider_envelope_data.get(
+                    "manual_provider_test_sealed_pre_execution_packet", {}
+                ).get("component_hash_count"),
+                "sealed_packet_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_sealed_pre_execution_packet", {}
                 ).get("execution_permission_count"),
                 "review_packet_read_model_status": (
                     provider_envelope_read_data or {}

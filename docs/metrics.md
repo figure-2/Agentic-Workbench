@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-16` operator opt-in checklist boundary.
+Current snapshot after `AW-LIVE-17` sealed pre-execution packet boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 180 |
-| Counted code/doc files, excluding cache and private SoT | 178 |
-| Project lines, excluding cache and private SoT | 34,607 |
+| Project files, excluding cache and private SoT | 183 |
+| Counted code/doc files, excluding cache and private SoT | 181 |
+| Project lines, excluding cache and private SoT | 35,357 |
 | Python files | 76 |
-| Markdown files | 97 |
+| Markdown files | 100 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 417 |
-| Pytest passed cases | 417 |
+| Pytest collected cases | 420 |
+| Pytest passed cases | 420 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -2019,4 +2019,48 @@ Measured after adding the blocked operator opt-in checklist boundary.
 Interpretation: this adds a local no-call operator opt-in checklist for a later
 manual provider test candidate. It does not add an external call path, SDK
 integration, env value access, network access, provider response parsing,
+hosted execution, or production provider readiness.
+
+## AW-LIVE-17 Sealed Pre-Execution Packet Boundary Metrics
+
+Measured after adding the blocked sealed pre-execution packet boundary.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 420 |
+| Pytest passed cases | 420 |
+| Regression delta vs AW-LIVE-16 baseline | +3 |
+| API sealed packet integration tests | 3 |
+| Provider envelope API integration tests | 25 |
+| Demo provider envelope smoke tests | 1 |
+| Sealed packet public summary fields | 12 |
+| Sealed packet component count | 6 |
+| Sealed packet component hash count | 4 |
+| Sealed packet passed count with missing expected opt-in hash | 5 |
+| Sealed packet mismatch count with missing expected opt-in hash | 1 |
+| Sealed packet passed count with complete packet | 6 |
+| Execution permission count with complete packet | 0 |
+| Missing expected opt-in hash reason | expected_operator_opt_in_hash_required |
+| Complete packet reason | sealed_pre_execution_packet_execution_closed |
+| Operator opt-in hash mismatch reason | operator_opt_in_hash_mismatch |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| operator opt-in hash is required before sealed packet hash | covered |
+| expected operator opt-in hash must match | covered |
+| cost/timeout/quota hash is included | covered |
+| rollback/abort criteria hash is included | covered |
+| public sealed packet exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local no-call sealed pre-execution packet for a
+later manual provider test candidate. It does not add an external call path,
+SDK integration, env value access, network access, provider response parsing,
 hosted execution, or production provider readiness.

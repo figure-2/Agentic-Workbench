@@ -79,6 +79,7 @@ sequenceDiagram
 | `manual_provider_test_executor` | disabled executor projection with status, reason, and planned call hash only |
 | `manual_provider_test_handoff_packet` | final no-call packet with status, reason, handoff hash, and counts only |
 | `manual_provider_test_operator_opt_in` | local opt-in checklist bound to the handoff packet hash, still execution-closed |
+| `manual_provider_test_sealed_pre_execution_packet` | local sealed packet over handoff, opt-in, policy, rollback, and abort hashes |
 
 ## Persistence Boundary
 
@@ -295,6 +296,13 @@ Missing opt-in, mismatched handoff hash, invalid decision, or incomplete
 operator fields remain blocked. A complete opt-in still reports
 `operator_opt_in_execution_closed` and keeps `execution_permission_count=0`.
 
+`AW-LIVE-17` adds a sealed pre-execution packet boundary. The packet requires a
+computed operator opt-in hash and a separate expected operator opt-in hash
+match. It then binds handoff, opt-in, cost/timeout/quota, and rollback/abort
+hashes into one status/reason/hash/count projection. The packet still reports
+`sealed_pre_execution_packet_execution_closed` and keeps
+`execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -367,4 +375,6 @@ outside the current executable path.
   sanitized policy/preflight/readiness/review/export evidence and must not
   grant execution permission.
 - operator opt-in checklists must bind to the no-call handoff packet hash and
+  must not grant execution permission.
+- sealed pre-execution packets must bind to no-call evidence hashes only and
   must not grant execution permission.

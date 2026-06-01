@@ -47,6 +47,8 @@ Agentic Workbench is a local/dev AI agent workflow harness prototype. It may cla
 - Final no-call handoff packet for local manual provider test evidence
 - First live-call operator opt-in checklist bound to the handoff packet hash,
   with execution permission closed
+- Sealed pre-execution packet over handoff, opt-in, cost/timeout/quota, and
+  rollback/abort hashes, with execution permission closed
 - Sanitized public summaries and correlation hashes
 - Fixture-based smoke tests and local regression tests
 
@@ -124,6 +126,8 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
   hosted execution, or production provider readiness
 - operator opt-in checklist described as external provider behavior, execution
   permission, hosted execution, or production provider readiness
+- sealed pre-execution packet described as external provider behavior,
+  execution permission, hosted execution, or production provider readiness
 
 ## Public Artifact Rules
 
@@ -170,3 +174,4 @@ Allowed replacements:
 | Disabled Executor Gate | Manual provider test executor remains blocked and exposes only status/reason/hash |
 | Handoff Packet Gate | Manual provider test handoff packet remains blocked and exposes only status/reason/hash/count |
 | Operator Opt-In Checklist Gate | Operator opt-in binds to the handoff packet hash but remains blocked and exposes only status/reason/hash/count |
+| Sealed Pre-Execution Packet Gate | Sealed packet binds handoff, opt-in, policy, rollback, and abort hashes but remains execution-closed |

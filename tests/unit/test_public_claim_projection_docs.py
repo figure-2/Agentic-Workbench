@@ -87,6 +87,13 @@ LIVE_16_RUNBOOK_PATH = (
 LIVE_16_WORK_ORDER_PATH = (
     ROOT / "docs" / "work-orders" / "aw-live-16-operator-opt-in-checklist.md"
 )
+LIVE_17_PATH = ROOT / "docs" / "evals" / "aw-live-17-sealed-pre-execution-packet.md"
+LIVE_17_RUNBOOK_PATH = (
+    ROOT / "docs" / "runbooks" / "aw-live-17-sealed-pre-execution-packet.md"
+)
+LIVE_17_WORK_ORDER_PATH = (
+    ROOT / "docs" / "work-orders" / "aw-live-17-sealed-pre-execution-packet.md"
+)
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -147,6 +154,9 @@ PUBLIC_CLAIM_DOCS = [
     LIVE_16_PATH,
     LIVE_16_RUNBOOK_PATH,
     LIVE_16_WORK_ORDER_PATH,
+    LIVE_17_PATH,
+    LIVE_17_RUNBOOK_PATH,
+    LIVE_17_WORK_ORDER_PATH,
 ]
 
 

@@ -14,6 +14,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     provider_manual_test_preflight_summary,
     provider_manual_test_proposal_summary,
     provider_manual_test_review_packet_summary,
+    provider_manual_test_sealed_pre_execution_packet_summary,
     provider_precheck_operator_policy_summary,
 )
 from packages.core.approval_replay_factory import ApprovalReplayRepositoryConfig
@@ -110,6 +111,8 @@ def _provider_envelope_precheck_payload(
     readiness_preflight_hash_override: str | None = None,
     include_operator_opt_in: bool = False,
     operator_opt_in_handoff_hash_override: str | None = None,
+    include_sealed_pre_execution_packet: bool = False,
+    sealed_operator_opt_in_hash_override: str | None = None,
 ) -> dict:
     payload = {
         "run_id": run_id,
@@ -242,6 +245,16 @@ def _provider_envelope_precheck_payload(
             "opted_in_at": "2026-06-01T00:15:00Z",
             "authorization_material": "API16_OPT_IN_AUTH_SENTINEL",
             "provider_payload": "API16_OPT_IN_PROVIDER_PAYLOAD_SENTINEL",
+        }
+    if include_sealed_pre_execution_packet:
+        operator_opt_in_summary = provider_manual_test_operator_opt_in_summary(payload)
+        payload["expected_operator_opt_in_hash"] = (
+            sealed_operator_opt_in_hash_override
+            or operator_opt_in_summary["operator_opt_in_hash"]
+        )
+        payload["manual_test_sealed_pre_execution_packet"] = {
+            "authorization_material": "API17_SEALED_AUTH_SENTINEL",
+            "provider_payload": "API17_SEALED_PROVIDER_PAYLOAD_SENTINEL",
         }
     return payload
 
@@ -2681,6 +2694,223 @@ def test_provider_envelope_precheck_api_blocks_operator_opt_in_handoff_mismatch(
     for forbidden in (
         "API16_OPT_IN_AUTH_SENTINEL",
         "API16_OPT_IN_PROVIDER_PAYLOAD_SENTINEL",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_sealed_packet_without_expected_operator_opt_in_hash(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-sealed-missing-expected",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+        include_operator_opt_in=True,
+    )
+    expected_handoff = provider_manual_test_handoff_packet_summary(request_payload)
+    expected_opt_in = provider_manual_test_operator_opt_in_summary(request_payload)
+    request_payload["expected_handoff_packet_hash"] = expected_handoff[
+        "handoff_packet_hash"
+    ]
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    sealed = data["manual_provider_test_sealed_pre_execution_packet"]
+
+    assert set(sealed) == {
+        "status",
+        "reason",
+        "sealed_packet_hash",
+        "handoff_packet_hash",
+        "operator_opt_in_hash",
+        "cost_timeout_quota_hash",
+        "rollback_abort_hash",
+        "component_count",
+        "passed_component_count",
+        "mismatch_count",
+        "component_hash_count",
+        "execution_permission_count",
+    }
+    assert sealed["status"] == "blocked"
+    assert sealed["reason"] == "expected_operator_opt_in_hash_required"
+    assert sealed["sealed_packet_hash"] == ""
+    assert sealed["handoff_packet_hash"] == expected_handoff["handoff_packet_hash"]
+    assert sealed["operator_opt_in_hash"] == expected_opt_in["operator_opt_in_hash"]
+    assert sealed["cost_timeout_quota_hash"]
+    assert sealed["rollback_abort_hash"]
+    assert sealed["component_count"] == 6
+    assert sealed["passed_component_count"] == 5
+    assert sealed["mismatch_count"] == 1
+    assert sealed["component_hash_count"] == 4
+    assert sealed["execution_permission_count"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API17_SEALED_AUTH_SENTINEL",
+        "API17_SEALED_PROVIDER_PAYLOAD_SENTINEL",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_builds_sealed_packet_but_keeps_execution_disabled(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-sealed-present",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+        include_operator_opt_in=True,
+        include_sealed_pre_execution_packet=True,
+    )
+    expected_handoff = provider_manual_test_handoff_packet_summary(request_payload)
+    expected_opt_in = provider_manual_test_operator_opt_in_summary(request_payload)
+    expected_sealed = provider_manual_test_sealed_pre_execution_packet_summary(
+        request_payload
+    )
+    request_payload["expected_handoff_packet_hash"] = expected_handoff[
+        "handoff_packet_hash"
+    ]
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    sealed = data["manual_provider_test_sealed_pre_execution_packet"]
+
+    assert sealed["status"] == "blocked"
+    assert sealed["reason"] == "sealed_pre_execution_packet_execution_closed"
+    assert sealed["sealed_packet_hash"] == expected_sealed["sealed_packet_hash"]
+    assert sealed["handoff_packet_hash"] == expected_handoff["handoff_packet_hash"]
+    assert sealed["operator_opt_in_hash"] == expected_opt_in["operator_opt_in_hash"]
+    assert sealed["cost_timeout_quota_hash"] == expected_sealed["cost_timeout_quota_hash"]
+    assert sealed["rollback_abort_hash"] == expected_sealed["rollback_abort_hash"]
+    assert sealed["component_count"] == 6
+    assert sealed["passed_component_count"] == 6
+    assert sealed["mismatch_count"] == 0
+    assert sealed["component_hash_count"] == 4
+    assert sealed["execution_permission_count"] == 0
+    assert data["provider_envelope_admission"]["adapter_reached"] is True
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API17_SEALED_AUTH_SENTINEL",
+        "API17_SEALED_PROVIDER_PAYLOAD_SENTINEL",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_sealed_packet_operator_hash_mismatch(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-sealed-mismatch",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+        include_operator_opt_in=True,
+        include_sealed_pre_execution_packet=True,
+        sealed_operator_opt_in_hash_override="f" * 64,
+    )
+    expected_handoff = provider_manual_test_handoff_packet_summary(request_payload)
+    expected_opt_in = provider_manual_test_operator_opt_in_summary(request_payload)
+    request_payload["expected_handoff_packet_hash"] = expected_handoff[
+        "handoff_packet_hash"
+    ]
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    sealed = data["manual_provider_test_sealed_pre_execution_packet"]
+
+    assert sealed["status"] == "blocked"
+    assert sealed["reason"] == "operator_opt_in_hash_mismatch"
+    assert sealed["sealed_packet_hash"] == ""
+    assert sealed["handoff_packet_hash"] == expected_handoff["handoff_packet_hash"]
+    assert sealed["operator_opt_in_hash"] == expected_opt_in["operator_opt_in_hash"]
+    assert sealed["component_count"] == 6
+    assert sealed["passed_component_count"] == 5
+    assert sealed["mismatch_count"] == 1
+    assert sealed["execution_permission_count"] == 0
+    assert data["provider_envelope_admission"]["adapter_reached"] is True
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API17_SEALED_AUTH_SENTINEL",
+        "API17_SEALED_PROVIDER_PAYLOAD_SENTINEL",
         "authorization_material",
         "provider_payload",
         "raw_prompt",

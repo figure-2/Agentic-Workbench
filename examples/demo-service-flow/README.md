@@ -75,4 +75,5 @@ load `.env` values, call Solar Pro 3, or run the DAACS target runtime.
 - When `--include-provider-precheck` is used, manual proposal, disabled
   executor, one-shot permission, preflight audit, readiness decision, review
   packet, review packet export/read-model, handoff packet, and operator opt-in
-  summaries remain blocked and hash-only.
+  summaries remain blocked and hash-only. The sealed pre-execution packet also
+  remains blocked and exposes only hashes and counts.

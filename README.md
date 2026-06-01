@@ -90,6 +90,7 @@ Current implementation:
 - Hash-only manual provider test review packet export/read-model
 - Final no-call manual provider test handoff packet over policy/preflight/readiness/review/export hashes
 - First live-call operator opt-in checklist bound to the handoff packet hash, still execution-closed
+- Sealed pre-execution packet over handoff, opt-in, cost/timeout/quota, and rollback/abort hashes
 - Test-only DIV/DAACS source identity fixtures for parity reference
 - Fixture-based source identity smoke path from planning artifact to dry-run report
 - Source-to-target trace and portfolio-safe claim projection for parity evidence
@@ -132,7 +133,7 @@ Latest documented local baseline:
 
 ```text
 Measurement date: 2026-06-01
-Pytest: 417 / 417 passed
+Pytest: 420 / 420 passed
 Live LLM calls in offline/dry-run/fake paths: 0
 Live API calls in offline/dry-run/fake paths: 0
 Provider calls/imports in the latest documented eval: 0
@@ -177,6 +178,7 @@ Allowed public summary:
 - Hash-only local review packet export/read-model for manual provider test evidence
 - Final no-call local handoff packet for manual provider test evidence
 - Local no-call operator opt-in checklist bound to the handoff packet hash
+- Local no-call sealed pre-execution packet over pre-call hashes and counts
 - Public output designed around sanitized summaries and correlation hashes
 
 Do not interpret current results as:
@@ -202,11 +204,12 @@ Do not interpret current results as:
 - Review packet export/read-model as provider execution permission, provider behavior evidence, hosted execution, or production provider readiness
 - Handoff packet as provider execution permission, provider behavior evidence, hosted execution, or production provider readiness
 - Operator opt-in checklist as provider execution permission, provider behavior evidence, hosted execution, or production provider readiness
+- Sealed pre-execution packet as provider execution permission, provider behavior evidence, hosted execution, or production provider readiness
 
 ## Status
 
-Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection, source identity golden path smoke coverage, claim-safe trace projection, hash/count repository boundaries, SQLite adapter skeletons for runner/report/audit evidence, approval/replay evidence, canonical run/artifact rows, and provider envelope evidence, canonical approval persistence service wiring before replay claim, sanitized fake admission API demo paths, explicit SQLite-backed fake admission API wiring, sanitized evidence read-model API skeleton, optional fixture evidence persistence, canonical run/artifact read APIs, composed canonical run/evidence read API, local service-shaped demo script, minimal Markdown/CLI run status surface, static HTML UI shell, disabled Solar Pro 3 provider adapter skeleton, no-call Solar Pro 3 contract fixtures, provider envelope read-model projection, provider envelope admission service, provider envelope admission API/read-model hook, operator approval envelope for local no-call provider precheck evidence, dry-admission checklist/runbook projection, manual provider test proposal gate, disabled manual provider test executor boundary, blocked one-shot permission contract projection, blocked manual provider test preflight audit bundle, blocked readiness decision record, blocked manual provider test review packet, hash-only review packet export/read-model, final no-call handoff packet, and first live-call operator opt-in checklist boundary.
+Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection, source identity golden path smoke coverage, claim-safe trace projection, hash/count repository boundaries, SQLite adapter skeletons for runner/report/audit evidence, approval/replay evidence, canonical run/artifact rows, and provider envelope evidence, canonical approval persistence service wiring before replay claim, sanitized fake admission API demo paths, explicit SQLite-backed fake admission API wiring, sanitized evidence read-model API skeleton, optional fixture evidence persistence, canonical run/artifact read APIs, composed canonical run/evidence read API, local service-shaped demo script, minimal Markdown/CLI run status surface, static HTML UI shell, disabled Solar Pro 3 provider adapter skeleton, no-call Solar Pro 3 contract fixtures, provider envelope read-model projection, provider envelope admission service, provider envelope admission API/read-model hook, operator approval envelope for local no-call provider precheck evidence, dry-admission checklist/runbook projection, manual provider test proposal gate, disabled manual provider test executor boundary, blocked one-shot permission contract projection, blocked manual provider test preflight audit bundle, blocked readiness decision record, blocked manual provider test review packet, hash-only review packet export/read-model, final no-call handoff packet, first live-call operator opt-in checklist boundary, and sealed pre-execution packet boundary.
 
 Current status also includes a fail-closed live-open policy gate. A passing policy decision can only mark a future surface as eligible for a separate implementation unit; it does not grant execution permission.
 
-Next implementation track: live-call sealed pre-execution packet boundary. It must still keep external calls closed by default until a later explicitly approved call-opening task.
+Next implementation track: explicit no-call live execution arming record. It must still keep external calls closed by default until a later explicitly approved call-opening task.
