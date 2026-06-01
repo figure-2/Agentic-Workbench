@@ -132,11 +132,23 @@ is explicitly configured. `GET /api/v1/runs/{run_id}` and
 store. These paths do not query runner/report/audit evidence, approval/replay
 evidence, external providers, or target runtimes.
 
+ADR 0001 fixes the next read-model direction: canonical run state is the
+primary run status source, and evidence may be composed only as a separate
+sanitized summary section. The composition layer may query configured evidence
+stores for counts, hashes, linkage status, checks, and blocked markers, but it
+must not merge repository responsibilities or return raw rows. Missing evidence
+must not block canonical run lookup; corrupted evidence should block only the
+evidence summary section.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
 approval, replay protection, verifier policy, and durable persistence are
-complete. Those surfaces are intentionally outside the current executable path.
+complete. A configured provider API key is not sufficient to open live
+execution. Provider and target runtime calls require a separate live-open
+implementation unit with cost, quota, timeout, sandbox, write allowlist,
+rollback, redaction, artifact sanitizer, and audit controls. Those surfaces are
+intentionally outside the current executable path.
 
 ## Risk Controls
 
