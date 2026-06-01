@@ -8,6 +8,7 @@ from apps.api.agentic_workbench_api.services.canonical_run_store import RunArtif
 from apps.api.agentic_workbench_api.services.evidence_read_model import EvidenceRepositoryConfig
 from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     ProviderEnvelopeRepositoryConfig,
+    provider_precheck_operator_policy_summary,
 )
 from packages.core.approval_replay_factory import ApprovalReplayRepositoryConfig
 from packages.core.live_open_policy import LIVE_OPEN_REQUIRED_CONTROLS
@@ -92,8 +93,10 @@ def _provider_envelope_precheck_payload(
     *,
     run_id: str = "run-api-envelope",
     prompt_contract_hash: str | None = None,
+    include_operator_approval: bool = True,
+    approved_policy_summary_hash: str | None = None,
 ) -> dict:
-    return {
+    payload = {
         "run_id": run_id,
         "prompt_contract_hash": prompt_contract_hash or _prompt_contract_hash(),
         "runtime_mode": "live_admission_precheck",
@@ -131,6 +134,18 @@ def _provider_envelope_precheck_payload(
         "provider_payload": {"body": "API05_PROVIDER_PAYLOAD_SENTINEL"},
         "provider_body": "API05_PROVIDER_BODY_SENTINEL",
     }
+    if include_operator_approval:
+        policy_summary = provider_precheck_operator_policy_summary(payload)
+        payload["operator_approval"] = {
+            "operator_ref": "local-operator",
+            "approved_at": "2026-06-01T00:00:00Z",
+            "decision": "approved",
+            "approved_policy_summary_hash": (
+                approved_policy_summary_hash or policy_summary["policy_summary_hash"]
+            ),
+            "authorization_material": "API06_OPERATOR_AUTH_SENTINEL",
+        }
+    return payload
 
 
 def _live_admission_payload() -> dict:
@@ -1227,6 +1242,8 @@ def test_provider_envelope_precheck_api_persists_hash_read_model_without_externa
     data = payload["data"]
     admission = data["provider_envelope_admission"]
     read_model = data["provider_envelope_read_model"]
+    operator_policy = data["operator_policy_summary"]
+    operator_approval = data["operator_approval_envelope"]
 
     assert data["projection_version"] == "provider-envelope-admission-api-public-v1"
     assert data["runtime_mode"] == "live_admission_precheck"
@@ -1239,6 +1256,24 @@ def test_provider_envelope_precheck_api_persists_hash_read_model_without_externa
     assert admission["counts"]["provider_envelope_count"] == 1
     assert read_model["status"] == "available"
     assert read_model["counts"]["provider_envelope_count"] == 1
+    assert operator_policy["projection_version"] == "provider-precheck-operator-policy-summary-v1"
+    assert operator_policy["policy"]["request_timeout_seconds"] == 30
+    assert operator_policy["policy"]["max_cost_units"] == 1
+    assert operator_policy["policy"]["max_live_api_calls"] == 1
+    assert operator_policy["policy"]["max_output_unit_budget"] == 512
+    assert operator_policy["readiness"]["required_control_count"] == len(LIVE_OPEN_REQUIRED_CONTROLS)
+    assert operator_policy["readiness"]["missing_control_count"] == 0
+    assert operator_policy["readiness"]["allowed_to_execute"] is False
+    assert operator_policy["approval_target"]["input_text_included"] is False
+    assert operator_policy["approval_target"]["provider_body_included"] is False
+    assert operator_policy["approval_target"]["auth_material_included"] is False
+    assert operator_approval["projection_version"] == "provider-precheck-operator-approval-envelope-v1"
+    assert operator_approval["status"] == "approved"
+    assert operator_approval["decision"] == "approved"
+    assert operator_approval["operator_ref"] == "local-operator"
+    assert operator_approval["policy_summary_hash"] == operator_policy["policy_summary_hash"]
+    assert operator_approval["envelope_hash"]
+    assert operator_approval["auth_material_returned"] is False
     assert data["repository_boundary"]["provider_envelope_backend"] == "sqlite"
     assert data["repository_boundary"]["root_path_returned"] is False
     assert data["execution_boundary"]["adapter_invocation_count"] == 1
@@ -1266,11 +1301,14 @@ def test_provider_envelope_precheck_api_persists_hash_read_model_without_externa
         "API05_RAW_PROMPT_SENTINEL",
         "API05_PROVIDER_PAYLOAD_SENTINEL",
         "API05_PROVIDER_BODY_SENTINEL",
+        "API06_OPERATOR_AUTH_SENTINEL",
         request_payload["approval"]["nonce"],
         request_payload["approval"]["signature_id"],
         request_payload["approval"]["signed_contract_hash"],
         "raw_prompt",
         "provider_payload",
+        "authorization_material",
+        "approved_policy_summary_hash",
         "signature_id",
         "signed_contract_hash",
         "nonce",
@@ -1278,6 +1316,51 @@ def test_provider_envelope_precheck_api_persists_hash_read_model_without_externa
     ):
         assert forbidden not in serialized
         assert forbidden not in read_serialized
+
+
+def test_provider_envelope_precheck_api_blocks_missing_operator_approval_before_store(tmp_path):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-no-operator",
+        include_operator_approval=False,
+    )
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    checks = {check["name"]: check["passed"] for check in data["checks"]}
+    operator_policy = data["operator_policy_summary"]
+    operator_approval = data["operator_approval_envelope"]
+
+    assert data["status"] == "blocked"
+    assert checks["operator_approval_envelope_present"] is False
+    assert operator_policy["policy_summary_hash"]
+    assert operator_policy["readiness"]["required_control_count"] == len(LIVE_OPEN_REQUIRED_CONTROLS)
+    assert operator_approval["status"] == "missing"
+    assert operator_approval["decision"] == "missing"
+    assert operator_approval["auth_material_returned"] is False
+    assert data["provider_envelope_admission"]["adapter_reached"] is False
+    assert data["provider_envelope_admission"]["counts"]["provider_envelope_count"] == 0
+    assert data["execution_boundary"]["adapter_invocation_count"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert not (tmp_path / "provider-envelopes.sqlite3").exists()
+    assert "API05_RAW_PROMPT_SENTINEL" not in serialized
+    assert "API05_PROVIDER_PAYLOAD_SENTINEL" not in serialized
+    assert "authorization_material" not in serialized
+    assert "signature_id" not in serialized
+    assert "signed_contract_hash" not in serialized
+    assert "nonce" not in serialized
 
 
 def test_provider_envelope_precheck_api_blocks_missing_store_before_adapter():

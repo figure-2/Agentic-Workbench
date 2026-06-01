@@ -107,6 +107,8 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert envelope["admission_status"] == "admitted"
     assert envelope["adapter_reached"] is True
     assert envelope["counts"]["provider_envelope_count"] == 1
+    assert envelope["operator_approval_status"] == "approved"
+    assert envelope["operator_policy_summary_hash"]
     assert envelope["read_model_status"] == "available"
     assert checks["provider_envelope_precheck_recorded"] is True
     assert checks["provider_envelope_adapter_reached_disabled_path"] is True
@@ -121,6 +123,7 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
         "provider_body",
         "signature_id",
         "signed_contract_hash",
+        "approved_policy_summary_hash",
         "sig-",
         "nonce-",
         str(tmp_path),

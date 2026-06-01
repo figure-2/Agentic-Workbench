@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-05` provider envelope API/read-model hook.
+Current snapshot after `AW-LIVE-06` operator approval envelope.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 150 |
-| Counted code/doc files, excluding cache and private SoT | 147 |
-| Project lines, excluding cache and private SoT | 28,143 |
+| Project files, excluding cache and private SoT | 152 |
+| Counted code/doc files, excluding cache and private SoT | 149 |
+| Project lines, excluding cache and private SoT | 28,636 |
 | Python files | 76 |
-| Markdown files | 65 |
+| Markdown files | 67 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 397 |
-| Pytest passed cases | 397 |
+| Pytest collected cases | 398 |
+| Pytest passed cases | 398 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -1584,4 +1584,42 @@ and read-model projections.
 Interpretation: this exposes local no-call provider envelope admission evidence
 through sanitized API/demo projections. It does not add SDK integration,
 provider response parsing, external provider outcome, model-quality proof,
+hosted execution, or production provider readiness.
+
+## AW-LIVE-06 Operator Approval Envelope Metrics
+
+Measured after making provider envelope precheck require an explicit operator
+approval envelope bound to the public policy summary hash.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 398 |
+| Pytest passed cases | 398 |
+| Regression delta vs AW-LIVE-05 baseline | +1 |
+| API operator approval integration tests | 1 |
+| Provider envelope API integration tests | 5 |
+| Demo provider envelope smoke tests | 1 |
+| Operator policy summary fields | 7 groups |
+| Missing operator approval | blocked |
+| Provider envelope store writes before missing operator approval | 0 |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| provider precheck requires operator approval envelope | covered |
+| operator approval references exact policy summary hash | covered |
+| cost/timeout/quota/readiness summary is public-safe | covered |
+| missing operator approval blocks before store write | covered |
+| fixture/dry-run run creation remains separate | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds local operator approval evidence for provider
+precheck policy summaries. It does not add production operator identity,
+external provider execution, provider response parsing, model-quality proof,
 hosted execution, or production provider readiness.

@@ -73,6 +73,7 @@ sequenceDiagram
 | `ProviderEnvelopeRecord` | no-call provider envelope evidence with contract hashes, counts, and status |
 | `ProviderEnvelopeAdmissionService` | service boundary that requires envelope persistence/read-model evidence before adapter reachability |
 | `ProviderEnvelopeRepositoryProvider` | API/demo repository selector for optional provider envelope precheck projections |
+| `operator_approval_envelope` | local operator approval projection bound to a provider precheck policy summary hash |
 
 ## Persistence Boundary
 
@@ -210,6 +211,12 @@ is configured. `GET /api/v1/admissions/provider/envelopes/{run_id}` returns
 the sanitized provider envelope read model. Both paths expose only status,
 hashes, counts, safe checks, repository markers, and zero-call metrics.
 
+`AW-LIVE-06` adds an explicit operator approval envelope before the precheck can
+proceed. The operator approval references a sanitized policy summary hash that
+covers timeout, cost, API quota, output budget, live-open readiness counts, and
+zero-call boundaries. Missing or mismatched operator approval blocks before
+provider envelope repository access and before disabled adapter reachability.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -269,3 +276,5 @@ outside the current executable path.
   when evidence persistence, read-model lookup, or hash matching fails.
 - provider envelope API/demo hooks must stay optional, keep fixture/dry-run run
   creation separate, and return only status/hash/count projections.
+- operator approval envelopes must bind to a sanitized policy summary hash and
+  must not expose raw authorization material or grant execution permission.

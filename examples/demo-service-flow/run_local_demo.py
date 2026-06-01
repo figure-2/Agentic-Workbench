@@ -28,6 +28,7 @@ from apps.api.agentic_workbench_api.services.evidence_read_model import (
 )
 from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     ProviderEnvelopeRepositoryConfig,
+    provider_precheck_operator_policy_summary,
 )
 from packages.core.live_open_policy import LIVE_OPEN_REQUIRED_CONTROLS
 from packages.core.public_projection import assert_public_projection_safe
@@ -87,7 +88,7 @@ def _get_data(client: TestClient, path: str) -> dict[str, Any]:
 
 
 def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) -> dict[str, Any]:
-    return {
+    payload = {
         "run_id": run_id,
         "prompt_contract_hash": prompt_contract_hash,
         "runtime_mode": "live_admission_precheck",
@@ -119,6 +120,14 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
             "nonce": f"nonce-{run_id}",
         },
     }
+    policy_summary = provider_precheck_operator_policy_summary(payload)
+    payload["operator_approval"] = {
+        "operator_ref": "local-demo-operator",
+        "approved_at": "2026-06-01T00:00:00Z",
+        "decision": "approved",
+        "approved_policy_summary_hash": policy_summary["policy_summary_hash"],
+    }
+    return payload
 
 
 def _post_provider_envelope_precheck(
@@ -261,6 +270,12 @@ def run_demo(
                 "counts": provider_envelope_data.get("provider_envelope_admission", {}).get(
                     "counts", {}
                 ),
+                "operator_approval_status": provider_envelope_data.get(
+                    "operator_approval_envelope", {}
+                ).get("status"),
+                "operator_policy_summary_hash": provider_envelope_data.get(
+                    "operator_policy_summary", {}
+                ).get("policy_summary_hash"),
                 "read_model_status": (
                     provider_envelope_read_data or {}
                 ).get("status"),

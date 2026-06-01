@@ -82,6 +82,7 @@ Current implementation:
 - Provider envelope persistence/read-model projection for no-call Solar contract evidence
 - Provider envelope admission service before disabled Solar adapter invocation
 - Provider envelope admission API/read-model hook for local no-call precheck evidence
+- Operator approval envelope for provider precheck policy summary hash binding
 - Test-only DIV/DAACS source identity fixtures for parity reference
 - Fixture-based source identity smoke path from planning artifact to dry-run report
 - Source-to-target trace and portfolio-safe claim projection for parity evidence
@@ -124,7 +125,7 @@ Latest documented local baseline:
 
 ```text
 Measurement date: 2026-06-01
-Pytest: 397 / 397 passed
+Pytest: 398 / 398 passed
 Live LLM calls in offline/dry-run/fake paths: 0
 Live API calls in offline/dry-run/fake paths: 0
 Provider calls/imports in the latest documented eval: 0
@@ -161,6 +162,7 @@ Allowed public summary:
 - Sanitized provider envelope read model for no-call contract hashes, counts, and status
 - Local no-call provider envelope admission service before disabled Solar adapter invocation
 - Local no-call provider envelope admission API/read-model hook with status/hash/count projection
+- Local no-call operator approval envelope for provider precheck policy summaries
 - Public output designed around sanitized summaries and correlation hashes
 
 Do not interpret current results as:
@@ -175,11 +177,12 @@ Do not interpret current results as:
 - Provider envelope read model as provider outcome, hosted observability, or production provider readiness
 - Provider envelope admission service as provider execution, model-quality proof, hosted provider service, or production provider readiness
 - Provider envelope admission API hook as external provider behavior, hosted provider service, or production provider readiness
+- Operator approval envelope as production operator identity, provider execution permission, or external provider outcome
 
 ## Status
 
-Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection, source identity golden path smoke coverage, claim-safe trace projection, hash/count repository boundaries, SQLite adapter skeletons for runner/report/audit evidence, approval/replay evidence, canonical run/artifact rows, and provider envelope evidence, canonical approval persistence service wiring before replay claim, sanitized fake admission API demo paths, explicit SQLite-backed fake admission API wiring, sanitized evidence read-model API skeleton, optional fixture evidence persistence, canonical run/artifact read APIs, composed canonical run/evidence read API, local service-shaped demo script, minimal Markdown/CLI run status surface, static HTML UI shell, disabled Solar Pro 3 provider adapter skeleton, no-call Solar Pro 3 contract fixtures, provider envelope read-model projection, provider envelope admission service, and provider envelope admission API/read-model hook for local no-call evidence.
+Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection, source identity golden path smoke coverage, claim-safe trace projection, hash/count repository boundaries, SQLite adapter skeletons for runner/report/audit evidence, approval/replay evidence, canonical run/artifact rows, and provider envelope evidence, canonical approval persistence service wiring before replay claim, sanitized fake admission API demo paths, explicit SQLite-backed fake admission API wiring, sanitized evidence read-model API skeleton, optional fixture evidence persistence, canonical run/artifact read APIs, composed canonical run/evidence read API, local service-shaped demo script, minimal Markdown/CLI run status surface, static HTML UI shell, disabled Solar Pro 3 provider adapter skeleton, no-call Solar Pro 3 contract fixtures, provider envelope read-model projection, provider envelope admission service, provider envelope admission API/read-model hook, and operator approval envelope for local no-call provider precheck evidence.
 
 Current status also includes a fail-closed live-open policy gate. A passing policy decision can only mark a future surface as eligible for a separate implementation unit; it does not grant execution permission.
 
-Next implementation track: provider precheck policy UX and explicit operator approval envelope, still without external calls.
+Next implementation track: live provider dry-admission runbook and manual operator checklist, still without external calls.
