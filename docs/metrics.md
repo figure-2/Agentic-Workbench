@@ -1332,3 +1332,37 @@ Interpretation: this adds a local reviewer-facing status surface over sanitized
 fixture/dry-run projections. It does not add a web dashboard, hosted
 observability, live runtime monitoring, provider integration, target runtime
 execution, or generated app delivery.
+
+## AW-LIVE-00 Live-Open Policy Gate Metrics
+
+Measured after adding the fail-closed live-open readiness policy gate.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 360 |
+| Pytest passed cases | 360 |
+| Regression delta vs AW-DEMO-02 baseline | +6 |
+| Live-open policy unit tests | 6 |
+| Supported readiness surfaces | 2 |
+| Required readiness controls | 10 |
+| Unknown surface block cases | covered |
+| Missing control block cases | covered |
+| Requested call/write/network attempt block cases | covered |
+| Forbidden public key findings | 0 |
+| Env secret value reads | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| default request with missing controls blocks | covered |
+| unknown surface blocks | covered |
+| complete readiness remains `allowed_to_execute=false` | covered |
+| Solar provider references only env key name | covered |
+| DAACS target runtime rejects provider env key names | covered |
+| public response keeps provider/runtime calls at 0 | covered |
+
+Interpretation: this adds a local readiness policy gate for future
+provider/runtime work. It does not add Solar Pro 3 integration, DAACS target
+runtime execution, generated app delivery, hosted execution, production signing,
+production key registry, or production sandbox enforcement.

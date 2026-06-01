@@ -158,15 +158,24 @@ identity signals, evidence counts, repository boundary, execution boundary,
 claim boundary, and next action. It consumes public projections only and does
 not read repository tables directly.
 
+`AW-LIVE-00` adds a fail-closed live-open policy gate. The gate evaluates
+readiness for future `solar_provider` and `daacs_target_runtime` work against
+approval policy, replay persistence, cost/quota guard, timeout guard, workspace
+sandbox, write allowlist, rollback plan, secret redaction, artifact sanitizer,
+and audit projection controls. A passing decision is only
+`eligible_for_separate_live_implementation`; it keeps execution permission
+false and all provider/runtime counters at 0.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
 approval, replay protection, verifier policy, and durable persistence are
 complete. A configured provider API key is not sufficient to open live
-execution. Provider and target runtime calls require a separate live-open
-implementation unit with cost, quota, timeout, sandbox, write allowlist,
-rollback, redaction, artifact sanitizer, and audit controls. Those surfaces are
-intentionally outside the current executable path.
+execution. Provider and target runtime calls require the `AW-LIVE-00` policy
+gate to report eligibility and still require a separate implementation unit
+with cost, quota, timeout, sandbox, write allowlist, rollback, redaction,
+artifact sanitizer, and audit controls. Those surfaces are intentionally
+outside the current executable path.
 
 ## Risk Controls
 
@@ -201,3 +210,5 @@ intentionally outside the current executable path.
   keep provider/runtime calls at 0.
 - run status surfaces must render sanitized projection summaries only and must
   not become a second source of truth.
+- live-open policy decisions must stay side-effect-free, keep
+  `allowed_to_execute=false`, and never read env values.

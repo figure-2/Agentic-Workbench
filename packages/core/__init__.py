@@ -4,6 +4,16 @@ from .artifacts import ArtifactRegistry
 from .claims import assert_no_forbidden_claims, find_forbidden_claims
 from .evidence import sanitize_evidence
 from .events import WorkflowEvent
+from .live_open_policy import (
+    DAACS_TARGET_RUNTIME_SURFACE,
+    LIVE_OPEN_REQUIRED_CONTROLS,
+    LIVE_OPEN_SURFACES,
+    LiveOpenDecision,
+    LiveOpenRequest,
+    SOLAR_PRO_3_ENV_KEY_NAME,
+    SOLAR_PROVIDER_SURFACE,
+    evaluate_live_open_request,
+)
 from .public_projection import (
     public_workflow_event_payload,
     public_workflow_event_payloads,
@@ -91,6 +101,11 @@ __all__ = [
     "assert_no_forbidden_claims",
     "build_approval_replay_repositories",
     "BuildSpec",
+    "DAACS_TARGET_RUNTIME_SURFACE",
+    "LIVE_OPEN_REQUIRED_CONTROLS",
+    "LIVE_OPEN_SURFACES",
+    "LiveOpenDecision",
+    "LiveOpenRequest",
     "find_forbidden_claims",
     "FileBackedReplayNonceRepository",
     "IdeaBrief",
@@ -116,6 +131,8 @@ __all__ = [
     "RunSessionRepository",
     "RunnerPlanRecord",
     "RunnerPlanRepository",
+    "SOLAR_PRO_3_ENV_KEY_NAME",
+    "SOLAR_PROVIDER_SURFACE",
     "SpecApproval",
     "SQLiteAuditEventRepository",
     "SQLiteApprovalReplayStore",
@@ -136,6 +153,7 @@ __all__ = [
     "WorkflowSessionReadModel",
     "WorkflowStage",
     "canonical_replay_scope",
+    "evaluate_live_open_request",
     "parse_replay_scope",
     "replay_nonce_hash",
     "sanitize_evidence",
