@@ -1400,3 +1400,37 @@ Measured after adding the local static HTML shell over the public demo summary.
 Interpretation: this adds a local static UI shell for the fixture/dry-run demo.
 It does not add a hosted dashboard, production UI, browser runtime integration,
 external provider outcome, target runtime outcome, or generated app delivery.
+
+## AW-LIVE-01 Disabled Solar Pro 3 Provider Adapter Metrics
+
+Measured after adding the disabled Solar Pro 3 live-path adapter skeleton.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 369 |
+| Pytest passed cases | 369 |
+| Regression delta vs AW-DEMO-03 baseline | +7 |
+| Solar live adapter unit tests | 7 |
+| Registered provider modes tested | 2 |
+| Default invocation blocked | covered |
+| Missing live-open policy blocked | covered |
+| Missing timeout/cost/quota blocked | covered |
+| Fake/live provider path separation | covered |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| disabled live adapter can be registered | covered |
+| adapter rejects fake mode | covered |
+| eligible live-open policy still keeps execution permission closed | covered |
+| public output forbidden key findings | 0 |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a disabled local adapter skeleton for a future Solar
+Pro 3 provider path. It does not add SDK integration, external provider
+outcome, model-quality proof, token/cost metering implementation, hosted
+execution, or production provider readiness.

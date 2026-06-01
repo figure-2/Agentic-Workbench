@@ -26,6 +26,8 @@ Agentic Workbench is a local/dev AI agent workflow harness prototype. It may cla
 - Fail-closed live-open readiness policy gate with provider/runtime calls kept
   at 0 and execution permission not granted
 - Static local UI shell over sanitized fixture/dry-run projections
+- Disabled Solar Pro 3 provider adapter skeleton with fake/live path separation
+  and provider calls kept at 0
 - Sanitized public summaries and correlation hashes
 - Fixture-based smoke tests and local regression tests
 
@@ -68,6 +70,8 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
   integration, production execution permission, or external model quality proof
 - static local UI shell described as hosted dashboard, production UI, live
   monitor, generated app delivery, provider outcome, or target runtime outcome
+- disabled Solar Pro 3 adapter skeleton described as an external provider
+  outcome, model-quality proof, SDK integration, or production provider path
 
 ## Public Artifact Rules
 

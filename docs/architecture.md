@@ -172,6 +172,13 @@ overview, artifact chain, DIV/DAACS identity signals, evidence counts,
 execution boundary counters, and the live-open policy state. It does not read
 repository tables, start a server, call providers, or run target runtime code.
 
+`AW-LIVE-01` adds a disabled Solar Pro 3 provider adapter skeleton. The adapter
+can be registered under the `live` provider mode, but invocation remains
+blocked. It requires a structured approval, an eligible live-open policy
+decision, timeout config, cost/quota config, and token quota config before it
+can move past early admission checks. Fake provider mode remains assigned to
+`FakeSolarProProvider`; the disabled live adapter rejects fake mode.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -220,3 +227,6 @@ outside the current executable path.
   `allowed_to_execute=false`, and never read env values.
 - static UI shells must consume public summaries only and keep provider/runtime
   counters at 0.
+- disabled Solar Pro 3 adapters must keep fake and live modes separate, never
+  read env values, never import provider SDKs, and keep provider call counters
+  at 0.

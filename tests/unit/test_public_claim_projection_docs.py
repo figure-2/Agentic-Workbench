@@ -27,6 +27,7 @@ API_04_PATH = ROOT / "docs" / "evals" / "aw-api-04-fixture-evidence-persistence.
 API_05_PATH = ROOT / "docs" / "evals" / "aw-api-05-run-artifact-read-api.md"
 LIVE_00_PATH = ROOT / "docs" / "evals" / "aw-live-00-live-open-policy-gate.md"
 DEMO_03_PATH = ROOT / "docs" / "evals" / "aw-demo-03-static-ui-shell.md"
+LIVE_01_PATH = ROOT / "docs" / "evals" / "aw-live-01-disabled-solar-provider-adapter.md"
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -51,6 +52,7 @@ PUBLIC_CLAIM_DOCS = [
     API_05_PATH,
     LIVE_00_PATH,
     DEMO_03_PATH,
+    LIVE_01_PATH,
 ]
 
 
