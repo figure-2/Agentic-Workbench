@@ -93,6 +93,7 @@ sequenceDiagram
 | `manual_provider_test_execution_capsule_release_attestation` | local disabled execution capsule release attestation over operator decision, release-attestation, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_release_seal` | local disabled execution capsule release seal over release-attestation, seal-material, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_final_authz` | local disabled execution capsule final authorization over release seal, final authorization, claim-boundary, and no-call counter hashes |
+| `manual_provider_test_execution_capsule_authz_export` | local disabled execution capsule authz export/read-model over final authz, export metadata, claim-boundary, and no-call counter hashes |
 
 ## Persistence Boundary
 
@@ -475,6 +476,14 @@ boundary. The authorization still reports
 `execution_capsule_final_authz_execution_closed` and keeps
 `execution_permission_count=0`.
 
+`AW-LIVE-40` adds a disabled first-call execution capsule authz export/read-model.
+The export requires an execution capsule final authz hash and a separate
+expected final authz hash match. It binds final-authz, export metadata,
+claim-boundary, and no-call counter hashes into one status/reason/hash/count
+projection. The read-model exposes only the latest authz export hash and
+counts. The export still reports `execution_capsule_authz_export_execution_closed`
+and keeps `execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -606,3 +615,6 @@ outside the current executable path.
 - execution capsule final authorization must bind to execution capsule release
   seal, final-authorization material, claim-boundary, and no-call counter hashes
   only and must not grant execution permission.
+- execution capsule authz exports must bind to execution capsule final authz,
+  export metadata, claim-boundary, and no-call counter hashes only and must not
+  grant execution permission.

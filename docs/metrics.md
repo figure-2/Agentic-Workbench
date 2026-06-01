@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-39` disabled execution capsule final authorization boundary.
+Current snapshot after `AW-LIVE-40` disabled execution capsule authorization export/read-model boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 247 |
-| Counted code/doc files, excluding cache and private SoT | 247 |
-| Project lines, excluding cache and private SoT | 54,897 |
+| Project files, excluding cache and private SoT | 250 |
+| Counted code/doc files, excluding cache and private SoT | 250 |
+| Project lines, excluding cache and private SoT | 56,067 |
 | Python files | 76 |
-| Markdown files | 166 |
+| Markdown files | 169 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 486 |
-| Pytest passed cases | 486 |
+| Pytest collected cases | 489 |
+| Pytest passed cases | 489 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -3135,3 +3135,57 @@ authorization for a later manual provider test candidate. It does not add an
 external call path, SDK integration, env value access, network access, provider
 response parsing, hosted execution, live operator approval, or production
 provider readiness.
+
+## AW-LIVE-40 Disabled Execution Capsule Authz Export Read Model Metrics
+
+Measured after adding the blocked disabled first-call execution capsule
+authorization export/read-model boundary.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 489 |
+| Pytest passed cases | 489 |
+| Regression delta vs AW-LIVE-39 baseline | +3 |
+| API execution capsule authz export integration tests | 3 |
+| Provider envelope API integration tests | 93 |
+| Demo provider envelope smoke tests | 1 |
+| Execution capsule authz export public summary fields | 16 |
+| Execution capsule authz export read-model top-level fields | 4 |
+| Execution capsule authz export component count | 8 |
+| Execution capsule authz export component hash count | 4 |
+| Execution capsule authz export no-call counter count | 13 |
+| Claim-boundary check count | 3 |
+| Export passed count with missing expected final authz hash | 7 |
+| Export mismatch count with missing expected final authz hash | 1 |
+| Export passed count without export payload | 4 |
+| Export mismatch count without export payload | 4 |
+| Export passed count with complete export | 8 |
+| Execution permission count with complete export | 0 |
+| Missing expected final authz hash reason | expected_execution_capsule_final_authz_hash_required |
+| Missing export payload reason | execution_capsule_authz_export_required |
+| Complete export reason | execution_capsule_authz_export_execution_closed |
+| Complete read-model reason | execution_capsule_authz_export_read_model_available |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| execution capsule final authz hash exists before export | covered |
+| expected execution capsule final authz hash must match | covered |
+| execution capsule authz export payload is required | covered |
+| export metadata is represented as hash/count evidence | covered |
+| authz export read-model exposes latest hash and counts only | covered |
+| claim boundary is represented as hash/count evidence | covered |
+| public authz export exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled execution capsule authorization
+export/read-model for a later manual provider test candidate. It does not add
+an external call path, SDK integration, env value access, network access,
+provider response parsing, hosted execution, live operator approval, or
+production provider readiness.

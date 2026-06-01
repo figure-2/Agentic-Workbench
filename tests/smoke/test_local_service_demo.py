@@ -633,6 +633,41 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert envelope["execution_capsule_authz_boundary_material_count"] == 1
     assert envelope["execution_capsule_authz_boundary_request_count"] == 1
     assert envelope["execution_capsule_authz_boundary_execution_permission_count"] == 0
+    assert envelope["execution_capsule_authz_export_status"] == "blocked"
+    assert (
+        envelope["execution_capsule_authz_export_reason"]
+        == "execution_capsule_authz_export_execution_closed"
+    )
+    assert envelope["execution_capsule_authz_export_hash"]
+    assert envelope["execution_capsule_authz_export_final_authz_hash"] == envelope[
+        "execution_capsule_authz_boundary_hash"
+    ]
+    assert envelope["execution_capsule_authz_export_metadata_hash"]
+    assert envelope["execution_capsule_authz_export_claim_boundary_hash"]
+    assert envelope["execution_capsule_authz_export_no_call_counters_hash"]
+    assert envelope["execution_capsule_authz_export_count"] == 1
+    assert envelope["execution_capsule_authz_export_component_count"] == 8
+    assert envelope["execution_capsule_authz_export_passed_component_count"] == 8
+    assert envelope["execution_capsule_authz_export_mismatch_count"] == 0
+    assert envelope["execution_capsule_authz_export_component_hash_count"] == 4
+    assert envelope["execution_capsule_authz_export_no_call_counter_count"] == 13
+    assert envelope["execution_capsule_authz_export_claim_boundary_check_count"] == 3
+    assert envelope["execution_capsule_authz_export_metadata_count"] == 1
+    assert envelope["execution_capsule_authz_export_execution_permission_count"] == 0
+    assert envelope["execution_capsule_authz_export_read_model_status"] == "available"
+    assert (
+        envelope["execution_capsule_authz_export_read_model_reason"]
+        == "execution_capsule_authz_export_read_model_available"
+    )
+    assert envelope["execution_capsule_authz_export_read_model_latest_hash"] == (
+        envelope["execution_capsule_authz_export_hash"]
+    )
+    assert envelope["execution_capsule_authz_export_read_model_count"] == 1
+    assert envelope["execution_capsule_authz_export_read_model_component_count"] == 8
+    assert (
+        envelope["execution_capsule_authz_export_read_model_execution_permission_count"]
+        == 0
+    )
     assert envelope["review_packet_read_model_status"] == "available"
     assert envelope["review_packet_read_export_hash"] == envelope["review_packet_hash"]
     assert envelope["review_packet_read_export_count"] == 1
@@ -670,6 +705,8 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert checks["provider_execution_capsule_release_attestation_blocked"] is True
     assert checks["provider_execution_capsule_release_seal_blocked"] is True
     assert checks["provider_execution_capsule_final_authorization_blocked"] is True
+    assert checks["provider_execution_capsule_authz_export_blocked"] is True
+    assert checks["provider_execution_capsule_authz_export_read_model_available"] is True
     assert envelope["execution_boundary"]["provider_calls"] == 0
     assert envelope["execution_boundary"]["network_calls"] == 0
     assert envelope["execution_boundary"]["solar_live_api_calls"] == 0
@@ -690,6 +727,7 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
         "manual_test_execution_capsule_release_attestation",
         "manual_test_execution_capsule_release_seal",
         "manual_test_execution_capsule_final_authorization",
+        "manual_test_execution_capsule_authz_export",
         "packet_requested",
         "attestation_requested",
         "seal_requested",
@@ -700,6 +738,7 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
         "review_requested",
         "decision_requested",
         "local-demo-no-call-capsule-final-authorized",
+        "local-demo-no-call-capsule-authz-exported",
         "local-demo-no-call-capsule-handoff",
         "local-demo-no-call-capsule-operator-reviewed",
         "local-demo-no-call-capsule-operator-decided",
