@@ -430,6 +430,27 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert envelope["release_seal_material_count"] == 1
     assert envelope["release_seal_request_count"] == 1
     assert envelope["release_seal_execution_permission_count"] == 0
+    assert envelope["execution_capsule_status"] == "blocked"
+    assert (
+        envelope["execution_capsule_reason"]
+        == "execution_authorization_capsule_execution_closed"
+    )
+    assert envelope["execution_capsule_hash"]
+    assert envelope["execution_capsule_release_seal_hash"] == envelope[
+        "release_seal_hash"
+    ]
+    assert envelope["execution_capsule_final_authz_hash"]
+    assert envelope["execution_capsule_claim_boundary_hash"]
+    assert envelope["execution_capsule_no_call_counters_hash"]
+    assert envelope["execution_capsule_component_count"] == 8
+    assert envelope["execution_capsule_passed_component_count"] == 8
+    assert envelope["execution_capsule_mismatch_count"] == 0
+    assert envelope["execution_capsule_component_hash_count"] == 4
+    assert envelope["execution_capsule_no_call_counter_count"] == 13
+    assert envelope["execution_capsule_claim_boundary_check_count"] == 3
+    assert envelope["execution_capsule_final_authz_count"] == 1
+    assert envelope["execution_capsule_request_count"] == 1
+    assert envelope["execution_capsule_execution_permission_count"] == 0
     assert envelope["review_packet_read_model_status"] == "available"
     assert envelope["review_packet_read_export_hash"] == envelope["review_packet_hash"]
     assert envelope["review_packet_read_export_count"] == 1
@@ -458,6 +479,7 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert checks["provider_operator_decision_packet_blocked"] is True
     assert checks["provider_operator_release_attestation_blocked"] is True
     assert checks["provider_release_seal_blocked"] is True
+    assert checks["provider_execution_capsule_blocked"] is True
     assert envelope["execution_boundary"]["provider_calls"] == 0
     assert envelope["execution_boundary"]["network_calls"] == 0
     assert envelope["execution_boundary"]["solar_live_api_calls"] == 0
@@ -470,14 +492,18 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
         "manual_test_operator_decision_packet",
         "manual_test_operator_release_attestation",
         "manual_test_release_authorization_seal",
+        "manual_test_execution_authorization_capsule",
         "packet_requested",
         "attestation_requested",
         "seal_requested",
+        "capsule_requested",
+        "final_authorization",
         "local-demo-operator",
         "local-demo-no-call-handback-reviewed",
         "local-demo-no-call-decision-reviewed",
         "local-demo-no-call-release-attested",
         "local-demo-no-call-release-sealed",
+        "local-demo-no-call-execution-capsule-sealed",
         "signature_id",
         "signed_contract_hash",
         "approved_policy_summary_hash",

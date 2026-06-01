@@ -38,6 +38,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     provider_manual_test_final_release_packet_summary,
     provider_manual_test_invocation_receipt_summary,
     provider_manual_test_release_proposal_summary,
+    provider_manual_test_release_authorization_seal_summary,
     provider_manual_test_handoff_packet_summary,
     provider_manual_test_operator_handback_summary,
     provider_manual_test_operator_decision_packet_summary,
@@ -365,6 +366,20 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
             "seal_reason_code": "local-demo-no-call-release-sealed",
         },
     }
+    release_seal_hash = provider_manual_test_release_authorization_seal_summary(
+        payload
+    )["release_seal_hash"]
+    payload["expected_release_seal_hash"] = release_seal_hash
+    payload["manual_test_execution_authorization_capsule"] = {
+        "release_seal_hash": release_seal_hash,
+        "capsule_requested": True,
+        "final_authorization": {
+            "operator_ref": "local-demo-operator",
+            "authorized_at": "2026-06-01T01:05:00Z",
+            "decision": "sealed",
+            "reason_code": "local-demo-no-call-execution-capsule-sealed",
+        },
+    }
     return payload
 
 
@@ -596,6 +611,15 @@ def _checks(
             == "release_authorization_seal_execution_closed"
             and int(release_authorization_seal.get("execution_permission_count", -1))
             == 0
+        )
+        execution_capsule = provider_envelope_data.get(
+            "manual_provider_test_execution_capsule", {}
+        )
+        checks["provider_execution_capsule_blocked"] = (
+            execution_capsule.get("status") == "blocked"
+            and execution_capsule.get("reason")
+            == "execution_authorization_capsule_execution_closed"
+            and int(execution_capsule.get("execution_permission_count", -1)) == 0
         )
     return checks
 
@@ -1488,6 +1512,54 @@ def run_demo(
                 ).get("seal_request_count"),
                 "release_seal_execution_permission_count": provider_envelope_data.get(
                     "manual_provider_test_release_seal", {}
+                ).get("execution_permission_count"),
+                "execution_capsule_status": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule", {}
+                ).get("status"),
+                "execution_capsule_reason": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule", {}
+                ).get("reason"),
+                "execution_capsule_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule", {}
+                ).get("execution_capsule_hash"),
+                "execution_capsule_release_seal_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule", {}
+                ).get("release_seal_hash"),
+                "execution_capsule_final_authz_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule", {}
+                ).get("final_authz_hash"),
+                "execution_capsule_claim_boundary_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule", {}
+                ).get("claim_boundary_hash"),
+                "execution_capsule_no_call_counters_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule", {}
+                ).get("no_call_counters_hash"),
+                "execution_capsule_component_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule", {}
+                ).get("component_count"),
+                "execution_capsule_passed_component_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule", {}
+                ).get("passed_component_count"),
+                "execution_capsule_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule", {}
+                ).get("mismatch_count"),
+                "execution_capsule_component_hash_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule", {}
+                ).get("component_hash_count"),
+                "execution_capsule_no_call_counter_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule", {}
+                ).get("no_call_counter_count"),
+                "execution_capsule_claim_boundary_check_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule", {}
+                ).get("claim_boundary_check_count"),
+                "execution_capsule_final_authz_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule", {}
+                ).get("final_authz_count"),
+                "execution_capsule_request_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule", {}
+                ).get("capsule_request_count"),
+                "execution_capsule_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule", {}
                 ).get("execution_permission_count"),
                 "review_packet_read_model_status": (
                     provider_envelope_read_data or {}

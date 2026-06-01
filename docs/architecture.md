@@ -85,6 +85,7 @@ sequenceDiagram
 | `manual_provider_test_final_release_packet` | local final packet over release proposal, arming record, operator, release window, and rollback hashes |
 | `manual_provider_test_execution_switch` | local disabled switch over final release packet and switch-enable hashes |
 | `manual_provider_test_release_seal` | local disabled release seal over release-attestation, seal-material, claim-boundary, and no-call counter hashes |
+| `manual_provider_test_execution_capsule` | local disabled execution capsule over release seal, final authorization, claim-boundary, and no-call counter hashes |
 
 ## Persistence Boundary
 
@@ -403,6 +404,13 @@ projection. The seal still reports
 `release_authorization_seal_execution_closed` and keeps
 `execution_permission_count=0`.
 
+`AW-LIVE-32` adds a disabled first-call execution authorization capsule. The
+capsule requires a release seal hash and a separate expected release seal hash
+match. It binds release seal, final authorization, claim-boundary, and no-call
+counter hashes into one status/reason/hash/count projection. The capsule still
+reports `execution_authorization_capsule_execution_closed` and keeps
+`execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -510,3 +518,6 @@ outside the current executable path.
 - release authorization seals must bind to release attestation, seal-material,
   claim-boundary, and no-call counter hashes only and must not grant execution
   permission.
+- execution authorization capsules must bind to release seal, final
+  authorization, claim-boundary, and no-call counter hashes only and must not
+  grant execution permission.

@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-31` disabled release authorization seal boundary.
+Current snapshot after `AW-LIVE-32` disabled execution authorization capsule boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 223 |
-| Counted code/doc files, excluding cache and private SoT | 223 |
-| Project lines, excluding cache and private SoT | 46,845 |
+| Project files, excluding cache and private SoT | 226 |
+| Counted code/doc files, excluding cache and private SoT | 226 |
+| Project lines, excluding cache and private SoT | 47,790 |
 | Python files | 76 |
-| Markdown files | 142 |
+| Markdown files | 145 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 462 |
-| Pytest passed cases | 462 |
+| Pytest collected cases | 465 |
+| Pytest passed cases | 465 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -2724,5 +2724,55 @@ seal.
 
 Interpretation: this adds a local disabled release authorization seal for a
 later manual provider test candidate. It does not add an external call path,
+SDK integration, env value access, network access, provider response parsing,
+hosted execution, live operator approval, or production provider readiness.
+
+## AW-LIVE-32 Disabled Execution Authorization Capsule Metrics
+
+Measured after adding the blocked disabled first-call execution authorization
+capsule.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 465 |
+| Pytest passed cases | 465 |
+| Regression delta vs AW-LIVE-31 baseline | +3 |
+| API execution authorization capsule integration tests | 3 |
+| Provider envelope API integration tests | 70 |
+| Demo provider envelope smoke tests | 1 |
+| Execution capsule public summary fields | 16 |
+| Execution capsule component count | 8 |
+| Execution capsule component hash count | 4 |
+| Execution capsule no-call counter count | 13 |
+| Claim-boundary check count | 3 |
+| Capsule passed count with missing expected release seal hash | 3 |
+| Capsule mismatch count with missing expected release seal hash | 5 |
+| Capsule passed count without capsule payload | 4 |
+| Capsule mismatch count without capsule payload | 4 |
+| Capsule passed count with complete capsule | 8 |
+| Execution permission count with complete capsule | 0 |
+| Missing expected release seal hash reason | expected_release_seal_hash_required |
+| Missing capsule payload reason | execution_authorization_capsule_required |
+| Complete capsule reason | execution_authorization_capsule_execution_closed |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| release seal hash exists before capsule | covered |
+| expected release seal hash must match | covered |
+| execution authorization capsule payload is required | covered |
+| final authorization is represented as hash/count evidence | covered |
+| claim boundary is represented as hash/count evidence | covered |
+| public capsule exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled execution authorization capsule for
+a later manual provider test candidate. It does not add an external call path,
 SDK integration, env value access, network access, provider response parsing,
 hosted execution, live operator approval, or production provider readiness.
