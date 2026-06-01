@@ -78,6 +78,7 @@ Current implementation:
 - Fail-closed live-open policy gate for future Solar Pro 3 / DAACS target runtime work
 - Static HTML UI shell over the same sanitized public demo summary
 - Disabled-by-default Solar Pro 3 provider adapter skeleton with fake/live path separation
+- No-call Solar Pro 3 request/response contract fixtures with cost/timeout policy checks
 - Test-only DIV/DAACS source identity fixtures for parity reference
 - Fixture-based source identity smoke path from planning artifact to dry-run report
 - Source-to-target trace and portfolio-safe claim projection for parity evidence
@@ -120,7 +121,7 @@ Latest documented local baseline:
 
 ```text
 Measurement date: 2026-06-01
-Pytest: 369 / 369 passed
+Pytest: 376 / 376 passed
 Live LLM calls in offline/dry-run/fake paths: 0
 Live API calls in offline/dry-run/fake paths: 0
 Provider calls/imports in the latest documented eval: 0
@@ -153,6 +154,7 @@ Allowed public summary:
 - Live-open readiness policy gate that keeps provider/runtime calls at 0 and does not grant execution permission
 - Static local UI shell over sanitized fixture/dry-run projections
 - Disabled Solar Pro 3 provider adapter skeleton with provider calls kept at 0
+- No-call Solar Pro 3 request/response contract fixtures with sanitized summary/hash projection
 - Public output designed around sanitized summaries and correlation hashes
 
 Do not interpret current results as:
@@ -167,8 +169,8 @@ Do not interpret current results as:
 
 ## Status
 
-Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection, source identity golden path smoke coverage, claim-safe trace projection, hash/count repository boundaries, SQLite adapter skeletons for runner/report/audit evidence, approval/replay evidence, and canonical run/artifact rows, canonical approval persistence service wiring before replay claim, sanitized fake admission API demo paths, explicit SQLite-backed fake admission API wiring, sanitized evidence read-model API skeleton, optional fixture evidence persistence, canonical run/artifact read APIs, composed canonical run/evidence read API, local service-shaped demo script, minimal Markdown/CLI run status surface, static HTML UI shell, and disabled Solar Pro 3 provider adapter skeleton for local projection rows.
+Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public API fixture projection, source identity golden path smoke coverage, claim-safe trace projection, hash/count repository boundaries, SQLite adapter skeletons for runner/report/audit evidence, approval/replay evidence, and canonical run/artifact rows, canonical approval persistence service wiring before replay claim, sanitized fake admission API demo paths, explicit SQLite-backed fake admission API wiring, sanitized evidence read-model API skeleton, optional fixture evidence persistence, canonical run/artifact read APIs, composed canonical run/evidence read API, local service-shaped demo script, minimal Markdown/CLI run status surface, static HTML UI shell, disabled Solar Pro 3 provider adapter skeleton, and no-call Solar Pro 3 contract fixtures for local projection rows.
 
 Current status also includes a fail-closed live-open policy gate. A passing policy decision can only mark a future surface as eligible for a separate implementation unit; it does not grant execution permission.
 
-Next implementation track: Solar Pro 3 request/response contract fixtures and cost/timeout policy contract, still without live API calls.
+Next implementation track: provider request envelope persistence/read-model projection, still without external calls.

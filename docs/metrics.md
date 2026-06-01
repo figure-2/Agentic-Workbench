@@ -1434,3 +1434,39 @@ Interpretation: this adds a disabled local adapter skeleton for a future Solar
 Pro 3 provider path. It does not add SDK integration, external provider
 outcome, model-quality proof, token/cost metering implementation, hosted
 execution, or production provider readiness.
+
+## AW-LIVE-02 Solar Pro 3 Contract Fixture Metrics
+
+Measured after adding no-call request/response contract fixtures and
+cost/timeout policy checks.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 376 |
+| Pytest passed cases | 376 |
+| Regression delta vs AW-LIVE-01 baseline | +7 |
+| Solar contract unit tests | 7 |
+| Cost/timeout policy check count | 5 |
+| Request contract fixture count | 1 |
+| Response projection fixture count | 1 |
+| Raw input/body/provider leakage findings | 0 |
+| Forbidden public key findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| request fixture uses `prompt_contract_hash` only | covered |
+| timeout/cost/API quota/token quota omissions block | covered |
+| invalid prompt contract hash blocks | covered |
+| fake mode blocks in request contract fixture | covered |
+| response projection uses sanitized summary and hashes only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds no-call contract fixtures for a future Solar Pro 3
+provider path. It does not add SDK integration, provider response parsing,
+external provider outcome, model-quality proof, live cost metering, hosted
+execution, or production provider readiness.

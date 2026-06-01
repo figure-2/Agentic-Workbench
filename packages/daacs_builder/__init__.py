@@ -21,6 +21,15 @@ from .solar_live_adapter import (
     SolarPro3LiveAdapterConfig,
     default_solar_provider_adapter_registry,
 )
+from .solar_contracts import (
+    SolarContractFixtureResult,
+    SolarCostTimeoutPolicy,
+    SolarRequestContractFixture,
+    SolarResponseProjectionFixture,
+    attach_solar_response_projection_fixture,
+    build_solar_request_contract_fixture,
+    build_solar_response_projection_fixture,
+)
 from .runner_provider import (
     ApprovalRecord,
     OfflineRunnerProvider,
@@ -50,8 +59,15 @@ __all__ = [
     "RunnerProviderRegistry",
     "RunnerRequest",
     "RunnerResult",
+    "SolarContractFixtureResult",
+    "SolarCostTimeoutPolicy",
     "SolarPro3LiveAdapterConfig",
+    "SolarRequestContractFixture",
+    "SolarResponseProjectionFixture",
+    "attach_solar_response_projection_fixture",
     "build_spec_to_daacs_initial_state",
+    "build_solar_request_contract_fixture",
+    "build_solar_response_projection_fixture",
     "create_spec_approval",
     "default_runner_provider_registry",
     "default_solar_provider_adapter_registry",

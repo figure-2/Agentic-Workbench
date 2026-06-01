@@ -179,6 +179,13 @@ decision, timeout config, cost/quota config, and token quota config before it
 can move past early admission checks. Fake provider mode remains assigned to
 `FakeSolarProProvider`; the disabled live adapter rejects fake mode.
 
+`AW-LIVE-02` adds no-call Solar Pro 3 request/response contract fixtures. The
+request fixture is based on `prompt_contract_hash`, timeout, cost, API quota,
+and token quota policy. The response projection fixture contains sanitized
+summary text and correlation hashes only. Raw input text, source body,
+provider body, SDK imports, env value reads, network calls, and API calls remain
+outside the contract path.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -230,3 +237,5 @@ outside the current executable path.
 - disabled Solar Pro 3 adapters must keep fake and live modes separate, never
   read env values, never import provider SDKs, and keep provider call counters
   at 0.
+- Solar Pro 3 contract fixtures must be no-call projections and must not carry
+  raw input text, source body, provider body, or authorization material.
