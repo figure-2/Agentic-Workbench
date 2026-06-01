@@ -30,7 +30,7 @@ from .services.canonical_run_store import (
     RunArtifactRepositoryProvider,
     persist_canonical_run_session,
     read_canonical_artifacts,
-    read_canonical_run,
+    read_composed_canonical_run,
 )
 
 try:
@@ -132,9 +132,11 @@ def create_app(
     def get_run(run_id: str):
         try:
             return {
-                "data": read_canonical_run(
+                "data": read_composed_canonical_run(
                     run_id,
                     run_repository_provider=run_repositories,
+                    evidence_repository_provider=evidence_repositories,
+                    admission_repository_provider=admission_repositories,
                 )
             }
         except (KeyError, TypeError, ValueError) as exc:

@@ -140,6 +140,12 @@ must not merge repository responsibilities or return raw rows. Missing evidence
 must not block canonical run lookup; corrupted evidence should block only the
 evidence summary section.
 
+`AW-API-06` implements that direction for `GET /api/v1/runs/{run_id}`. The
+endpoint now returns canonical run state and artifact metadata plus an optional
+`evidence_summary`. `GET /api/v1/runs/{run_id}/artifacts` remains a canonical
+artifact metadata endpoint. Evidence rows are summarized as counts, checks, and
+linkage markers only.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -177,3 +183,5 @@ intentionally outside the current executable path.
 - canonical run/artifact read APIs expose stored run-session and artifact
   metadata projection rows only, keep evidence/admission rows out of the
   response, and keep provider/runtime calls at 0.
+- composed run/evidence read APIs keep canonical run state primary and attach
+  evidence as sanitized counts, checks, and linkage markers only.

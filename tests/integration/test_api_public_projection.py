@@ -542,21 +542,21 @@ def test_run_and_artifact_read_apis_return_sanitized_repository_rows_without_cro
     run_checks = {check["name"]: check["passed"] for check in run_data["checks"]}
     artifact_checks = {check["name"]: check["passed"] for check in artifacts_data["checks"]}
 
-    assert run_data["projection_version"] == "canonical-run-read-model-public-v1"
+    assert run_data["projection_version"] == "canonical-run-composed-read-model-public-v1"
     assert artifacts_data["projection_version"] == "canonical-artifact-read-model-public-v1"
     assert run_data["status"] == "passed"
     assert artifacts_data["status"] == "passed"
     assert run_checks["run_artifact_repository_available"] is True
-    assert run_checks["evidence_repository_not_queried"] is True
-    assert run_checks["approval_replay_repository_not_queried"] is True
+    assert run_checks["evidence_summary_not_raw_rows"] is True
     assert artifact_checks["run_artifact_repository_available"] is True
     assert artifact_checks["evidence_repository_not_queried"] is True
     assert artifact_checks["approval_replay_repository_not_queried"] is True
     assert run_data["repository_boundary"]["run_artifact_backend"] == "sqlite"
-    assert run_data["repository_boundary"]["runner_report_audit_backend"] == "not_queried"
-    assert run_data["repository_boundary"]["approval_replay_backend"] == "not_queried"
-    assert run_data["repository_boundary"]["evidence_db_queried"] is False
-    assert run_data["repository_boundary"]["approval_replay_db_queried"] is False
+    assert run_data["repository_boundary"]["canonical_run_artifact_backend"] == "sqlite"
+    assert run_data["repository_boundary"]["runner_report_audit_backend"] == "sqlite"
+    assert run_data["repository_boundary"]["approval_replay_backend"] == "sqlite"
+    assert run_data["repository_boundary"]["evidence_db_queried"] is True
+    assert run_data["repository_boundary"]["approval_replay_db_queried"] is True
     assert artifacts_data["repository_boundary"]["run_artifact_backend"] == "sqlite"
     assert artifacts_data["repository_boundary"]["approval_replay_backend"] == "not_queried"
     assert run_data["run"]["run_id"] == first_run_id
@@ -567,12 +567,18 @@ def test_run_and_artifact_read_apis_return_sanitized_repository_rows_without_cro
     assert run_data["counts"]["artifact_count"] == first_data["artifact_count"]
     assert artifacts_data["counts"]["artifact_count"] == first_data["artifact_count"]
     assert run_data["counts"]["run_session_count"] == 1
-    assert run_data["counts"]["runner_plan_count"] == 0
-    assert run_data["counts"]["verification_report_count"] == 0
-    assert run_data["counts"]["audit_event_count"] == 0
+    assert run_data["counts"]["runner_plan_count"] == 1
+    assert run_data["counts"]["verification_report_count"] == 1
+    assert run_data["counts"]["audit_event_count"] == len(first_response.json()["events"]) + 1
     assert run_data["counts"]["approval_subject_snapshot_count"] == 0
     assert run_data["counts"]["approval_count"] == 0
     assert run_data["counts"]["replay_nonce_count"] == 0
+    assert run_data["evidence_summary"]["status"] == "available"
+    assert run_data["evidence_summary"]["counts"]["runner_plan_count"] == 1
+    assert run_data["evidence_summary"]["counts"]["verification_report_count"] == 1
+    assert run_data["evidence_summary"]["counts"]["source_artifact_count"] == first_data["artifact_count"]
+    assert run_data["evidence_summary"]["linkage"]["run_id_matched"] is True
+    assert run_data["evidence_summary"]["linkage"]["artifact_linkage_checked"] is True
     assert {artifact["run_id"] for artifact in artifacts_data["artifacts"]} == {first_run_id}
     assert {artifact["run_id"] for artifact in run_data["artifacts"]} == {first_run_id}
     assert run_data["execution_boundary"]["provider_calls"] == 0
@@ -597,6 +603,108 @@ def test_run_and_artifact_read_apis_return_sanitized_repository_rows_without_cro
         str(tmp_path),
     ):
         assert forbidden not in combined
+
+
+def test_composed_run_read_model_keeps_canonical_lookup_when_evidence_unconfigured(tmp_path):
+    run_root = tmp_path / "canonical-runs"
+    client = TestClient(create_app(run_repository_config=RunArtifactRepositoryConfig(root=run_root)))
+
+    create_response = client.post(
+        "/api/v1/runs",
+        json={
+            "raw_prompt": "Build canonical-only run with API06_MISSING_EVIDENCE_RAW_PROMPT",
+            "target_user": "api06-missing-evidence-owner@example.com",
+            "product_type": "composed read model",
+            "constraints": ["never expose API06_MISSING_EVIDENCE_CONSTRAINT"],
+            "success_criteria": ["read canonical state without evidence"],
+        },
+    )
+
+    assert create_response.status_code == 200
+    run_id = create_response.json()["data"]["run"]["run_id"]
+
+    read_response = client.get(f"/api/v1/runs/{run_id}")
+
+    assert read_response.status_code == 200
+    payload = read_response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    checks = {check["name"]: check["passed"] for check in data["checks"]}
+
+    assert data["status"] == "passed"
+    assert data["projection_version"] == "canonical-run-composed-read-model-public-v1"
+    assert checks["run_artifact_repository_available"] is True
+    assert checks["evidence_summary_not_raw_rows"] is True
+    assert data["repository_boundary"]["runner_report_audit_backend"] == "unconfigured"
+    assert data["repository_boundary"]["approval_replay_backend"] == "not_queried_or_unconfigured"
+    assert data["repository_boundary"]["evidence_db_queried"] is False
+    assert data["repository_boundary"]["approval_replay_db_queried"] is False
+    assert data["evidence_summary"]["status"] == "unconfigured"
+    assert data["evidence_summary"]["counts"]["runner_plan_count"] == 0
+    assert data["evidence_summary"]["counts"]["approval_count"] == 0
+    assert data["execution_boundary"]["solar_provider_calls"] == 0
+    assert data["execution_boundary"]["target_runtime_calls"] == 0
+    assert "API06_MISSING_EVIDENCE_RAW_PROMPT" not in serialized
+    assert "API06_MISSING_EVIDENCE_CONSTRAINT" not in serialized
+    assert "api06-missing-evidence-owner@example.com" not in serialized
+    assert str(tmp_path) not in serialized
+
+
+def test_composed_run_read_model_blocks_only_evidence_section_when_evidence_store_corrupted(tmp_path):
+    run_root = tmp_path / "canonical-runs"
+    corrupt_evidence_root = tmp_path / "corrupt-evidence"
+    corrupt_evidence_root.mkdir()
+    (corrupt_evidence_root / "agentic_workbench.sqlite3").write_text(
+        "not a sqlite database",
+        encoding="utf-8",
+    )
+    client = TestClient(
+        create_app(
+            run_repository_config=RunArtifactRepositoryConfig(root=run_root),
+            evidence_repository_config=EvidenceRepositoryConfig(root=corrupt_evidence_root),
+        )
+    )
+
+    create_response = client.post(
+        "/api/v1/runs",
+        json={
+            "raw_prompt": "Build canonical run with API06_CORRUPT_EVIDENCE_RAW_PROMPT",
+            "target_user": "api06-corrupt-evidence-owner@example.com",
+            "product_type": "composed read model",
+            "constraints": ["never expose API06_CORRUPT_EVIDENCE_CONSTRAINT"],
+            "success_criteria": ["block only evidence summary"],
+        },
+    )
+
+    assert create_response.status_code == 200
+    run_id = create_response.json()["data"]["run"]["run_id"]
+
+    read_response = client.get(f"/api/v1/runs/{run_id}")
+
+    assert read_response.status_code == 200
+    payload = read_response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    checks = {check["name"]: check["passed"] for check in data["evidence_summary"]["checks"]}
+
+    assert data["status"] == "passed"
+    assert data["run"]["run_id"] == run_id
+    assert data["repository_boundary"]["run_artifact_backend"] == "sqlite"
+    assert data["repository_boundary"]["runner_report_audit_backend"] == "sqlite"
+    assert data["repository_boundary"]["evidence_db_queried"] is True
+    assert data["repository_boundary"]["approval_replay_db_queried"] is False
+    assert data["evidence_summary"]["status"] == "blocked"
+    assert checks["runner_report_audit_repository_available"] is False
+    assert data["evidence_summary"]["counts"]["runner_plan_count"] == 0
+    assert data["counts"]["run_session_count"] == 1
+    assert data["counts"]["runner_plan_count"] == 0
+    assert data["execution_boundary"]["solar_provider_calls"] == 0
+    assert data["execution_boundary"]["target_runtime_calls"] == 0
+    assert "API06_CORRUPT_EVIDENCE_RAW_PROMPT" not in serialized
+    assert "API06_CORRUPT_EVIDENCE_CONSTRAINT" not in serialized
+    assert "api06-corrupt-evidence-owner@example.com" not in serialized
+    assert str(corrupt_evidence_root) not in serialized
+    assert "not a sqlite database" not in serialized
 
 
 def test_run_and_artifact_read_apis_block_corrupted_store_without_raw_path(tmp_path):
@@ -625,8 +733,8 @@ def test_run_and_artifact_read_apis_block_corrupted_store_without_raw_path(tmp_p
     assert run_data["counts"]["artifact_count"] == 0
     assert artifacts_data["counts"]["artifact_count"] == 0
     assert run_data["repository_boundary"]["run_artifact_backend"] == "sqlite"
-    assert run_data["repository_boundary"]["runner_report_audit_backend"] == "not_queried"
-    assert run_data["repository_boundary"]["approval_replay_backend"] == "not_queried"
+    assert run_data["repository_boundary"]["runner_report_audit_backend"] == "unconfigured"
+    assert run_data["repository_boundary"]["approval_replay_backend"] == "not_queried_or_unconfigured"
     assert run_data["execution_boundary"]["provider_calls"] == 0
     assert artifacts_data["execution_boundary"]["target_runtime_calls"] == 0
     assert str(corrupt_root) not in combined

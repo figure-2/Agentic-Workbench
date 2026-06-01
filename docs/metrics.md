@@ -2,7 +2,7 @@
 
 ## Measurement Date
 
-2026-05-31
+2026-06-01
 
 ## Source Project Metrics
 
@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-PERSIST-08` SQLite canonical run/artifact repository wiring.
+Current snapshot after `AW-API-06` canonical run/evidence read-model composition.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache | 106 |
-| Counted code/doc files, excluding cache | 106 |
-| Project lines, excluding cache | 20,651 |
+| Project files, excluding cache and private SoT | 110 |
+| Counted code/doc files, excluding cache and private SoT | 110 |
+| Project lines, excluding cache and private SoT | 24,876 |
 | Python files | 59 |
-| Markdown files | 42 |
+| Markdown files | 46 |
 | Test files | 23 |
 | Unit test files | 19 |
 | Smoke test files | 3 |
 | Integration test files | 1 |
-| Pytest collected cases | 348 |
-| Pytest passed cases | 348 |
+| Pytest collected cases | 350 |
+| Pytest passed cases | 350 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -1227,3 +1227,40 @@ run-session and artifact projection rows.
 Interpretation: this adds local canonical run/artifact projection persistence.
 It does not add external provider outcome, target runtime outcome, generated app
 delivery, hosted persistence, or repository trust certification.
+
+## AW-API-06 Run / Evidence Composition Metrics
+
+Measured after making `GET /api/v1/runs/{run_id}` return canonical run state
+plus an optional sanitized evidence summary.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 350 |
+| Pytest passed cases | 350 |
+| Regression delta vs AW-PERSIST-08 baseline | +2 |
+| API public projection integration tests | 20 |
+| Composed run read API paths | 1 |
+| Canonical run/artifact primary store queried | covered |
+| Optional evidence summary section | covered |
+| Missing evidence store canonical lookup block count | 0 |
+| Corrupted evidence store canonical lookup block count | 0 |
+| Corrupted evidence store evidence summary blocked | covered |
+| Corrupted canonical store canonical lookup blocked | covered |
+| Raw prompt/log/file/provider/runtime findings | 0 |
+| Raw approval authorization material findings | 0 |
+| Cross-run leakage findings | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| `GET /api/v1/runs/{run_id}` returns canonical run state with evidence summary | covered |
+| missing evidence repository reports evidence `unconfigured` while canonical lookup passes | covered |
+| corrupted evidence repository blocks only evidence summary section | covered |
+| repository boundary records which stores were queried | covered |
+| public response keeps provider/runtime calls at 0 | covered |
+
+Interpretation: this adds local read-model composition for sanitized projection
+rows. It does not add live observability, production monitoring, external
+provider outcome, target runtime outcome, generated app delivery, hosted
+persistence, or repository trust certification.

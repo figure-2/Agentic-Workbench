@@ -17,9 +17,13 @@ from packages.core.repositories import reconstruct_workflow_session_read_model
 from packages.core.schemas import WorkflowSession
 from packages.core.sqlite_repositories import SQLiteRunArtifactStore
 
+from .admission_demo import AdmissionRepositoryProvider
+from .evidence_read_model import EvidenceRepositoryProvider
+
 
 CANONICAL_RUN_WRITE_PROJECTION_VERSION = "canonical-run-persistence-public-v1"
 CANONICAL_RUN_READ_PROJECTION_VERSION = "canonical-run-read-model-public-v1"
+CANONICAL_RUN_COMPOSED_READ_PROJECTION_VERSION = "canonical-run-composed-read-model-public-v1"
 CANONICAL_ARTIFACT_READ_PROJECTION_VERSION = "canonical-artifact-read-model-public-v1"
 SAFE_RUN_ID_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-")
 
@@ -95,10 +99,35 @@ def _zero_execution_boundary(*, local_repository_write_count: int = 0) -> dict[s
 def _repository_boundary(provider: RunArtifactRepositoryProvider) -> dict[str, object]:
     return {
         "run_artifact_backend": provider.backend,
+        "canonical_run_artifact_backend": provider.backend,
         "runner_report_audit_backend": "not_queried",
         "approval_replay_backend": "not_queried",
         "evidence_db_queried": False,
         "approval_replay_db_queried": False,
+        "root_path_returned": False,
+        "raw_row_returned": False,
+    }
+
+
+def _composed_repository_boundary(
+    *,
+    run_provider: RunArtifactRepositoryProvider,
+    evidence_provider: EvidenceRepositoryProvider,
+    admission_provider: AdmissionRepositoryProvider,
+    evidence_db_queried: bool,
+    approval_replay_db_queried: bool,
+) -> dict[str, object]:
+    return {
+        "run_artifact_backend": run_provider.backend,
+        "canonical_run_artifact_backend": run_provider.backend,
+        "runner_report_audit_backend": evidence_provider.backend,
+        "approval_replay_backend": (
+            admission_provider.backend
+            if admission_provider.config is not None
+            else "not_queried_or_unconfigured"
+        ),
+        "evidence_db_queried": evidence_db_queried,
+        "approval_replay_db_queried": approval_replay_db_queried,
         "root_path_returned": False,
         "raw_row_returned": False,
     }
@@ -185,6 +214,133 @@ def _read_summary(
             "claim_boundary": _claim_boundary(),
         }
     )
+
+
+def _empty_evidence_counts() -> dict[str, int]:
+    return {
+        "source_artifact_count": 0,
+        "runner_plan_count": 0,
+        "verification_report_count": 0,
+        "audit_event_count": 0,
+        "approval_subject_snapshot_count": 0,
+        "approval_count": 0,
+        "replay_nonce_count": 0,
+    }
+
+
+def _evidence_summary(
+    *,
+    run_id: str,
+    evidence_provider: EvidenceRepositoryProvider,
+    admission_provider: AdmissionRepositoryProvider,
+) -> tuple[dict[str, Any], bool, bool]:
+    counts = _empty_evidence_counts()
+    checks: list[dict[str, object]] = []
+    errors: list[str] = []
+    status = "available"
+    evidence_db_queried = False
+    approval_replay_db_queried = False
+    evidence_linkage_checked = False
+    approval_linkage_checked = False
+
+    if not evidence_provider.configured:
+        status = "unconfigured"
+        checks.append({"name": "runner_report_audit_repository_configured", "passed": False})
+    else:
+        evidence_db_queried = True
+        try:
+            store = evidence_provider.store()
+            artifact_records = store.list_artifacts_for_run(run_id)
+            runner_plan_records = store.runner_plans().list_for_run(run_id)
+            verification_report_records = store.verification_reports().list_for_run(run_id)
+            audit_event_records = store.audit_events().list_for_run(run_id)
+            counts["source_artifact_count"] = len(artifact_records)
+            counts["runner_plan_count"] = len(runner_plan_records)
+            counts["verification_report_count"] = len(verification_report_records)
+            counts["audit_event_count"] = len(audit_event_records)
+            evidence_linkage_checked = True
+            checks.append({"name": "runner_report_audit_repository_available", "passed": True})
+            checks.append(
+                {
+                    "name": "runner_report_audit_run_id_linkage",
+                    "passed": all(
+                        record.run_id == run_id
+                        for record in [
+                            *artifact_records,
+                            *runner_plan_records,
+                            *verification_report_records,
+                            *audit_event_records,
+                        ]
+                    ),
+                }
+            )
+            if not any(
+                (
+                    artifact_records,
+                    runner_plan_records,
+                    verification_report_records,
+                    audit_event_records,
+                )
+            ):
+                status = "not_found"
+        except Exception:
+            status = "blocked"
+            errors.append("runner/report/audit repository is unavailable")
+            checks.append({"name": "runner_report_audit_repository_available", "passed": False})
+
+    if admission_provider.config is None:
+        checks.append({"name": "approval_replay_repository_configured", "passed": False})
+    else:
+        approval_replay_db_queried = True
+        try:
+            repositories = admission_provider.repositories()
+            snapshots = repositories.approval_repository.list_snapshots_for_run(run_id)
+            approvals = repositories.approval_repository.list_approvals_for_run(run_id)
+            replay_nonces = repositories.replay_nonce_repository.list_records_for_run(run_id)
+            counts["approval_subject_snapshot_count"] = len(snapshots)
+            counts["approval_count"] = len(approvals)
+            counts["replay_nonce_count"] = len(replay_nonces)
+            approval_linkage_checked = True
+            checks.append({"name": "approval_replay_repository_available", "passed": True})
+            checks.append(
+                {
+                    "name": "approval_replay_run_id_linkage",
+                    "passed": all(
+                        record.run_id == run_id
+                        for record in [*snapshots, *approvals, *replay_nonces]
+                    ),
+                }
+            )
+        except Exception:
+            status = "blocked"
+            errors.append("approval/replay repository is unavailable")
+            checks.append({"name": "approval_replay_repository_available", "passed": False})
+
+    summary = {
+        "status": status,
+        "counts": counts,
+        "checks": checks,
+        "errors": errors,
+        "linkage": {
+            "run_id": run_id,
+            "run_id_matched": True,
+            "artifact_linkage_checked": evidence_linkage_checked,
+            "approval_replay_linkage_checked": approval_linkage_checked,
+        },
+        "repository_boundary": {
+            "runner_report_audit_backend": evidence_provider.backend,
+            "approval_replay_backend": (
+                admission_provider.backend
+                if admission_provider.config is not None
+                else "not_queried_or_unconfigured"
+            ),
+            "evidence_db_queried": evidence_db_queried,
+            "approval_replay_db_queried": approval_replay_db_queried,
+            "root_path_returned": False,
+            "raw_row_returned": False,
+        },
+    }
+    return summary, evidence_db_queried, approval_replay_db_queried
 
 
 def persist_canonical_run_session(
@@ -290,6 +446,126 @@ def read_canonical_run(
         errors=errors,
         run=run,
         artifacts=artifacts,
+    )
+
+
+def read_composed_canonical_run(
+    run_id: str,
+    *,
+    run_repository_provider: RunArtifactRepositoryProvider | None = None,
+    evidence_repository_provider: EvidenceRepositoryProvider | None = None,
+    admission_repository_provider: AdmissionRepositoryProvider | None = None,
+) -> dict[str, Any]:
+    """Return canonical run state plus optional sanitized evidence summary."""
+    safe_run_id = _safe_run_id(run_id)
+    selected_run_provider = run_repository_provider or RunArtifactRepositoryProvider()
+    selected_evidence_provider = evidence_repository_provider or EvidenceRepositoryProvider()
+    selected_admission_provider = admission_repository_provider or AdmissionRepositoryProvider()
+    checks: list[dict[str, object]] = []
+    errors: list[str] = []
+    status = "passed"
+    run: dict[str, object] = {}
+    artifacts: list[dict[str, object]] = []
+    evidence_summary: dict[str, Any] = {
+        "status": "not_queried",
+        "counts": _empty_evidence_counts(),
+        "checks": [],
+        "errors": [],
+        "linkage": {
+            "run_id": safe_run_id,
+            "run_id_matched": True,
+            "artifact_linkage_checked": False,
+            "approval_replay_linkage_checked": False,
+        },
+        "repository_boundary": {
+            "runner_report_audit_backend": selected_evidence_provider.backend,
+            "approval_replay_backend": "not_queried_or_unconfigured",
+            "evidence_db_queried": False,
+            "approval_replay_db_queried": False,
+            "root_path_returned": False,
+            "raw_row_returned": False,
+        },
+    }
+    evidence_db_queried = False
+    approval_replay_db_queried = False
+
+    try:
+        store = selected_run_provider.store()
+        run_record = store.run_sessions().get(safe_run_id)
+        checks.append({"name": "run_artifact_repository_available", "passed": True})
+        if run_record is None:
+            status = "not_found"
+        else:
+            artifact_records = store.artifacts().list_for_run(safe_run_id)
+            read_model = reconstruct_workflow_session_read_model(run_record, artifact_records)
+            run = {
+                "run_id": read_model.run_id,
+                "stage": read_model.stage,
+                "status": read_model.status,
+                "prompt_contract_hash": read_model.prompt_contract_hash,
+                "idea_summary": read_model.idea_summary,
+                "created_at": read_model.created_at,
+                "updated_at": read_model.updated_at,
+            }
+            artifacts = [artifact.to_dict() for artifact in read_model.artifacts]
+            evidence_summary, evidence_db_queried, approval_replay_db_queried = _evidence_summary(
+                run_id=safe_run_id,
+                evidence_provider=selected_evidence_provider,
+                admission_provider=selected_admission_provider,
+            )
+            checks.append(
+                {
+                    "name": "evidence_summary_not_raw_rows",
+                    "passed": not evidence_summary["repository_boundary"]["raw_row_returned"],
+                }
+            )
+    except Exception:
+        status = "blocked"
+        errors.append("canonical run/artifact repository is unavailable")
+        checks.append({"name": "run_artifact_repository_available", "passed": False})
+
+    artifact_rows = artifacts or []
+    return _safe_public_payload(
+        {
+            "projection_version": CANONICAL_RUN_COMPOSED_READ_PROJECTION_VERSION,
+            "run_id": safe_run_id,
+            "status": status,
+            "runtime_mode": "read_model",
+            "fixture_mode": False,
+            "repository_boundary": _composed_repository_boundary(
+                run_provider=selected_run_provider,
+                evidence_provider=selected_evidence_provider,
+                admission_provider=selected_admission_provider,
+                evidence_db_queried=evidence_db_queried,
+                approval_replay_db_queried=approval_replay_db_queried,
+            ),
+            "run": run,
+            "artifacts": artifact_rows,
+            "evidence_summary": evidence_summary,
+            "counts": {
+                "run_session_count": 1 if run else 0,
+                "artifact_count": len(artifact_rows),
+                "runner_plan_count": int(evidence_summary["counts"]["runner_plan_count"]),
+                "verification_report_count": int(
+                    evidence_summary["counts"]["verification_report_count"]
+                ),
+                "audit_event_count": int(evidence_summary["counts"]["audit_event_count"]),
+                "approval_subject_snapshot_count": int(
+                    evidence_summary["counts"]["approval_subject_snapshot_count"]
+                ),
+                "approval_count": int(evidence_summary["counts"]["approval_count"]),
+                "replay_nonce_count": int(evidence_summary["counts"]["replay_nonce_count"]),
+            },
+            "checks": checks,
+            "errors": errors,
+            "execution_boundary": _zero_execution_boundary(),
+            "claim_boundary": _claim_boundary()
+            | {
+                "composed_evidence_summary": True,
+                "evidence_raw_rows_returned": False,
+                "live_observability_claim": False,
+            },
+        }
     )
 
 
