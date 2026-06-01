@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-14` review packet export/read-model.
+Current snapshot after `AW-LIVE-15` final no-call handoff packet.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 174 |
-| Counted code/doc files, excluding cache and private SoT | 172 |
-| Project lines, excluding cache and private SoT | 33,199 |
+| Project files, excluding cache and private SoT | 177 |
+| Counted code/doc files, excluding cache and private SoT | 175 |
+| Project lines, excluding cache and private SoT | 33,999 |
 | Python files | 76 |
-| Markdown files | 91 |
+| Markdown files | 94 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 411 |
-| Pytest passed cases | 411 |
+| Pytest collected cases | 414 |
+| Pytest passed cases | 414 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -1932,6 +1932,48 @@ Measured after adding the hash-only review packet export/read-model.
 | provider/runtime calls remain at 0 | covered |
 
 Interpretation: this adds a local hash-only export/read-model for a later
+manual provider test candidate. It does not add an external call path, SDK
+integration, env value access, network access, provider response parsing,
+hosted execution, or production provider readiness.
+
+## AW-LIVE-15 Final No-Call Handoff Packet Metrics
+
+Measured after adding the blocked manual provider test handoff packet.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 414 |
+| Pytest passed cases | 414 |
+| Regression delta vs AW-LIVE-14 baseline | +3 |
+| API handoff packet integration tests | 3 |
+| Provider envelope API integration tests | 19 |
+| Demo provider envelope smoke tests | 1 |
+| Handoff packet public summary fields | 9 |
+| Handoff packet component count | 5 |
+| Handoff packet component hash count | 5 |
+| Handoff packet export count in golden path | 1 |
+| Execution permission count with approve decision | 0 |
+| Handoff reason with complete local candidate | handoff_packet_execution_closed |
+| Export mismatch reason | review_packet_export_hash_mismatch |
+| Handoff mismatch reason | handoff_packet_hash_mismatch |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| policy/preflight/readiness/review/export evidence summarized in one packet | covered |
+| public handoff packet exposes status/reason/hash/count fields only | covered |
+| expected review packet export hash mismatch blocks before adapter admission | covered |
+| expected handoff packet hash mismatch blocks before adapter admission | covered |
+| approve decision still leaves execution permission at 0 | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local no-call audit handoff packet for a later
 manual provider test candidate. It does not add an external call path, SDK
 integration, env value access, network access, provider response parsing,
 hosted execution, or production provider readiness.

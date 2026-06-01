@@ -77,6 +77,7 @@ sequenceDiagram
 | `live_provider_dry_admission` | local checklist projection showing manual preconditions and closed execution permission |
 | `manual_provider_test_proposal` | local proposal gate with proposal hash, approval hash match, and execution disabled by default |
 | `manual_provider_test_executor` | disabled executor projection with status, reason, and planned call hash only |
+| `manual_provider_test_handoff_packet` | final no-call packet with status, reason, handoff hash, and counts only |
 
 ## Persistence Boundary
 
@@ -280,6 +281,12 @@ provider-envelope read paths can retrieve the stored packet evidence without
 raw prompt, provider body, provider payload, or authorization material. An
 expected packet hash mismatch blocks before adapter admission.
 
+`AW-LIVE-15` adds a final no-call handoff packet. The packet summarizes policy
+summary, preflight audit, readiness decision, review packet, and review packet
+export evidence as status, reason, a handoff hash, and counts. Expected export
+or handoff hash mismatch blocks before adapter admission. The packet is not an
+execution permission and keeps `execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -348,3 +355,6 @@ outside the current executable path.
   must stay disabled by default even when the proposal is accepted.
 - manual provider test executor projections must stay blocked and must expose
   only status, reason, and planned call hash.
+- manual provider test handoff packets must remain no-call projections over
+  sanitized policy/preflight/readiness/review/export evidence and must not
+  grant execution permission.

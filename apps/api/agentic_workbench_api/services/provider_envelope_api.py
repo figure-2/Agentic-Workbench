@@ -73,6 +73,9 @@ MANUAL_PROVIDER_TEST_REVIEW_PACKET_VERSION = (
 MANUAL_PROVIDER_TEST_REVIEW_PACKET_EXPORT_VERSION = (
     "manual-provider-test-review-packet-export-v1"
 )
+MANUAL_PROVIDER_TEST_HANDOFF_PACKET_VERSION = (
+    "manual-provider-test-final-handoff-packet-v1"
+)
 
 
 @dataclass(slots=True)
@@ -432,6 +435,22 @@ def _manual_provider_test_review_packet_export_blocked(reason: str) -> JsonDict:
     )
 
 
+def _manual_provider_test_handoff_packet_blocked(reason: str) -> JsonDict:
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "handoff_packet_hash": "",
+            "component_count": 0,
+            "passed_component_count": 0,
+            "mismatch_count": 1,
+            "component_hash_count": 0,
+            "export_count": 0,
+            "execution_permission_count": 0,
+        }
+    )
+
+
 def _manual_test_proposal_policy(policy: SolarCostTimeoutPolicy) -> JsonDict:
     return {
         "request_timeout_seconds": int(policy.request_timeout_seconds or 0),
@@ -780,6 +799,105 @@ def _manual_provider_test_review_packet_projection(
     )
 
 
+def _manual_provider_test_handoff_packet_projection(
+    *,
+    operator_policy_summary: JsonDict,
+    preflight_audit: JsonDict,
+    readiness_decision: JsonDict,
+    review_packet: JsonDict,
+    review_packet_export: JsonDict,
+) -> JsonDict:
+    policy_hash = str(operator_policy_summary.get("policy_summary_hash", "")).strip()
+    preflight_hash = str(preflight_audit.get("preflight_audit_hash", "")).strip()
+    decision_hash = str(readiness_decision.get("readiness_decision_hash", "")).strip()
+    review_hash = str(review_packet.get("review_packet_hash", "")).strip()
+    export_hash = str(review_packet_export.get("review_packet_export_hash", "")).strip()
+    export_review_hash = str(review_packet_export.get("review_packet_hash", "")).strip()
+    execution_permission_count = (
+        _coerce_int(readiness_decision.get("execution_permission_count", 0))
+        + _coerce_int(review_packet.get("execution_permission_count", 0))
+        + _coerce_int(review_packet_export.get("execution_permission_count", 0))
+    )
+    export_count = _coerce_int(review_packet_export.get("export_count", 0))
+    component_checks = [
+        bool(policy_hash),
+        str(preflight_audit.get("status", "")) == "blocked"
+        and str(preflight_audit.get("reason", "")) == "preflight_execution_closed"
+        and bool(preflight_hash),
+        str(readiness_decision.get("status", "")) == "blocked"
+        and bool(decision_hash)
+        and _coerce_int(readiness_decision.get("execution_permission_count", 0)) == 0,
+        str(review_packet.get("status", "")) == "blocked"
+        and str(review_packet.get("reason", "")) == "review_packet_execution_closed"
+        and bool(review_hash)
+        and _coerce_int(review_packet.get("execution_permission_count", 0)) == 0,
+        str(review_packet_export.get("status", "")) == "blocked"
+        and str(review_packet_export.get("reason", "")) == "review_packet_execution_closed"
+        and bool(export_hash)
+        and bool(review_hash)
+        and export_review_hash == review_hash
+        and _coerce_int(review_packet_export.get("execution_permission_count", 0)) == 0,
+    ]
+    component_hash_count = sum(
+        1
+        for value in (
+            policy_hash,
+            preflight_hash,
+            decision_hash,
+            review_hash,
+            export_hash,
+        )
+        if value
+    )
+    component_count = len(component_checks)
+    passed_component_count = sum(1 for check in component_checks if check)
+    mismatch_count = component_count - passed_component_count
+    if not component_checks[0]:
+        reason = "policy_summary_missing_or_mismatched"
+    elif not component_checks[1]:
+        reason = "preflight_component_missing_or_mismatched"
+    elif not component_checks[2]:
+        reason = "readiness_decision_missing_or_mismatched"
+    elif not component_checks[3]:
+        reason = "review_packet_missing_or_mismatched"
+    elif not component_checks[4] and export_hash and review_hash:
+        reason = "review_packet_export_hash_mismatch"
+    elif not component_checks[4]:
+        reason = "review_packet_export_missing_or_mismatched"
+    else:
+        reason = "handoff_packet_execution_closed"
+
+    handoff_packet_hash = ""
+    if mismatch_count == 0 and execution_permission_count == 0:
+        handoff_packet_hash = stable_contract_hash(
+            {
+                "projection_version": MANUAL_PROVIDER_TEST_HANDOFF_PACKET_VERSION,
+                "policy_summary_hash": policy_hash,
+                "preflight_audit_hash": preflight_hash,
+                "readiness_decision_hash": decision_hash,
+                "review_packet_hash": review_hash,
+                "review_packet_export_hash": export_hash,
+                "component_count": component_count,
+                "export_count": export_count,
+                "execution_permission": "closed",
+            }
+        )
+
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "handoff_packet_hash": handoff_packet_hash,
+            "component_count": component_count,
+            "passed_component_count": passed_component_count,
+            "mismatch_count": mismatch_count,
+            "component_hash_count": component_hash_count,
+            "export_count": export_count,
+            "execution_permission_count": execution_permission_count,
+        }
+    )
+
+
 def _manual_test_proposal_projection(
     *,
     payload: dict[str, Any],
@@ -1031,6 +1149,65 @@ def provider_manual_test_review_packet_summary(payload: dict[str, Any]) -> dict[
     )
 
 
+def _review_packet_export_preview(run_id: str, review_packet: JsonDict) -> JsonDict:
+    try:
+        record = provider_review_packet_export_record_from_projection(
+            review_packet,
+            run_id=run_id,
+        )
+    except Exception:
+        return _manual_provider_test_review_packet_export_blocked(
+            "review_packet_export_not_available"
+        )
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": record.reason,
+            "review_packet_hash": record.review_packet_hash,
+            "review_packet_export_hash": record.content_hash,
+            "export_count": 1,
+            "component_count": record.component_count,
+            "passed_component_count": record.passed_component_count,
+            "mismatch_count": record.mismatch_count,
+            "component_hash_count": record.component_hash_count,
+            "execution_permission_count": record.execution_permission_count,
+        }
+    )
+
+
+def provider_manual_test_handoff_packet_summary(payload: dict[str, Any]) -> dict[str, Any]:
+    """Build the public final no-call handoff packet projection."""
+    request = _request_from_payload(payload)
+    policy = _policy_from_payload(payload)
+    live_open_decision = _ready_live_open_decision(payload, request.run_id)
+    operator_policy_summary = _operator_policy_summary(
+        request=request,
+        policy=policy,
+        live_open_decision=live_open_decision,
+    )
+    preflight_audit = provider_manual_test_preflight_summary(payload)
+    readiness_decision = _manual_provider_test_readiness_decision_projection(
+        payload=payload,
+        preflight_audit=preflight_audit,
+    )
+    review_packet = _manual_provider_test_review_packet_projection(
+        operator_policy_summary=operator_policy_summary,
+        preflight_audit=preflight_audit,
+        readiness_decision=readiness_decision,
+    )
+    review_packet_export = _review_packet_export_preview(
+        request.run_id,
+        review_packet,
+    )
+    return _manual_provider_test_handoff_packet_projection(
+        operator_policy_summary=operator_policy_summary,
+        preflight_audit=preflight_audit,
+        readiness_decision=readiness_decision,
+        review_packet=review_packet,
+        review_packet_export=review_packet_export,
+    )
+
+
 def _review_packet_export_from_read_model(read_model: JsonDict) -> JsonDict:
     if str(read_model.get("status", "")) == "blocked":
         return _manual_provider_test_review_packet_export_blocked(
@@ -1073,6 +1250,7 @@ def _persist_review_packet_export(
     repository_provider: ProviderEnvelopeRepositoryProvider,
     review_packet: JsonDict,
     expected_review_packet_hash: str = "",
+    expected_review_packet_export_hash: str = "",
 ) -> tuple[JsonDict, JsonDict]:
     actual_hash = str(review_packet.get("review_packet_hash", "")).strip()
     if expected_review_packet_hash and expected_review_packet_hash != actual_hash:
@@ -1095,6 +1273,16 @@ def _persist_review_packet_export(
             review_packet,
             run_id=run_id,
         )
+        if (
+            expected_review_packet_export_hash
+            and expected_review_packet_export_hash != record.content_hash
+        ):
+            return (
+                _manual_provider_test_review_packet_export_blocked(
+                    "review_packet_export_hash_mismatch"
+                ),
+                {},
+            )
         try:
             repository.save_review_packet_export(record)
         except ValueError as exc:
@@ -1137,6 +1325,7 @@ def _blocked_projection(
     manual_provider_test_review_packet: JsonDict | None = None,
     manual_provider_test_review_packet_export: JsonDict | None = None,
     manual_provider_test_review_packet_export_read_model: JsonDict | None = None,
+    manual_provider_test_handoff_packet: JsonDict | None = None,
 ) -> dict[str, Any]:
     selected_operator_approval = operator_approval_envelope or _operator_approval_missing_projection()
     selected_dry_admission = live_provider_dry_admission or _live_provider_dry_admission_checklist(
@@ -1185,6 +1374,16 @@ def _blocked_projection(
             "review_packet_export_not_available"
         )
     )
+    selected_handoff_packet = (
+        manual_provider_test_handoff_packet
+        or _manual_provider_test_handoff_packet_projection(
+            operator_policy_summary=operator_policy_summary or {},
+            preflight_audit=selected_preflight_audit,
+            readiness_decision=selected_readiness_decision,
+            review_packet=selected_review_packet,
+            review_packet_export=selected_review_packet_export,
+        )
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -1218,6 +1417,7 @@ def _blocked_projection(
             "manual_provider_test_review_packet_export_read_model": (
                 manual_provider_test_review_packet_export_read_model or {}
             ),
+            "manual_provider_test_handoff_packet": selected_handoff_packet,
             "provider_envelope_read_model": read_model or {},
             "checks": [{"name": check_name, "passed": False}],
             "errors": [message],
@@ -1533,7 +1733,27 @@ def _projection_from_result(
         repository_provider=repository_provider,
         review_packet=review_packet,
         expected_review_packet_hash=str(payload.get("expected_review_packet_hash", "")).strip(),
+        expected_review_packet_export_hash=str(
+            payload.get("expected_review_packet_export_hash", "")
+        ).strip(),
     )
+    handoff_packet = _manual_provider_test_handoff_packet_projection(
+        operator_policy_summary=operator_policy_summary,
+        preflight_audit=preflight_audit,
+        readiness_decision=readiness_decision,
+        review_packet=review_packet,
+        review_packet_export=review_packet_export,
+    )
+    expected_handoff_packet_hash = str(
+        payload.get("expected_handoff_packet_hash", "")
+    ).strip()
+    if (
+        expected_handoff_packet_hash
+        and expected_handoff_packet_hash != handoff_packet.get("handoff_packet_hash")
+    ):
+        handoff_packet = _manual_provider_test_handoff_packet_blocked(
+            "handoff_packet_hash_mismatch"
+        )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -1563,6 +1783,7 @@ def _projection_from_result(
             "manual_provider_test_review_packet_export_read_model": (
                 review_packet_export_read_model
             ),
+            "manual_provider_test_handoff_packet": handoff_packet,
             "provider_envelope_read_model": read_model,
             "checks": _check_map(result.checks),
             "errors": [str(error) for error in result.errors],
@@ -1669,6 +1890,85 @@ def run_provider_envelope_precheck(
             manual_provider_test_review_packet_export=(
                 _manual_provider_test_review_packet_export_blocked(
                     "review_packet_hash_mismatch"
+                )
+            ),
+        )
+    manual_provider_test_review_packet_export_preview = _review_packet_export_preview(
+        request.run_id,
+        manual_provider_test_review_packet,
+    )
+    expected_review_packet_export_hash = str(
+        payload.get("expected_review_packet_export_hash", "")
+    ).strip()
+    actual_review_packet_export_hash = str(
+        manual_provider_test_review_packet_export_preview.get(
+            "review_packet_export_hash",
+            "",
+        )
+    ).strip()
+    if (
+        expected_review_packet_export_hash
+        and expected_review_packet_export_hash != actual_review_packet_export_hash
+    ):
+        return _blocked_projection(
+            run_id=request.run_id,
+            repository_provider=selected_provider,
+            check_name="manual_provider_test_review_packet_export_hash_match",
+            message="manual provider test review packet export hash mismatch.",
+            operator_policy_summary=operator_policy_summary,
+            operator_approval_envelope=operator_approval,
+            live_provider_dry_admission=live_provider_dry_admission,
+            manual_provider_test_proposal=manual_provider_test_proposal,
+            manual_provider_test_executor=manual_provider_test_executor,
+            one_shot_live_permission=one_shot_live_permission,
+            manual_provider_test_readiness_decision=manual_provider_test_readiness_decision,
+            manual_provider_test_review_packet=manual_provider_test_review_packet,
+            manual_provider_test_review_packet_export=(
+                _manual_provider_test_review_packet_export_blocked(
+                    "review_packet_export_hash_mismatch"
+                )
+            ),
+            manual_provider_test_handoff_packet=(
+                _manual_provider_test_handoff_packet_blocked(
+                    "review_packet_export_hash_mismatch"
+                )
+            ),
+        )
+    manual_provider_test_handoff_packet_preview = (
+        _manual_provider_test_handoff_packet_projection(
+            operator_policy_summary=operator_policy_summary,
+            preflight_audit=preflight_audit_for_decision,
+            readiness_decision=manual_provider_test_readiness_decision,
+            review_packet=manual_provider_test_review_packet,
+            review_packet_export=manual_provider_test_review_packet_export_preview,
+        )
+    )
+    expected_handoff_packet_hash = str(
+        payload.get("expected_handoff_packet_hash", "")
+    ).strip()
+    actual_handoff_packet_hash = str(
+        manual_provider_test_handoff_packet_preview.get("handoff_packet_hash", "")
+    ).strip()
+    if expected_handoff_packet_hash and expected_handoff_packet_hash != actual_handoff_packet_hash:
+        return _blocked_projection(
+            run_id=request.run_id,
+            repository_provider=selected_provider,
+            check_name="manual_provider_test_handoff_packet_hash_match",
+            message="manual provider test handoff packet hash mismatch.",
+            operator_policy_summary=operator_policy_summary,
+            operator_approval_envelope=operator_approval,
+            live_provider_dry_admission=live_provider_dry_admission,
+            manual_provider_test_proposal=manual_provider_test_proposal,
+            manual_provider_test_executor=manual_provider_test_executor,
+            one_shot_live_permission=one_shot_live_permission,
+            manual_provider_test_readiness_decision=manual_provider_test_readiness_decision,
+            manual_provider_test_review_packet=manual_provider_test_review_packet,
+            manual_provider_test_review_packet_export=(
+                manual_provider_test_review_packet_export_preview
+            ),
+            manual_provider_test_handoff_packet=(
+                _manual_provider_test_handoff_packet_blocked(
+                    "handoff_packet_hash_mismatch"
                 )
             ),
         )
@@ -1876,6 +2176,19 @@ def read_provider_envelope_precheck(
             "manual_provider_test_review_packet_export_read_model": (
                 review_packet_export_read_model
             ),
+            "manual_provider_test_handoff_packet": _manual_provider_test_handoff_packet_projection(
+                operator_policy_summary={},
+                preflight_audit=_manual_provider_test_preflight_audit_blocked(
+                    "proposal_component_missing_or_blocked"
+                ),
+                readiness_decision=_manual_provider_test_readiness_decision_blocked(
+                    "readiness_decision_required"
+                ),
+                review_packet=_manual_provider_test_review_packet_blocked(
+                    "policy_summary_missing_or_mismatched"
+                ),
+                review_packet_export=review_packet_export,
+            ),
             "provider_envelope_read_model": read_model,
             "checks": [{"name": "provider_envelope_read_model_available", "passed": True}],
             "errors": [],
@@ -1907,9 +2220,11 @@ __all__ = [
     "MANUAL_PROVIDER_TEST_READINESS_DECISION_VERSION",
     "MANUAL_PROVIDER_TEST_REVIEW_PACKET_VERSION",
     "MANUAL_PROVIDER_TEST_REVIEW_PACKET_EXPORT_VERSION",
+    "MANUAL_PROVIDER_TEST_HANDOFF_PACKET_VERSION",
     "provider_manual_test_proposal_summary",
     "provider_manual_test_preflight_summary",
     "provider_manual_test_review_packet_summary",
+    "provider_manual_test_handoff_packet_summary",
     "provider_precheck_operator_policy_summary",
     "read_provider_envelope_precheck",
     "run_provider_envelope_precheck",

@@ -74,5 +74,5 @@ load `.env` values, call Solar Pro 3, or run the DAACS target runtime.
 - The static UI marks live policy as `closed / eligible only`.
 - When `--include-provider-precheck` is used, manual proposal, disabled
   executor, one-shot permission, preflight audit, readiness decision, review
-  packet, and review packet export/read-model summaries remain blocked and
-  hash-only.
+  packet, review packet export/read-model, and handoff packet summaries remain
+  blocked and hash-only.

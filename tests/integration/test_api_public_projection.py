@@ -9,6 +9,7 @@ from apps.api.agentic_workbench_api.services.evidence_read_model import Evidence
 from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     MANUAL_PROVIDER_TEST_EXECUTOR_VERSION,
     ProviderEnvelopeRepositoryConfig,
+    provider_manual_test_handoff_packet_summary,
     provider_manual_test_preflight_summary,
     provider_manual_test_proposal_summary,
     provider_manual_test_review_packet_summary,
@@ -2080,6 +2081,91 @@ def test_provider_envelope_precheck_api_reads_review_packet_export_model_without
         assert forbidden not in serialized
 
 
+def test_provider_envelope_precheck_api_builds_handoff_packet_without_execution(tmp_path):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-handoff-packet",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+    )
+    expected_packet = provider_manual_test_review_packet_summary(request_payload)
+    expected_handoff = provider_manual_test_handoff_packet_summary(request_payload)
+    request_payload["expected_review_packet_hash"] = expected_packet["review_packet_hash"]
+    request_payload["expected_handoff_packet_hash"] = expected_handoff[
+        "handoff_packet_hash"
+    ]
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+    read_response = client.get(
+        "/api/v1/admissions/provider/envelopes/run-api-envelope-handoff-packet"
+    )
+
+    assert response.status_code == 200
+    assert read_response.status_code == 200
+    payload = response.json()
+    read_payload = read_response.json()
+    serialized = _serialized({"post": payload, "read": read_payload})
+    data = payload["data"]
+    handoff = data["manual_provider_test_handoff_packet"]
+    read_handoff = read_payload["data"]["manual_provider_test_handoff_packet"]
+
+    assert set(handoff) == {
+        "status",
+        "reason",
+        "handoff_packet_hash",
+        "component_count",
+        "passed_component_count",
+        "mismatch_count",
+        "component_hash_count",
+        "export_count",
+        "execution_permission_count",
+    }
+    assert handoff["status"] == "blocked"
+    assert handoff["reason"] == "handoff_packet_execution_closed"
+    assert handoff["handoff_packet_hash"] == expected_handoff["handoff_packet_hash"]
+    assert handoff["component_count"] == 5
+    assert handoff["passed_component_count"] == 5
+    assert handoff["mismatch_count"] == 0
+    assert handoff["component_hash_count"] == 5
+    assert handoff["export_count"] == 1
+    assert handoff["execution_permission_count"] == 0
+    assert read_handoff["status"] == "blocked"
+    assert read_handoff["reason"] == "policy_summary_missing_or_mismatched"
+    assert data["provider_envelope_admission"]["adapter_reached"] is True
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API08_ABORT_CRITERIA_SENTINEL",
+        "API08_MANUAL_TEST_AUTH_SENTINEL",
+        "API10_PERMISSION_AUTH_SENTINEL",
+        "API10_PERMISSION_PROVIDER_PAYLOAD_SENTINEL",
+        "API12_READINESS_AUTH_SENTINEL",
+        "API12_READINESS_PROVIDER_PAYLOAD_SENTINEL",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
 def test_provider_envelope_precheck_api_blocks_readiness_decision_hash_mismatch(tmp_path):
     client = TestClient(
         create_app(
@@ -2239,6 +2325,142 @@ def test_provider_envelope_precheck_api_blocks_review_packet_export_hash_mismatc
     assert review_packet_export["export_count"] == 0
     assert review_packet_export["execution_permission_count"] == 0
     assert checks["manual_provider_test_review_packet_hash_match"] is False
+    assert data["provider_envelope_admission"]["adapter_reached"] is False
+    assert data["execution_boundary"]["adapter_invocation_count"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+    assert not (tmp_path / "provider-envelopes.sqlite3").exists()
+
+    for forbidden in (
+        "API08_ABORT_CRITERIA_SENTINEL",
+        "API08_MANUAL_TEST_AUTH_SENTINEL",
+        "API10_PERMISSION_AUTH_SENTINEL",
+        "API10_PERMISSION_PROVIDER_PAYLOAD_SENTINEL",
+        "API12_READINESS_AUTH_SENTINEL",
+        "API12_READINESS_PROVIDER_PAYLOAD_SENTINEL",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_handoff_export_hash_mismatch(tmp_path):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-handoff-export-mismatch",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+    )
+    expected_packet = provider_manual_test_review_packet_summary(request_payload)
+    request_payload["expected_review_packet_hash"] = expected_packet["review_packet_hash"]
+    request_payload["expected_review_packet_export_hash"] = "f" * 64
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    checks = {check["name"]: check["passed"] for check in data["checks"]}
+    review_packet = data["manual_provider_test_review_packet"]
+    review_packet_export = data["manual_provider_test_review_packet_export"]
+    handoff = data["manual_provider_test_handoff_packet"]
+
+    assert review_packet["status"] == "blocked"
+    assert review_packet["reason"] == "review_packet_execution_closed"
+    assert review_packet["review_packet_hash"] == expected_packet["review_packet_hash"]
+    assert review_packet_export["status"] == "blocked"
+    assert review_packet_export["reason"] == "review_packet_export_hash_mismatch"
+    assert review_packet_export["review_packet_export_hash"] == ""
+    assert handoff["status"] == "blocked"
+    assert handoff["reason"] == "review_packet_export_hash_mismatch"
+    assert handoff["handoff_packet_hash"] == ""
+    assert handoff["execution_permission_count"] == 0
+    assert checks["manual_provider_test_review_packet_export_hash_match"] is False
+    assert data["provider_envelope_admission"]["adapter_reached"] is False
+    assert data["execution_boundary"]["adapter_invocation_count"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+    assert not (tmp_path / "provider-envelopes.sqlite3").exists()
+
+    for forbidden in (
+        "API08_ABORT_CRITERIA_SENTINEL",
+        "API08_MANUAL_TEST_AUTH_SENTINEL",
+        "API10_PERMISSION_AUTH_SENTINEL",
+        "API10_PERMISSION_PROVIDER_PAYLOAD_SENTINEL",
+        "API12_READINESS_AUTH_SENTINEL",
+        "API12_READINESS_PROVIDER_PAYLOAD_SENTINEL",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_handoff_packet_hash_mismatch(tmp_path):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _provider_envelope_precheck_payload(
+        run_id="run-api-envelope-handoff-packet-mismatch",
+        include_manual_test_proposal=True,
+        manual_test_executor_enable=True,
+        include_one_shot_live_permission=True,
+        include_readiness_decision=True,
+    )
+    expected_packet = provider_manual_test_review_packet_summary(request_payload)
+    request_payload["expected_review_packet_hash"] = expected_packet["review_packet_hash"]
+    request_payload["expected_handoff_packet_hash"] = "f" * 64
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    checks = {check["name"]: check["passed"] for check in data["checks"]}
+    review_packet_export = data["manual_provider_test_review_packet_export"]
+    handoff = data["manual_provider_test_handoff_packet"]
+
+    assert review_packet_export["status"] == "blocked"
+    assert review_packet_export["reason"] == "review_packet_execution_closed"
+    assert review_packet_export["review_packet_export_hash"]
+    assert handoff["status"] == "blocked"
+    assert handoff["reason"] == "handoff_packet_hash_mismatch"
+    assert handoff["handoff_packet_hash"] == ""
+    assert handoff["execution_permission_count"] == 0
+    assert checks["manual_provider_test_handoff_packet_hash_match"] is False
     assert data["provider_envelope_admission"]["adapter_reached"] is False
     assert data["execution_boundary"]["adapter_invocation_count"] == 0
     assert data["execution_boundary"]["provider_calls"] == 0

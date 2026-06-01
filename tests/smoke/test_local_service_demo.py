@@ -155,6 +155,15 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert envelope["review_packet_export_hash"]
     assert envelope["review_packet_export_count"] == 1
     assert envelope["review_packet_export_execution_permission_count"] == 0
+    assert envelope["handoff_packet_status"] == "blocked"
+    assert envelope["handoff_packet_reason"] == "handoff_packet_execution_closed"
+    assert envelope["handoff_packet_hash"]
+    assert envelope["handoff_packet_component_count"] == 5
+    assert envelope["handoff_packet_passed_component_count"] == 5
+    assert envelope["handoff_packet_mismatch_count"] == 0
+    assert envelope["handoff_packet_component_hash_count"] == 5
+    assert envelope["handoff_packet_export_count"] == 1
+    assert envelope["handoff_packet_execution_permission_count"] == 0
     assert envelope["review_packet_read_model_status"] == "available"
     assert envelope["review_packet_read_export_hash"] == envelope["review_packet_hash"]
     assert envelope["review_packet_read_export_count"] == 1
@@ -166,6 +175,7 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert checks["provider_readiness_decision_blocked"] is True
     assert checks["provider_review_packet_blocked"] is True
     assert checks["provider_review_packet_export_blocked"] is True
+    assert checks["provider_handoff_packet_blocked"] is True
     assert envelope["execution_boundary"]["provider_calls"] == 0
     assert envelope["execution_boundary"]["network_calls"] == 0
     assert envelope["execution_boundary"]["solar_live_api_calls"] == 0

@@ -274,6 +274,15 @@ def _checks(
             and int(review_packet_export.get("export_count", 0)) >= 1
             and int(review_packet_export.get("execution_permission_count", -1)) == 0
         )
+        handoff_packet = provider_envelope_data.get(
+            "manual_provider_test_handoff_packet", {}
+        )
+        checks["provider_handoff_packet_blocked"] = (
+            handoff_packet.get("status") == "blocked"
+            and handoff_packet.get("reason") == "handoff_packet_execution_closed"
+            and int(handoff_packet.get("component_count", 0)) >= 5
+            and int(handoff_packet.get("execution_permission_count", -1)) == 0
+        )
     return checks
 
 
@@ -499,6 +508,33 @@ def run_demo(
                 ).get("export_count"),
                 "review_packet_export_execution_permission_count": provider_envelope_data.get(
                     "manual_provider_test_review_packet_export", {}
+                ).get("execution_permission_count"),
+                "handoff_packet_status": provider_envelope_data.get(
+                    "manual_provider_test_handoff_packet", {}
+                ).get("status"),
+                "handoff_packet_reason": provider_envelope_data.get(
+                    "manual_provider_test_handoff_packet", {}
+                ).get("reason"),
+                "handoff_packet_hash": provider_envelope_data.get(
+                    "manual_provider_test_handoff_packet", {}
+                ).get("handoff_packet_hash"),
+                "handoff_packet_component_count": provider_envelope_data.get(
+                    "manual_provider_test_handoff_packet", {}
+                ).get("component_count"),
+                "handoff_packet_passed_component_count": provider_envelope_data.get(
+                    "manual_provider_test_handoff_packet", {}
+                ).get("passed_component_count"),
+                "handoff_packet_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_handoff_packet", {}
+                ).get("mismatch_count"),
+                "handoff_packet_component_hash_count": provider_envelope_data.get(
+                    "manual_provider_test_handoff_packet", {}
+                ).get("component_hash_count"),
+                "handoff_packet_export_count": provider_envelope_data.get(
+                    "manual_provider_test_handoff_packet", {}
+                ).get("export_count"),
+                "handoff_packet_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_handoff_packet", {}
                 ).get("execution_permission_count"),
                 "review_packet_read_model_status": (
                     provider_envelope_read_data or {}

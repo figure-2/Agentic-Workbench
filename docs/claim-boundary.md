@@ -44,6 +44,7 @@ Agentic Workbench is a local/dev AI agent workflow harness prototype. It may cla
 - Blocked readiness decision record for a local manual provider test candidate
 - Blocked review packet for local manual provider test policy/preflight/readiness hashes
 - Hash-only review packet export/read-model for a local manual provider test candidate
+- Final no-call handoff packet for local manual provider test evidence
 - Sanitized public summaries and correlation hashes
 - Fixture-based smoke tests and local regression tests
 
@@ -117,6 +118,8 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
   hosted execution, or production provider readiness
 - review packet export/read-model described as external provider behavior,
   execution permission, hosted execution, or production provider readiness
+- handoff packet described as external provider behavior, execution permission,
+  hosted execution, or production provider readiness
 
 ## Public Artifact Rules
 
@@ -161,3 +164,4 @@ Allowed replacements:
 | Dry-Admission Checklist Gate | Provider precheck exposes manual conditions while keeping execution permission closed |
 | Manual Proposal Gate | First provider test proposal requires exact proposal-hash approval and remains disabled |
 | Disabled Executor Gate | Manual provider test executor remains blocked and exposes only status/reason/hash |
+| Handoff Packet Gate | Manual provider test handoff packet remains blocked and exposes only status/reason/hash/count |
