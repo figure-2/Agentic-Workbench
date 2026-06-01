@@ -40,6 +40,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     provider_manual_test_release_proposal_summary,
     provider_manual_test_handoff_packet_summary,
     provider_manual_test_operator_handback_summary,
+    provider_manual_test_operator_decision_packet_summary,
     provider_manual_test_operator_opt_in_summary,
     provider_manual_test_post_invocation_audit_summary,
     provider_manual_test_preflight_summary,
@@ -335,6 +336,20 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
             "decision_reason_code": "local-demo-no-call-decision-reviewed",
         },
     }
+    decision_packet_hash = provider_manual_test_operator_decision_packet_summary(
+        payload
+    )["operator_decision_packet_hash"]
+    payload["expected_operator_decision_packet_hash"] = decision_packet_hash
+    payload["manual_test_operator_release_attestation"] = {
+        "operator_decision_packet_hash": decision_packet_hash,
+        "attestation_requested": True,
+        "operator_attestation": {
+            "operator_ref": "local-demo-operator",
+            "attested_at": "2026-06-01T00:55:00Z",
+            "attestation": "release_acknowledged",
+            "attestation_reason_code": "local-demo-no-call-release-attested",
+        },
+    }
     return payload
 
 
@@ -547,6 +562,15 @@ def _checks(
             and decision_packet.get("reason")
             == "operator_decision_packet_execution_closed"
             and int(decision_packet.get("execution_permission_count", -1)) == 0
+        )
+        release_attestation = provider_envelope_data.get(
+            "manual_provider_test_operator_release_attestation", {}
+        )
+        checks["provider_operator_release_attestation_blocked"] = (
+            release_attestation.get("status") == "blocked"
+            and release_attestation.get("reason")
+            == "operator_release_attestation_execution_closed"
+            and int(release_attestation.get("execution_permission_count", -1)) == 0
         )
     return checks
 
@@ -1343,6 +1367,54 @@ def run_demo(
                 ).get("decision_packet_request_count"),
                 "operator_decision_packet_execution_permission_count": provider_envelope_data.get(
                     "manual_provider_test_operator_decision_packet", {}
+                ).get("execution_permission_count"),
+                "operator_release_attestation_status": provider_envelope_data.get(
+                    "manual_provider_test_operator_release_attestation", {}
+                ).get("status"),
+                "operator_release_attestation_reason": provider_envelope_data.get(
+                    "manual_provider_test_operator_release_attestation", {}
+                ).get("reason"),
+                "operator_release_attestation_hash": provider_envelope_data.get(
+                    "manual_provider_test_operator_release_attestation", {}
+                ).get("operator_release_attestation_hash"),
+                "operator_release_attestation_operator_decision_packet_hash": provider_envelope_data.get(
+                    "manual_provider_test_operator_release_attestation", {}
+                ).get("operator_decision_packet_hash"),
+                "operator_release_attestation_operator_attestation_hash": provider_envelope_data.get(
+                    "manual_provider_test_operator_release_attestation", {}
+                ).get("operator_attestation_hash"),
+                "operator_release_attestation_claim_boundary_hash": provider_envelope_data.get(
+                    "manual_provider_test_operator_release_attestation", {}
+                ).get("claim_boundary_hash"),
+                "operator_release_attestation_no_call_counters_hash": provider_envelope_data.get(
+                    "manual_provider_test_operator_release_attestation", {}
+                ).get("no_call_counters_hash"),
+                "operator_release_attestation_component_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_release_attestation", {}
+                ).get("component_count"),
+                "operator_release_attestation_passed_component_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_release_attestation", {}
+                ).get("passed_component_count"),
+                "operator_release_attestation_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_release_attestation", {}
+                ).get("mismatch_count"),
+                "operator_release_attestation_component_hash_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_release_attestation", {}
+                ).get("component_hash_count"),
+                "operator_release_attestation_no_call_counter_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_release_attestation", {}
+                ).get("no_call_counter_count"),
+                "operator_release_attestation_claim_boundary_check_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_release_attestation", {}
+                ).get("claim_boundary_check_count"),
+                "operator_release_attestation_operator_attestation_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_release_attestation", {}
+                ).get("operator_attestation_count"),
+                "operator_release_attestation_request_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_release_attestation", {}
+                ).get("attestation_request_count"),
+                "operator_release_attestation_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_operator_release_attestation", {}
                 ).get("execution_permission_count"),
                 "review_packet_read_model_status": (
                     provider_envelope_read_data or {}

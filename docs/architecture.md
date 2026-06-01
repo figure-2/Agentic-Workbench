@@ -386,6 +386,14 @@ counter hashes into one status/reason/hash/count projection. The packet still
 reports `operator_decision_packet_execution_closed` and keeps
 `execution_permission_count=0`.
 
+`AW-LIVE-30` adds a disabled first-call operator release attestation. The
+attestation requires an operator decision packet hash and a separate expected
+operator decision packet hash match. It binds decision packet,
+operator-attestation, claim-boundary, and no-call counter hashes into one
+status/reason/hash/count projection. The attestation still reports
+`operator_release_attestation_execution_closed` and keeps
+`execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -487,3 +495,6 @@ outside the current executable path.
 - operator decision packets must bind to handback, operator-decision,
   claim-boundary, and no-call counter hashes only and must not grant execution
   permission.
+- operator release attestations must bind to decision packet,
+  operator-attestation, claim-boundary, and no-call counter hashes only and
+  must not grant execution permission.

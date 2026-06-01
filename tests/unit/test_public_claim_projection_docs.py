@@ -146,6 +146,13 @@ LIVE_29_RUNBOOK_PATH = (
 LIVE_29_WORK_ORDER_PATH = (
     ROOT / "docs" / "work-orders" / "aw-live-29-operator-decision-packet.md"
 )
+LIVE_30_PATH = ROOT / "docs" / "evals" / "aw-live-30-operator-release-attestation.md"
+LIVE_30_RUNBOOK_PATH = (
+    ROOT / "docs" / "runbooks" / "aw-live-30-operator-release-attestation.md"
+)
+LIVE_30_WORK_ORDER_PATH = (
+    ROOT / "docs" / "work-orders" / "aw-live-30-operator-release-attestation.md"
+)
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -245,6 +252,9 @@ PUBLIC_CLAIM_DOCS = [
     LIVE_29_PATH,
     LIVE_29_RUNBOOK_PATH,
     LIVE_29_WORK_ORDER_PATH,
+    LIVE_30_PATH,
+    LIVE_30_RUNBOOK_PATH,
+    LIVE_30_WORK_ORDER_PATH,
 ]
 
 

@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-29` disabled operator decision packet boundary.
+Current snapshot after `AW-LIVE-30` disabled operator release attestation boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 217 |
-| Counted code/doc files, excluding cache and private SoT | 217 |
-| Project lines, excluding cache and private SoT | 44,892 |
+| Project files, excluding cache and private SoT | 220 |
+| Counted code/doc files, excluding cache and private SoT | 220 |
+| Project lines, excluding cache and private SoT | 45,846 |
 | Python files | 76 |
-| Markdown files | 136 |
+| Markdown files | 139 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 456 |
-| Pytest passed cases | 456 |
+| Pytest collected cases | 459 |
+| Pytest passed cases | 459 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -2625,4 +2625,54 @@ Measured after adding the blocked disabled first-call operator decision packet.
 Interpretation: this adds a local disabled operator decision packet for a later
 manual provider test candidate. It does not add an external call path, SDK
 integration, env value access, network access, provider response parsing,
+hosted execution, live operator approval, or production provider readiness.
+
+## AW-LIVE-30 Disabled Operator Release Attestation Metrics
+
+Measured after adding the blocked disabled first-call operator release
+attestation.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 459 |
+| Pytest passed cases | 459 |
+| Regression delta vs AW-LIVE-29 baseline | +3 |
+| API operator release attestation integration tests | 3 |
+| Provider envelope API integration tests | 64 |
+| Demo provider envelope smoke tests | 1 |
+| Operator release attestation public summary fields | 16 |
+| Operator release attestation component count | 8 |
+| Operator release attestation component hash count | 4 |
+| Operator release attestation no-call counter count | 13 |
+| Claim-boundary check count | 3 |
+| Attestation passed count with missing expected decision packet hash | 3 |
+| Attestation mismatch count with missing expected decision packet hash | 5 |
+| Attestation passed count without attestation payload | 4 |
+| Attestation mismatch count without attestation payload | 4 |
+| Attestation passed count with complete attestation | 8 |
+| Execution permission count with complete attestation | 0 |
+| Missing expected decision packet hash reason | expected_operator_decision_packet_hash_required |
+| Missing attestation payload reason | operator_release_attestation_required |
+| Complete attestation reason | operator_release_attestation_execution_closed |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| operator decision packet hash exists before release attestation | covered |
+| expected operator decision packet hash must match | covered |
+| operator release attestation payload is required | covered |
+| operator attestation is represented as hash/count evidence | covered |
+| claim boundary is represented as hash/count evidence | covered |
+| public attestation exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled operator release attestation for a
+later manual provider test candidate. It does not add an external call path,
+SDK integration, env value access, network access, provider response parsing,
 hosted execution, live operator approval, or production provider readiness.

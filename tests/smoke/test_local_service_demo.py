@@ -388,6 +388,27 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert envelope["operator_decision_packet_operator_decision_count"] == 1
     assert envelope["operator_decision_packet_request_count"] == 1
     assert envelope["operator_decision_packet_execution_permission_count"] == 0
+    assert envelope["operator_release_attestation_status"] == "blocked"
+    assert (
+        envelope["operator_release_attestation_reason"]
+        == "operator_release_attestation_execution_closed"
+    )
+    assert envelope["operator_release_attestation_hash"]
+    assert envelope[
+        "operator_release_attestation_operator_decision_packet_hash"
+    ] == envelope["operator_decision_packet_hash"]
+    assert envelope["operator_release_attestation_operator_attestation_hash"]
+    assert envelope["operator_release_attestation_claim_boundary_hash"]
+    assert envelope["operator_release_attestation_no_call_counters_hash"]
+    assert envelope["operator_release_attestation_component_count"] == 8
+    assert envelope["operator_release_attestation_passed_component_count"] == 8
+    assert envelope["operator_release_attestation_mismatch_count"] == 0
+    assert envelope["operator_release_attestation_component_hash_count"] == 4
+    assert envelope["operator_release_attestation_no_call_counter_count"] == 13
+    assert envelope["operator_release_attestation_claim_boundary_check_count"] == 3
+    assert envelope["operator_release_attestation_operator_attestation_count"] == 1
+    assert envelope["operator_release_attestation_request_count"] == 1
+    assert envelope["operator_release_attestation_execution_permission_count"] == 0
     assert envelope["review_packet_read_model_status"] == "available"
     assert envelope["review_packet_read_export_hash"] == envelope["review_packet_hash"]
     assert envelope["review_packet_read_export_count"] == 1
@@ -414,6 +435,7 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
     assert checks["provider_closeout_record_blocked"] is True
     assert checks["provider_operator_handback_blocked"] is True
     assert checks["provider_operator_decision_packet_blocked"] is True
+    assert checks["provider_operator_release_attestation_blocked"] is True
     assert envelope["execution_boundary"]["provider_calls"] == 0
     assert envelope["execution_boundary"]["network_calls"] == 0
     assert envelope["execution_boundary"]["solar_live_api_calls"] == 0
@@ -424,10 +446,13 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
         "provider_body",
         "manual_test_operator_handback",
         "manual_test_operator_decision_packet",
+        "manual_test_operator_release_attestation",
         "packet_requested",
+        "attestation_requested",
         "local-demo-operator",
         "local-demo-no-call-handback-reviewed",
         "local-demo-no-call-decision-reviewed",
+        "local-demo-no-call-release-attested",
         "signature_id",
         "signed_contract_hash",
         "approved_policy_summary_hash",
