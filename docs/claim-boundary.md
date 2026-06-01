@@ -97,6 +97,9 @@ Agentic Workbench is a local/dev AI agent workflow harness prototype. It may cla
 - Disabled first-call execution capsule release attestation over operator
   decision, release-attestation, claim-boundary, and no-call counter hashes,
   with execution permission closed
+- Disabled first-call execution capsule release seal over release-attestation,
+  seal-material, claim-boundary, and no-call counter hashes, with execution
+  permission closed
 - Sanitized public summaries and correlation hashes
 - Fixture-based smoke tests and local regression tests
 
@@ -227,6 +230,9 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
 - execution capsule release attestation described as external provider
   behavior, provider result, live operator approval, execution permission,
   hosted execution, or production provider readiness
+- execution capsule release seal described as external provider behavior,
+  provider result, live operator approval, execution permission, hosted
+  execution, or production provider readiness
 
 ## Public Artifact Rules
 

@@ -39,6 +39,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     provider_manual_test_execution_capsule_handoff_packet_summary,
     provider_manual_test_execution_capsule_operator_decision_summary,
     provider_manual_test_execution_capsule_operator_review_summary,
+    provider_manual_test_execution_capsule_release_attestation_summary,
     provider_manual_test_execution_switch_summary,
     provider_manual_test_final_release_packet_summary,
     provider_manual_test_invocation_receipt_summary,
@@ -468,6 +469,26 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
             ),
         },
     }
+    execution_capsule_release_attestation_hash = (
+        provider_manual_test_execution_capsule_release_attestation_summary(payload)[
+            "execution_capsule_release_attestation_hash"
+        ]
+    )
+    payload["expected_execution_capsule_release_attestation_hash"] = (
+        execution_capsule_release_attestation_hash
+    )
+    payload["manual_test_execution_capsule_release_seal"] = {
+        "execution_capsule_release_attestation_hash": (
+            execution_capsule_release_attestation_hash
+        ),
+        "seal_requested": True,
+        "seal_material": {
+            "operator_ref": "local-demo-operator",
+            "sealed_at": "2026-06-01T01:30:00Z",
+            "seal_decision": "sealed",
+            "seal_reason_code": "local-demo-no-call-capsule-release-sealed",
+        },
+    }
     return payload
 
 
@@ -778,6 +799,18 @@ def _checks(
                 execution_capsule_release_attestation.get(
                     "execution_permission_count", -1
                 )
+            )
+            == 0
+        )
+        execution_capsule_release_seal = provider_envelope_data.get(
+            "manual_provider_test_execution_capsule_release_seal", {}
+        )
+        checks["provider_execution_capsule_release_seal_blocked"] = (
+            execution_capsule_release_seal.get("status") == "blocked"
+            and execution_capsule_release_seal.get("reason")
+            == "execution_capsule_release_seal_execution_closed"
+            and int(
+                execution_capsule_release_seal.get("execution_permission_count", -1)
             )
             == 0
         )
@@ -1979,6 +2012,54 @@ def run_demo(
                 ).get("attestation_request_count"),
                 "execution_capsule_release_attestation_execution_permission_count": provider_envelope_data.get(
                     "manual_provider_test_execution_capsule_release_attestation", {}
+                ).get("execution_permission_count"),
+                "execution_capsule_release_seal_boundary_status": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_release_seal", {}
+                ).get("status"),
+                "execution_capsule_release_seal_boundary_reason": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_release_seal", {}
+                ).get("reason"),
+                "execution_capsule_release_seal_boundary_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_release_seal", {}
+                ).get("execution_capsule_release_seal_hash"),
+                "execution_capsule_release_seal_boundary_attestation_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_release_seal", {}
+                ).get("execution_capsule_release_attestation_hash"),
+                "execution_capsule_release_seal_boundary_material_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_release_seal", {}
+                ).get("seal_material_hash"),
+                "execution_capsule_release_seal_boundary_claim_boundary_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_release_seal", {}
+                ).get("claim_boundary_hash"),
+                "execution_capsule_release_seal_boundary_no_call_counters_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_release_seal", {}
+                ).get("no_call_counters_hash"),
+                "execution_capsule_release_seal_boundary_component_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_release_seal", {}
+                ).get("component_count"),
+                "execution_capsule_release_seal_boundary_passed_component_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_release_seal", {}
+                ).get("passed_component_count"),
+                "execution_capsule_release_seal_boundary_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_release_seal", {}
+                ).get("mismatch_count"),
+                "execution_capsule_release_seal_boundary_component_hash_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_release_seal", {}
+                ).get("component_hash_count"),
+                "execution_capsule_release_seal_boundary_no_call_counter_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_release_seal", {}
+                ).get("no_call_counter_count"),
+                "execution_capsule_release_seal_boundary_claim_boundary_check_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_release_seal", {}
+                ).get("claim_boundary_check_count"),
+                "execution_capsule_release_seal_boundary_material_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_release_seal", {}
+                ).get("seal_material_count"),
+                "execution_capsule_release_seal_boundary_request_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_release_seal", {}
+                ).get("seal_request_count"),
+                "execution_capsule_release_seal_boundary_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_release_seal", {}
                 ).get("execution_permission_count"),
                 "review_packet_read_model_status": (
                     provider_envelope_read_data or {}
