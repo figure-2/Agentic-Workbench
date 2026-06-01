@@ -90,6 +90,7 @@ sequenceDiagram
 | `manual_provider_test_execution_capsule_handoff_packet` | local disabled execution capsule handoff packet over export, export read-model, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_operator_review` | local disabled execution capsule operator review over handoff packet, operator-review, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_operator_decision` | local disabled execution capsule operator decision over operator review, operator-decision, claim-boundary, and no-call counter hashes |
+| `manual_provider_test_execution_capsule_release_attestation` | local disabled execution capsule release attestation over operator decision, release-attestation, claim-boundary, and no-call counter hashes |
 
 ## Persistence Boundary
 
@@ -447,6 +448,14 @@ status/reason/hash/count projection. The decision still reports
 `execution_capsule_operator_decision_execution_closed` and keeps
 `execution_permission_count=0`.
 
+`AW-LIVE-37` adds a disabled first-call execution capsule release attestation.
+The attestation requires an execution capsule operator decision hash and a
+separate expected operator decision hash match. It binds execution capsule
+operator decision, release-attestation, claim-boundary, and no-call counter
+hashes into one status/reason/hash/count projection. The attestation still
+reports `execution_capsule_release_attestation_execution_closed` and keeps
+`execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -569,3 +578,6 @@ outside the current executable path.
 - execution capsule operator decisions must bind to execution capsule operator
   review, operator-decision, claim-boundary, and no-call counter hashes only
   and must not grant execution permission.
+- execution capsule release attestations must bind to execution capsule
+  operator decision, release-attestation, claim-boundary, and no-call counter
+  hashes only and must not grant execution permission.
