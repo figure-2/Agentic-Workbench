@@ -96,6 +96,7 @@ sequenceDiagram
 | `manual_provider_test_execution_capsule_authz_export` | local disabled execution capsule authz export/read-model over final authz, export metadata, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_handoff_packet` | local disabled execution capsule authz handoff packet over authz export, authz read-model, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_operator_review` | local disabled execution capsule authz operator review over authz handoff packet, operator-review, claim-boundary, and no-call counter hashes |
+| `manual_provider_test_execution_capsule_authz_operator_decision` | local disabled execution capsule authz operator decision over authz operator-review, operator-decision, claim-boundary, and no-call counter hashes |
 
 ## Persistence Boundary
 
@@ -502,6 +503,14 @@ status/reason/hash/count projection. The review still reports
 `execution_capsule_authz_operator_review_execution_closed` and keeps
 `execution_permission_count=0`.
 
+`AW-LIVE-43` adds a disabled first-call execution capsule authz operator
+decision. The decision requires an execution capsule authz operator review hash
+and a separate expected authz operator review hash match. It binds authz
+operator-review, operator-decision, claim-boundary, and no-call counter hashes
+into one status/reason/hash/count projection. The decision still reports
+`execution_capsule_authz_operator_decision_execution_closed` and keeps
+`execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -641,4 +650,7 @@ outside the current executable path.
   only and must not grant execution permission.
 - execution capsule authz operator reviews must bind to execution capsule
   authz handoff packet, operator-review, claim-boundary, and no-call counter
+  hashes only and must not grant execution permission.
+- execution capsule authz operator decisions must bind to execution capsule
+  authz operator-review, operator-decision, claim-boundary, and no-call counter
   hashes only and must not grant execution permission.

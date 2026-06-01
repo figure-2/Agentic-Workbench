@@ -105,4 +105,6 @@ load `.env` values, call Solar Pro 3, or run the DAACS target runtime.
   remains blocked or available only as hashes and counts. The execution
   capsule authorization handoff packet remains blocked and exposes only hashes
   and counts. The execution capsule authorization operator review remains
-  blocked and exposes only hashes and counts.
+  blocked and exposes only hashes and counts. The execution capsule
+  authorization operator decision remains blocked and exposes only hashes and
+  counts.
