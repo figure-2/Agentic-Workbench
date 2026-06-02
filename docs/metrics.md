@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-51` disabled execution capsule authorization final authorization release attestation boundary.
+Current snapshot after `AW-LIVE-52` disabled execution capsule authorization final authorization release seal boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 283 |
-| Counted code/doc files, excluding cache and private SoT | 283 |
-| Project lines, excluding cache and private SoT | 68,582 |
+| Project files, excluding cache and private SoT | 286 |
+| Counted code/doc files, excluding cache and private SoT | 286 |
+| Project lines, excluding cache and private SoT | 69,649 |
 | Python files | 76 |
-| Markdown files | 202 |
+| Markdown files | 205 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 522 |
-| Pytest passed cases | 522 |
+| Pytest collected cases | 525 |
+| Pytest passed cases | 525 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -3780,3 +3780,57 @@ final authorization release attestation for a later manual provider test
 candidate. It does not add an external call path, SDK integration, env value
 access, network access, provider response parsing, hosted execution, live
 operator approval, or production provider readiness.
+
+## AW-LIVE-52 Disabled Execution Capsule Authz Final Authz Release Seal Metrics
+
+Measured after adding the blocked disabled first-call execution capsule
+authorization final authorization release seal boundary.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 525 |
+| Pytest passed cases | 525 |
+| Regression delta vs AW-LIVE-51 baseline | +3 |
+| API execution capsule authz final authz release seal integration tests | 3 |
+| Provider envelope API integration tests, cumulative documented boundary cases | 150 |
+| Demo provider envelope smoke tests | 1 |
+| Execution capsule authz final authz release seal public summary fields | 16 |
+| Execution capsule authz final authz release seal component count | 8 |
+| Execution capsule authz final authz release seal component hash count | 4 |
+| Execution capsule authz final authz release seal no-call counter count | 13 |
+| Claim-boundary check count | 3 |
+| Seal material count with complete seal | 1 |
+| Seal request count with complete seal | 1 |
+| Seal passed count with missing expected authz final authz release attestation hash | 7 |
+| Seal mismatch count with missing expected authz final authz release attestation hash | 1 |
+| Seal passed count without release seal payload | 4 |
+| Seal mismatch count without release seal payload | 4 |
+| Seal passed count with complete release seal | 8 |
+| Execution permission count with complete release seal | 0 |
+| Missing expected authz final authz release attestation hash reason | expected_execution_capsule_authz_final_authz_release_attestation_hash_required |
+| Missing final authz release seal payload reason | execution_capsule_authz_final_authz_release_seal_required |
+| Complete final authz release seal reason | execution_capsule_authz_final_authz_release_seal_execution_closed |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Raw operator identity findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| execution capsule authz final authorization release attestation hash exists before seal | covered |
+| expected execution capsule authz final authorization release attestation hash must match | covered |
+| execution capsule authz final authorization release seal payload is required | covered |
+| release seal is represented as hash/count evidence | covered |
+| claim boundary is represented as hash/count evidence | covered |
+| public authz final authz release seal exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled execution capsule authorization
+final authorization release seal for a later manual provider test candidate.
+It does not add an external call path, SDK integration, env value access,
+network access, provider response parsing, hosted execution, live operator
+approval, or production provider readiness.

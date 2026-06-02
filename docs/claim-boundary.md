@@ -142,6 +142,10 @@ Agentic Workbench is a local/dev AI agent workflow harness prototype. It may cla
   release attestation over authz final authorization operator-decision,
   release-attestation, claim-boundary, and no-call counter hashes, with
   execution permission closed
+- Disabled first-call execution capsule authorization final authorization
+  release seal over authz final authorization release-attestation,
+  seal-material, claim-boundary, and no-call counter hashes, with execution
+  permission closed
 - Sanitized public summaries and correlation hashes
 - Fixture-based smoke tests and local regression tests
 
@@ -317,6 +321,9 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
   described as external provider behavior, provider result, live operator
   approval, execution permission, hosted execution, or production provider
   readiness
+- execution capsule authorization final authorization release seal described
+  as external provider behavior, provider result, live operator approval,
+  execution permission, hosted execution, or production provider readiness
 
 ## Public Artifact Rules
 
@@ -382,3 +389,4 @@ Allowed replacements:
 | Execution Capsule Authorization Final Authz Operator Review Gate | Execution capsule authorization final authorization operator review binds authz final authorization handoff, operator-review, claim-boundary, and no-call counter hashes but remains execution-closed |
 | Execution Capsule Authorization Final Authz Operator Decision Gate | Execution capsule authorization final authorization operator decision binds authz final authorization operator-review, operator-decision, claim-boundary, and no-call counter hashes but remains execution-closed |
 | Execution Capsule Authorization Final Authz Release Attestation Gate | Execution capsule authorization final authorization release attestation binds authz final authorization operator-decision, release-attestation, claim-boundary, and no-call counter hashes but remains execution-closed |
+| Execution Capsule Authorization Final Authz Release Seal Gate | Execution capsule authorization final authorization release seal binds authz final authorization release-attestation, seal-material, claim-boundary, and no-call counter hashes but remains execution-closed |
