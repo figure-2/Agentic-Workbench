@@ -106,6 +106,7 @@ sequenceDiagram
 | `manual_provider_test_execution_capsule_authz_final_authz_operator_decision` | local disabled execution capsule authz final authorization operator decision over authz final authorization operator-review, operator-decision, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_final_authz_release_attestation` | local disabled execution capsule authz final authorization release attestation over authz final authorization operator-decision, release-attestation, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_final_authz_release_seal` | local disabled execution capsule authz final authorization release seal over authz final authorization release-attestation, seal-material, claim-boundary, and no-call counter hashes |
+| `manual_provider_test_execution_capsule_authz_final_authz_final_authz` | local disabled execution capsule authz final authorization final authorization over authz final authorization release seal, final-authorization, claim-boundary, and no-call counter hashes |
 
 ## Persistence Boundary
 
@@ -600,6 +601,15 @@ into one status/reason/hash/count projection. The seal still reports
 `execution_capsule_authz_final_authz_release_seal_execution_closed` and keeps
 `execution_permission_count=0`.
 
+`AW-LIVE-53` adds a disabled first-call execution capsule authz final
+authorization final authorization. The final authorization requires an
+execution capsule authz final-authorization release-seal hash and a separate
+expected release-seal hash match. It binds authz final-authorization release
+seal, final-authorization, claim-boundary, and no-call counter hashes into one
+status/reason/hash/count projection. The final authorization still reports
+`execution_capsule_authz_final_authz_final_authz_execution_closed` and keeps
+`execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -618,6 +628,8 @@ outside the current executable path.
 - public artifacts expose sanitized summaries and hashes, not raw content.
 - fixture/synthetic approval is separate from durable user approval.
 - runner/provider/live paths are blocked unless their specific gates pass.
+- execution capsule authz final-authorization final authorization is local
+  no-call evidence only and must not become provider-result evidence.
 - repository rows are checked for forbidden public keys and unsupported claims.
 - SQLite writes use constraints and transactions for sanitized projection rows.
 - SQLite approval/replay rows keep immutable subject/decision hashes and

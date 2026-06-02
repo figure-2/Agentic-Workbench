@@ -33,15 +33,15 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-52` disabled execution capsule authorization final authorization release seal boundary.
+Current snapshot after `AW-LIVE-53` disabled execution capsule authorization final authorization final authorization boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 286 |
-| Counted code/doc files, excluding cache and private SoT | 286 |
-| Project lines, excluding cache and private SoT | 69,649 |
+| Project files, excluding cache and private SoT | 289 |
+| Counted code/doc files, excluding cache and private SoT | 289 |
+| Project lines, excluding cache and private SoT | 70,722 |
 | Python files | 76 |
-| Markdown files | 205 |
+| Markdown files | 208 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
@@ -3834,3 +3834,57 @@ final authorization release seal for a later manual provider test candidate.
 It does not add an external call path, SDK integration, env value access,
 network access, provider response parsing, hosted execution, live operator
 approval, or production provider readiness.
+
+## AW-LIVE-53 Disabled Execution Capsule Authz Final Authz Final Authorization Metrics
+
+Measured after adding the blocked disabled first-call execution capsule
+authorization final authorization final authorization boundary.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 528 |
+| Pytest passed cases | 528 |
+| Regression delta vs AW-LIVE-52 baseline | +3 |
+| API execution capsule authz final authz final authorization integration tests | 3 |
+| Provider envelope API integration tests, cumulative documented boundary cases | 153 |
+| Demo provider envelope smoke tests | 1 |
+| Execution capsule authz final authz final authorization public summary fields | 16 |
+| Execution capsule authz final authz final authorization component count | 8 |
+| Execution capsule authz final authz final authorization component hash count | 4 |
+| Execution capsule authz final authz final authorization no-call counter count | 13 |
+| Claim-boundary check count | 3 |
+| Final authz count with complete final authorization | 1 |
+| Authz request count with complete final authorization | 1 |
+| Authorization passed count with missing expected authz final authz release seal hash | 7 |
+| Authorization mismatch count with missing expected authz final authz release seal hash | 1 |
+| Authorization passed count without final authorization payload | 4 |
+| Authorization mismatch count without final authorization payload | 4 |
+| Authorization passed count with complete final authorization | 8 |
+| Execution permission count with complete final authorization | 0 |
+| Missing expected authz final authz release seal hash reason | expected_execution_capsule_authz_final_authz_release_seal_hash_required |
+| Missing final authz final authorization payload reason | execution_capsule_authz_final_authz_final_authz_required |
+| Complete final authz final authorization reason | execution_capsule_authz_final_authz_final_authz_execution_closed |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Raw operator identity findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| execution capsule authz final authorization release seal hash exists before final authorization | covered |
+| expected execution capsule authz final authorization release seal hash must match | covered |
+| execution capsule authz final authorization final authorization payload is required | covered |
+| final authorization is represented as hash/count evidence | covered |
+| claim boundary is represented as hash/count evidence | covered |
+| public authz final authz final authorization exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled execution capsule authorization
+final authorization final authorization for a later manual provider test
+candidate. It does not add an external call path, SDK integration, env value
+access, network access, provider response parsing, hosted execution, live
+operator approval, or production provider readiness.
