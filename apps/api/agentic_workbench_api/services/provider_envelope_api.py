@@ -220,6 +220,9 @@ MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_FIN
 MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_FINAL_AUTHORIZATION_OPERATOR_REVIEW_VERSION = (
     "manual-provider-test-disabled-first-call-execution-capsule-authz-final-authz-final-authorization-final-authorization-operator-review-v1"
 )
+MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_FINAL_AUTHORIZATION_OPERATOR_DECISION_VERSION = (
+    "manual-provider-test-disabled-first-call-execution-capsule-authz-final-authz-final-authorization-final-authorization-operator-decision-v1"
+)
 
 EXECUTOR_PREFLIGHT_NO_CALL_COUNTER_FIELDS = (
     "live_llm_calls",
@@ -1828,6 +1831,31 @@ def _manual_provider_test_execution_capsule_authz_final_authz_final_authorizatio
             "claim_boundary_check_count": 0,
             "operator_review_count": 0,
             "review_request_count": 0,
+            "execution_permission_count": 0,
+        }
+    )
+
+
+def _manual_provider_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_decision_blocked(
+    reason: str,
+) -> JsonDict:
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "execution_capsule_authz_final_authz_final_authz_final_authz_operator_decision_hash": "",
+            "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_hash": "",
+            "operator_decision_hash": "",
+            "claim_boundary_hash": "",
+            "no_call_counters_hash": "",
+            "component_count": 0,
+            "passed_component_count": 0,
+            "mismatch_count": 1,
+            "component_hash_count": 0,
+            "no_call_counter_count": 0,
+            "claim_boundary_check_count": 0,
+            "operator_decision_count": 0,
+            "decision_request_count": 0,
             "execution_permission_count": 0,
         }
     )
@@ -11083,6 +11111,234 @@ def _manual_provider_test_execution_capsule_authz_final_authz_final_authorizatio
     )
 
 
+def _manual_provider_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_decision_projection(
+    *,
+    payload: dict[str, Any],
+    execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_review: JsonDict,
+    execution_boundary: JsonDict,
+) -> JsonDict:
+    operator_review_hash = str(
+        execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_review.get(
+            "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_hash",
+            "",
+        )
+    ).strip()
+    expected_operator_review_hash = str(
+        payload.get(
+            "expected_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_hash",
+            "",
+        )
+    ).strip()
+    decision_payload = (
+        payload.get(
+            "manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_decision"
+        )
+        if isinstance(
+            payload.get(
+                "manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_decision"
+            ),
+            dict,
+        )
+        else {}
+    )
+    supplied_operator_review_hash = str(
+        decision_payload.get(
+            "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_hash",
+            "",
+        )
+    ).strip()
+    operator_decision = (
+        decision_payload.get("operator_decision")
+        if isinstance(decision_payload.get("operator_decision"), dict)
+        else {}
+    )
+    operator_decision_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": (
+                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_FINAL_AUTHORIZATION_OPERATOR_DECISION_VERSION
+                ),
+                "decision": str(operator_decision.get("decision", "")).strip(),
+                "decision_reason_code": str(
+                    operator_decision.get("decision_reason_code", "")
+                ).strip(),
+                "decided_at": str(operator_decision.get("decided_at", "")).strip(),
+                "operator_ref_hash": stable_contract_hash(
+                    {
+                        "operator_ref": str(
+                            operator_decision.get("operator_ref", "")
+                        ).strip()
+                    }
+                )
+                if str(operator_decision.get("operator_ref", "")).strip()
+                else "",
+            }
+        )
+        if operator_decision
+        else ""
+    )
+    decision_requested = decision_payload.get("decision_requested") is True
+    claim_boundary = _provider_envelope_claim_boundary_projection()
+    claim_boundary_closed = (
+        claim_boundary.get("external_provider_outcome") is False
+        and claim_boundary.get("target_runtime_outcome") is False
+        and claim_boundary.get("production_trust_claim") is False
+    )
+    claim_boundary_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": (
+                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_FINAL_AUTHORIZATION_OPERATOR_DECISION_VERSION
+                ),
+                "claim_boundary": claim_boundary,
+            }
+        )
+        if claim_boundary_closed
+        else ""
+    )
+    no_call_counters = _executor_preflight_no_call_counters(execution_boundary)
+    no_call_counters_closed = all(value == 0 for value in no_call_counters.values())
+    no_call_counters_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": (
+                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_FINAL_AUTHORIZATION_OPERATOR_DECISION_VERSION
+                ),
+                "no_call_counters": no_call_counters,
+            }
+        )
+        if no_call_counters_closed
+        else ""
+    )
+    component_checks = [
+        str(
+            execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_review.get(
+                "status", ""
+            )
+        )
+        == "blocked"
+        and str(
+            execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_review.get(
+                "reason", ""
+            )
+        )
+        == "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_execution_closed"
+        and bool(operator_review_hash)
+        and _coerce_int(
+            execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_review.get(
+                "execution_permission_count", 0
+            )
+        )
+        == 0,
+        bool(expected_operator_review_hash)
+        and expected_operator_review_hash == operator_review_hash,
+        bool(decision_payload),
+        bool(supplied_operator_review_hash)
+        and supplied_operator_review_hash == operator_review_hash,
+        bool(operator_decision_hash),
+        decision_requested,
+        claim_boundary_closed,
+        no_call_counters_closed,
+    ]
+    component_count = len(component_checks)
+    passed_component_count = sum(1 for check in component_checks if check)
+    mismatch_count = component_count - passed_component_count
+    component_hash_count = sum(
+        1
+        for value in (
+            operator_review_hash,
+            operator_decision_hash,
+            claim_boundary_hash,
+            no_call_counters_hash,
+        )
+        if value
+    )
+
+    if not component_checks[0]:
+        reason = (
+            "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_missing_or_mismatched"
+        )
+    elif not expected_operator_review_hash:
+        reason = (
+            "expected_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_hash_required"
+        )
+    elif expected_operator_review_hash != operator_review_hash:
+        reason = (
+            "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_hash_mismatch"
+        )
+    elif not component_checks[2]:
+        reason = (
+            "execution_capsule_authz_final_authz_final_authz_final_authz_operator_decision_required"
+        )
+    elif not component_checks[3]:
+        reason = (
+            "execution_capsule_authz_final_authz_final_authz_final_authz_operator_decision_review_hash_mismatch"
+        )
+    elif not component_checks[4]:
+        reason = (
+            "execution_capsule_authz_final_authz_final_authz_final_authz_operator_decision_required"
+        )
+    elif not component_checks[5]:
+        reason = (
+            "execution_capsule_authz_final_authz_final_authz_final_authz_operator_decision_request_required"
+        )
+    elif not component_checks[6]:
+        reason = (
+            "execution_capsule_authz_final_authz_final_authz_final_authz_operator_decision_claim_boundary_mismatch"
+        )
+    elif not component_checks[7]:
+        reason = (
+            "execution_capsule_authz_final_authz_final_authz_final_authz_operator_decision_no_call_counters_mismatch"
+        )
+    else:
+        reason = (
+            "execution_capsule_authz_final_authz_final_authz_final_authz_operator_decision_execution_closed"
+        )
+
+    operator_decision_projection_hash = ""
+    if mismatch_count == 0:
+        operator_decision_projection_hash = stable_contract_hash(
+            {
+                "projection_version": (
+                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_FINAL_AUTHORIZATION_OPERATOR_DECISION_VERSION
+                ),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_hash": (
+                    operator_review_hash
+                ),
+                "operator_decision_hash": operator_decision_hash,
+                "claim_boundary_hash": claim_boundary_hash,
+                "no_call_counters_hash": no_call_counters_hash,
+                "component_count": component_count,
+                "execution_permission": "closed",
+            }
+        )
+
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "execution_capsule_authz_final_authz_final_authz_final_authz_operator_decision_hash": (
+                operator_decision_projection_hash
+            ),
+            "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_hash": (
+                operator_review_hash
+            ),
+            "operator_decision_hash": operator_decision_hash,
+            "claim_boundary_hash": claim_boundary_hash,
+            "no_call_counters_hash": no_call_counters_hash,
+            "component_count": component_count,
+            "passed_component_count": passed_component_count,
+            "mismatch_count": mismatch_count,
+            "component_hash_count": component_hash_count,
+            "no_call_counter_count": len(no_call_counters),
+            "claim_boundary_check_count": 3,
+            "operator_decision_count": 1 if operator_decision_hash else 0,
+            "decision_request_count": 1 if decision_requested else 0,
+            "execution_permission_count": 0,
+        }
+    )
+
+
 def _manual_test_proposal_projection(
     *,
     payload: dict[str, Any],
@@ -12235,6 +12491,26 @@ def provider_manual_test_execution_capsule_authz_final_authz_final_authorization
     )
 
 
+def provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_decision_summary(
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the public no-call first-call execution capsule authz final authz final authorization final authorization operator decision."""
+    authz_final_authz_final_authorization_final_authorization_operator_review = (
+        provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_review_summary(
+            payload
+        )
+    )
+    return (
+        _manual_provider_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_decision_projection(
+            payload=payload,
+            execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_review=(
+                authz_final_authz_final_authorization_final_authorization_operator_review
+            ),
+            execution_boundary=_zero_execution_boundary(),
+        )
+    )
+
+
 def _review_packet_export_from_read_model(read_model: JsonDict) -> JsonDict:
     if str(read_model.get("status", "")) == "blocked":
         return _manual_provider_test_review_packet_export_blocked(
@@ -12406,6 +12682,7 @@ def _blocked_projection(
     manual_provider_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_export_read_model: JsonDict | None = None,
     manual_provider_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_handoff_packet: JsonDict | None = None,
     manual_provider_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_review: JsonDict | None = None,
+    manual_provider_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_decision: JsonDict | None = None,
 ) -> dict[str, Any]:
     selected_operator_approval = operator_approval_envelope or _operator_approval_missing_projection()
     selected_dry_admission = live_provider_dry_admission or _live_provider_dry_admission_checklist(
@@ -12776,6 +13053,12 @@ def _blocked_projection(
             "execution_capsule_authz_final_authz_final_authz_final_authz_handoff_packet_not_evaluated"
         )
     )
+    selected_execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_decision = (
+        manual_provider_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_decision
+        or _manual_provider_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_decision_blocked(
+            "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_not_evaluated"
+        )
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -12944,6 +13227,9 @@ def _blocked_projection(
             ),
             "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review": (
                 selected_execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_review
+            ),
+            "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_decision": (
+                selected_execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_decision
             ),
             "provider_envelope_read_model": read_model or {},
             "checks": [{"name": check_name, "passed": False}],
@@ -13666,6 +13952,15 @@ def _projection_from_result(
             execution_boundary=execution_boundary,
         )
     )
+    execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_decision = (
+        _manual_provider_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_decision_projection(
+            payload=payload,
+            execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_review=(
+                execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_review
+            ),
+            execution_boundary=execution_boundary,
+        )
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -13828,6 +14123,9 @@ def _projection_from_result(
             ),
             "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review": (
                 execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_review
+            ),
+            "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_decision": (
+                execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_decision
             ),
             "provider_envelope_read_model": read_model,
             "checks": _check_map(result.checks),
@@ -14545,6 +14843,11 @@ def read_provider_envelope_precheck(
                     "execution_capsule_authz_final_authz_final_authz_final_authz_handoff_packet_missing_or_mismatched"
                 )
             ),
+            "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_decision": (
+                _manual_provider_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_decision_blocked(
+                    "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_missing_or_mismatched"
+                )
+            ),
             "provider_envelope_read_model": read_model,
             "checks": [{"name": "provider_envelope_read_model_available", "passed": True}],
             "errors": [],
@@ -14625,6 +14928,7 @@ __all__ = [
     "MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_FINAL_AUTHORIZATION_EXPORT_VERSION",
     "MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_FINAL_AUTHORIZATION_HANDOFF_PACKET_VERSION",
     "MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_FINAL_AUTHORIZATION_OPERATOR_REVIEW_VERSION",
+    "MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_FINAL_AUTHORIZATION_OPERATOR_DECISION_VERSION",
     "provider_manual_test_proposal_summary",
     "provider_manual_test_preflight_summary",
     "provider_manual_test_review_packet_summary",
@@ -14681,6 +14985,7 @@ __all__ = [
     "provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_export_read_model_summary",
     "provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_handoff_packet_summary",
     "provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_review_summary",
+    "provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_decision_summary",
     "provider_precheck_operator_policy_summary",
     "read_provider_envelope_precheck",
     "run_provider_envelope_precheck",

@@ -117,6 +117,7 @@ sequenceDiagram
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export` | local disabled execution capsule authz final authorization final authorization final authorization export/read-model over authz final authorization final authorization final authorization, export metadata, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_handoff_packet` | local disabled execution capsule authz final authorization final authorization final authorization handoff packet over authz final authorization final authorization final authorization export, export read-model, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review` | local disabled execution capsule authz final authorization final authorization final authorization operator review over authz final authorization final authorization final authorization handoff packet, operator-review, claim-boundary, and no-call counter hashes |
+| `manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_decision` | local disabled execution capsule authz final authorization final authorization final authorization operator decision over authz final authorization final authorization final authorization operator-review, operator-decision, claim-boundary, and no-call counter hashes |
 
 ## Persistence Boundary
 
@@ -708,6 +709,13 @@ review requires the handoff packet hash from `AW-LIVE-62` and a matching
 expected handoff hash. It binds handoff, operator-review, claim-boundary, and
 no-call counter hashes into one status/reason/hash/count projection while
 keeping `execution_permission_count=0`.
+
+`AW-LIVE-64` adds the disabled first-call execution capsule authz final
+authorization final authorization final authorization operator decision. The
+decision requires the operator review hash from `AW-LIVE-63` and a matching
+expected review hash. It binds operator-review, operator-decision,
+claim-boundary, and no-call counter hashes into one status/reason/hash/count
+projection while keeping `execution_permission_count=0`.
 
 ## Target-Only Runtime
 
