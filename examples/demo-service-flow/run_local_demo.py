@@ -57,6 +57,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     provider_manual_test_execution_capsule_authz_final_authz_final_authorization_operator_decision_summary,
     provider_manual_test_execution_capsule_authz_final_authz_final_authorization_release_attestation_summary,
     provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_summary,
+    provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_export_summary,
     provider_manual_test_execution_capsule_authz_final_authz_final_authorization_release_seal_summary,
     provider_manual_test_execution_capsule_authz_release_attestation_summary,
     provider_manual_test_execution_capsule_authz_release_seal_summary,
@@ -969,6 +970,30 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
             ),
         },
     }
+    execution_capsule_authz_final_authz_final_authz_final_authz_hash = (
+        provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_summary(
+            payload
+        )["execution_capsule_authz_final_authz_final_authz_final_authz_hash"]
+    )
+    payload[
+        "expected_execution_capsule_authz_final_authz_final_authz_final_authz_hash"
+    ] = execution_capsule_authz_final_authz_final_authz_final_authz_hash
+    payload[
+        "manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_export"
+    ] = {
+        "execution_capsule_authz_final_authz_final_authz_final_authz_hash": (
+            execution_capsule_authz_final_authz_final_authz_final_authz_hash
+        ),
+        "export_requested": True,
+        "export_metadata": {
+            "operator_ref": "local-demo-operator",
+            "exported_at": "2026-06-01T03:10:00Z",
+            "export_kind": "final_authorization_read_model",
+            "export_reason_code": (
+                "local-demo-no-call-capsule-authz-final-final-final-exported"
+            ),
+        },
+    }
     return payload
 
 
@@ -1747,6 +1772,54 @@ def _checks(
                 execution_capsule_authz_final_authz_final_authz_final_authz.get(
                     "execution_permission_count", -1
                 )
+            )
+            == 0
+        )
+        execution_capsule_authz_final_authz_final_authz_final_authz_export = (
+            provider_envelope_data.get(
+                "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export",
+                {},
+            )
+        )
+        execution_capsule_authz_final_authz_final_authz_final_authz_export_read_model = (
+            provider_envelope_data.get(
+                "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export_read_model",
+                {},
+            )
+        )
+        checks[
+            "provider_execution_capsule_authz_final_authz_final_authz_final_authz_export_blocked"
+        ] = (
+            execution_capsule_authz_final_authz_final_authz_final_authz_export.get(
+                "status"
+            )
+            == "blocked"
+            and execution_capsule_authz_final_authz_final_authz_final_authz_export.get(
+                "reason"
+            )
+            == "execution_capsule_authz_final_authz_final_authz_final_authz_export_execution_closed"
+            and int(
+                execution_capsule_authz_final_authz_final_authz_final_authz_export.get(
+                    "execution_permission_count", -1
+                )
+            )
+            == 0
+        )
+        checks[
+            "provider_execution_capsule_authz_final_authz_final_authz_final_authz_export_read_model_available"
+        ] = (
+            execution_capsule_authz_final_authz_final_authz_final_authz_export_read_model.get(
+                "status"
+            )
+            == "available"
+            and execution_capsule_authz_final_authz_final_authz_final_authz_export_read_model.get(
+                "reason"
+            )
+            == "execution_capsule_authz_final_authz_final_authz_final_authz_export_read_model_available"
+            and int(
+                execution_capsule_authz_final_authz_final_authz_final_authz_export_read_model.get(
+                    "counts", {}
+                ).get("execution_permission_count", -1)
             )
             == 0
         )
@@ -4489,6 +4562,112 @@ def run_demo(
                     "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz",
                     {},
                 ).get("execution_permission_count"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_export_status": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export",
+                    {},
+                ).get("status"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_export_reason": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export",
+                    {},
+                ).get("reason"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_export_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export",
+                    {},
+                ).get(
+                    "execution_capsule_authz_final_authz_final_authz_final_authz_export_hash"
+                ),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_export_final_authz_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export",
+                    {},
+                ).get(
+                    "execution_capsule_authz_final_authz_final_authz_final_authz_hash"
+                ),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_export_metadata_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export",
+                    {},
+                ).get("export_metadata_hash"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_export_claim_boundary_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export",
+                    {},
+                ).get("claim_boundary_hash"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_export_no_call_counters_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export",
+                    {},
+                ).get("no_call_counters_hash"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_export_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export",
+                    {},
+                ).get("export_count"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_export_component_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export",
+                    {},
+                ).get("component_count"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_export_passed_component_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export",
+                    {},
+                ).get("passed_component_count"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_export_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export",
+                    {},
+                ).get("mismatch_count"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_export_component_hash_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export",
+                    {},
+                ).get("component_hash_count"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_export_no_call_counter_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export",
+                    {},
+                ).get("no_call_counter_count"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_export_claim_boundary_check_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export",
+                    {},
+                ).get("claim_boundary_check_count"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_export_metadata_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export",
+                    {},
+                ).get("export_metadata_count"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_export_request_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export",
+                    {},
+                ).get("export_request_count"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_export_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export",
+                    {},
+                ).get("execution_permission_count"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_export_read_model_status": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export_read_model",
+                    {},
+                ).get("status"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_export_read_model_reason": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export_read_model",
+                    {},
+                ).get("reason"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_export_read_model_latest_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export_read_model",
+                    {},
+                ).get(
+                    "latest_execution_capsule_authz_final_authz_final_authz_final_authz_export_hash"
+                ),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_export_read_model_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export_read_model",
+                    {},
+                )
+                .get("counts", {})
+                .get(
+                    "execution_capsule_authz_final_authz_final_authz_final_authz_export_count"
+                ),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_export_read_model_component_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export_read_model",
+                    {},
+                )
+                .get("counts", {})
+                .get("component_count"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_export_read_model_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export_read_model",
+                    {},
+                )
+                .get("counts", {})
+                .get("execution_permission_count"),
                 "review_packet_read_model_status": (
                     provider_envelope_read_data or {}
                 )

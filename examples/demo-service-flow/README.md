@@ -138,3 +138,6 @@ load `.env` values, call Solar Pro 3, or run the DAACS target runtime.
   release seal remains blocked and exposes only hashes and counts.
   The execution capsule authorization final authorization final authorization
   final authorization remains blocked and exposes only hashes and counts.
+  The execution capsule authorization final authorization final authorization
+  final authorization export/read-model remains blocked or available only as
+  hashes and counts.

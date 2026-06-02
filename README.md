@@ -176,7 +176,7 @@ Latest documented local baseline:
 
 ```text
 Measurement date: 2026-06-02
-Pytest: 549 / 549 passed
+Pytest: 552 / 552 passed
 Live LLM calls in offline/dry-run/fake paths: 0
 Live API calls in offline/dry-run/fake paths: 0
 Provider calls/imports in the latest documented eval: 0

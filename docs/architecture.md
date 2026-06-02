@@ -683,6 +683,15 @@ reports
 `execution_capsule_authz_final_authz_final_authz_final_authz_execution_closed`
 and keeps `execution_permission_count=0`.
 
+`AW-LIVE-61` adds the disabled first-call execution capsule authz final
+authorization final authorization final authorization export/read-model. The
+export requires the execution capsule authz final-authorization final
+authorization final authorization hash and a separate expected hash match. It
+binds final-authorization, export-metadata, claim-boundary, and no-call
+counter hashes into one status/reason/hash/count projection. The export and
+read-model still keep `execution_permission_count=0` and do not open provider,
+SDK, env value, network, or target runtime calls.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
