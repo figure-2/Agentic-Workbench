@@ -110,6 +110,7 @@ sequenceDiagram
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_export` | local disabled execution capsule authz final authorization final authorization export/read-model over authz final authorization final authorization, export metadata, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_handoff_packet` | local disabled execution capsule authz final authorization final authorization handoff packet over authz final authorization final authorization export, export read-model, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_operator_review` | local disabled execution capsule authz final authorization final authorization operator review over authz final authorization final authorization handoff packet, operator-review, claim-boundary, and no-call counter hashes |
+| `manual_provider_test_execution_capsule_authz_final_authz_final_authz_operator_decision` | local disabled execution capsule authz final authorization final authorization operator decision over authz final authorization final authorization operator-review, operator-decision, claim-boundary, and no-call counter hashes |
 
 ## Persistence Boundary
 
@@ -639,6 +640,15 @@ hash and a separate expected handoff hash match. It binds the handoff packet,
 operator-review, claim-boundary, and no-call counter hashes into one
 status/reason/hash/count projection. The operator review still reports
 `execution_capsule_authz_final_authz_final_authz_operator_review_execution_closed`
+and keeps `execution_permission_count=0`.
+
+`AW-LIVE-57` adds a disabled first-call execution capsule authz final
+authorization final authorization operator decision. The decision requires the
+execution capsule authz final-authorization final authorization operator
+review hash and a separate expected review hash match. It binds the operator
+review, operator-decision, claim-boundary, and no-call counter hashes into one
+status/reason/hash/count projection. The operator decision still reports
+`execution_capsule_authz_final_authz_final_authz_operator_decision_execution_closed`
 and keeps `execution_permission_count=0`.
 
 ## Target-Only Runtime
