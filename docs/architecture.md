@@ -757,6 +757,13 @@ hash validation, claim-boundary hashing, no-call counter hashing, and
 hash/count/status/reason projection. It does not rename public fields and does
 not grant execution permission.
 
+`AW-LIVE-CHAIN-02` extends the private no-call boundary evaluation helper to
+`AW-LIVE-60` through `AW-LIVE-66`. The helper now covers the full
+`AW-LIVE-60` through `AW-LIVE-68` sequence. `AW-LIVE-62` uses a separate
+local-evidence presence override so export read-model availability remains
+stricter than hash presence. Public fields, reason strings, and execution
+permission remain unchanged.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit

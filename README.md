@@ -366,4 +366,6 @@ Current status addendum: AW-LIVE-68 adds the disabled first-call execution capsu
 
 Current status addendum: AW-LIVE-CHAIN-01 consolidates repeated local no-call boundary evaluation into a private helper for AW-LIVE-67 and AW-LIVE-68 while keeping public field names unchanged and execution permission closed.
 
-Next implementation track: AW-LIVE-CHAIN-02 helper adoption for AW-LIVE-60 through AW-LIVE-66 in small batches. Continuing the explicit no-call chain remains possible, but helper rollout should stay green before more live-gate expansion.
+Current status addendum: AW-LIVE-CHAIN-02 extends the no-call boundary helper to AW-LIVE-60 through AW-LIVE-66. The consolidated helper now covers AW-LIVE-60 through AW-LIVE-68 while preserving public field names and execution permission `0`.
+
+Next implementation track: AW-LIVE-69 can resume the disabled no-call chain after the consolidated helper rollout remains green. If maintainability remains the priority, use AW-LIVE-CHAIN-03 to extend the helper into older no-call stages first.
