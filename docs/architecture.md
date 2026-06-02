@@ -109,6 +109,7 @@ sequenceDiagram
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz` | local disabled execution capsule authz final authorization final authorization over authz final authorization release seal, final-authorization, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_export` | local disabled execution capsule authz final authorization final authorization export/read-model over authz final authorization final authorization, export metadata, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_handoff_packet` | local disabled execution capsule authz final authorization final authorization handoff packet over authz final authorization final authorization export, export read-model, claim-boundary, and no-call counter hashes |
+| `manual_provider_test_execution_capsule_authz_final_authz_final_authz_operator_review` | local disabled execution capsule authz final authorization final authorization operator review over authz final authorization final authorization handoff packet, operator-review, claim-boundary, and no-call counter hashes |
 
 ## Persistence Boundary
 
@@ -629,6 +630,15 @@ a separate expected export hash match. It binds the export, export read-model,
 claim-boundary, and no-call counter hashes into one status/reason/hash/count
 projection. The handoff packet still reports
 `execution_capsule_authz_final_authz_final_authz_handoff_packet_execution_closed`
+and keeps `execution_permission_count=0`.
+
+`AW-LIVE-56` adds a disabled first-call execution capsule authz final
+authorization final authorization operator review. The review requires the
+execution capsule authz final-authorization final authorization handoff packet
+hash and a separate expected handoff hash match. It binds the handoff packet,
+operator-review, claim-boundary, and no-call counter hashes into one
+status/reason/hash/count projection. The operator review still reports
+`execution_capsule_authz_final_authz_final_authz_operator_review_execution_closed`
 and keeps `execution_permission_count=0`.
 
 ## Target-Only Runtime

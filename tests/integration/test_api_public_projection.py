@@ -44,6 +44,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     provider_manual_test_execution_capsule_authz_final_authz_final_authorization_summary,
     provider_manual_test_execution_capsule_authz_final_authz_final_authorization_export_summary,
     provider_manual_test_execution_capsule_authz_final_authz_final_authorization_handoff_packet_summary,
+    provider_manual_test_execution_capsule_authz_final_authz_final_authorization_operator_review_summary,
     provider_manual_test_arming_record_summary,
     provider_manual_test_final_release_packet_summary,
     provider_manual_test_handoff_packet_summary,
@@ -340,6 +341,13 @@ def _provider_envelope_precheck_payload(
         str | None
     ) = None,
     authz_final_handoff_execution_capsule_authz_final_authz_final_authz_export_hash_override: (
+        str | None
+    ) = None,
+    include_execution_capsule_authz_final_authz_final_authorization_operator_review: bool = False,
+    authz_final_review_expected_execution_capsule_authz_final_authz_final_authz_handoff_hash_override: (
+        str | None
+    ) = None,
+    authz_final_review_execution_capsule_authz_final_authz_final_authz_handoff_hash_override: (
         str | None
     ) = None,
 ) -> dict:
@@ -1379,6 +1387,41 @@ def _provider_envelope_precheck_payload(
             "handoff_material": "API55_HANDOFF_MATERIAL_SENTINEL",
             "authorization_material": "API55_HANDOFF_AUTH_SENTINEL",
             "provider_payload": "API55_HANDOFF_PROVIDER_PAYLOAD_SENTINEL",
+        }
+    if include_execution_capsule_authz_final_authz_final_authorization_operator_review:
+        authz_final_handoff_summary = (
+            provider_manual_test_execution_capsule_authz_final_authz_final_authorization_handoff_packet_summary(
+                payload
+            )
+        )
+        payload[
+            "expected_execution_capsule_authz_final_authz_final_authz_handoff_packet_hash"
+        ] = (
+            authz_final_review_expected_execution_capsule_authz_final_authz_final_authz_handoff_hash_override
+            or authz_final_handoff_summary[
+                "execution_capsule_authz_final_authz_final_authz_handoff_packet_hash"
+            ]
+        )
+        payload[
+            "manual_test_execution_capsule_authz_final_authz_final_authorization_operator_review"
+        ] = {
+            "execution_capsule_authz_final_authz_final_authz_handoff_packet_hash": (
+                authz_final_review_execution_capsule_authz_final_authz_final_authz_handoff_hash_override
+                or authz_final_handoff_summary[
+                    "execution_capsule_authz_final_authz_final_authz_handoff_packet_hash"
+                ]
+            ),
+            "review_requested": True,
+            "operator_review": {
+                "review_decision": "reviewed",
+                "review_reason_code": (
+                    "local-no-call-capsule-authz-final-final-reviewed"
+                ),
+                "reviewed_at": "2026-06-01T02:55:00Z",
+                "operator_ref": "API56_OPERATOR_REF_SENTINEL",
+            },
+            "authorization_material": "API56_REVIEW_AUTH_SENTINEL",
+            "provider_payload": "API56_REVIEW_PROVIDER_PAYLOAD_SENTINEL",
         }
     return payload
 
@@ -14567,6 +14610,7 @@ def _final_authz_decision_precheck_payload(
     include_final_authorization: bool = False,
     include_final_authorization_export: bool = False,
     include_final_authorization_handoff: bool = False,
+    include_final_authorization_operator_review: bool = False,
 ) -> dict:
     payload = _provider_envelope_precheck_payload(
         run_id=run_id,
@@ -14616,23 +14660,31 @@ def _final_authz_decision_precheck_payload(
             or include_final_authorization
             or include_final_authorization_export
             or include_final_authorization_handoff
+            or include_final_authorization_operator_review
         ),
         include_execution_capsule_authz_final_authz_release_seal=(
             include_release_seal
             or include_final_authorization
             or include_final_authorization_export
             or include_final_authorization_handoff
+            or include_final_authorization_operator_review
         ),
         include_execution_capsule_authz_final_authz_final_authorization=(
             include_final_authorization
             or include_final_authorization_export
             or include_final_authorization_handoff
+            or include_final_authorization_operator_review
         ),
         include_execution_capsule_authz_final_authz_final_authorization_export=(
-            include_final_authorization_export or include_final_authorization_handoff
+            include_final_authorization_export
+            or include_final_authorization_handoff
+            or include_final_authorization_operator_review
         ),
         include_execution_capsule_authz_final_authz_final_authorization_handoff_packet=(
-            include_final_authorization_handoff
+            include_final_authorization_handoff or include_final_authorization_operator_review
+        ),
+        include_execution_capsule_authz_final_authz_final_authorization_operator_review=(
+            include_final_authorization_operator_review
         ),
     )
     expected_handoff = provider_manual_test_handoff_packet_summary(payload)
@@ -15912,6 +15964,250 @@ def test_provider_envelope_precheck_api_builds_execution_capsule_authz_final_aut
         "API55_HANDOFF_PROVIDER_PAYLOAD_SENTINEL",
         "manual_test_execution_capsule_authz_final_authz_final_authorization_handoff_packet",
         "handoff_requested",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_execution_capsule_authz_final_authz_final_authz_review_without_expected_handoff_hash(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _final_authz_decision_precheck_payload(
+        "run-api56-review-missing-expected-handoff",
+        include_final_authorization_operator_review=True,
+    )
+    expected_handoff = (
+        provider_manual_test_execution_capsule_authz_final_authz_final_authorization_handoff_packet_summary(
+            request_payload
+        )
+    )
+    request_payload.pop(
+        "expected_execution_capsule_authz_final_authz_final_authz_handoff_packet_hash"
+    )
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    review = data[
+        "manual_provider_test_execution_capsule_authz_final_authz_final_authz_operator_review"
+    ]
+
+    assert review["status"] == "blocked"
+    assert review["reason"] == (
+        "expected_execution_capsule_authz_final_authz_final_authz_handoff_packet_hash_required"
+    )
+    assert review["execution_capsule_authz_final_authz_final_authz_operator_review_hash"] == ""
+    assert review[
+        "execution_capsule_authz_final_authz_final_authz_handoff_packet_hash"
+    ] == expected_handoff[
+        "execution_capsule_authz_final_authz_final_authz_handoff_packet_hash"
+    ]
+    assert review["operator_review_hash"]
+    assert review["claim_boundary_hash"]
+    assert review["no_call_counters_hash"]
+    assert review["component_count"] == 8
+    assert review["passed_component_count"] == 7
+    assert review["mismatch_count"] == 1
+    assert review["component_hash_count"] == 4
+    assert review["no_call_counter_count"] == 13
+    assert review["claim_boundary_check_count"] == 3
+    assert review["operator_review_count"] == 1
+    assert review["review_request_count"] == 1
+    assert review["execution_permission_count"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API56_REVIEW_AUTH_SENTINEL",
+        "API56_REVIEW_PROVIDER_PAYLOAD_SENTINEL",
+        "API56_OPERATOR_REF_SENTINEL",
+        "manual_test_execution_capsule_authz_final_authz_final_authorization_operator_review",
+        "review_requested",
+        "local-no-call-capsule-authz-final-final-reviewed",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_execution_capsule_authz_final_authz_final_authz_review_without_operator_review_payload(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _final_authz_decision_precheck_payload(
+        "run-api56-review-missing-payload",
+        include_final_authorization_handoff=True,
+    )
+    expected_handoff = (
+        provider_manual_test_execution_capsule_authz_final_authz_final_authorization_handoff_packet_summary(
+            request_payload
+        )
+    )
+    request_payload[
+        "expected_execution_capsule_authz_final_authz_final_authz_handoff_packet_hash"
+    ] = expected_handoff[
+        "execution_capsule_authz_final_authz_final_authz_handoff_packet_hash"
+    ]
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    review = data[
+        "manual_provider_test_execution_capsule_authz_final_authz_final_authz_operator_review"
+    ]
+
+    assert review["status"] == "blocked"
+    assert review["reason"] == (
+        "execution_capsule_authz_final_authz_final_authz_operator_review_required"
+    )
+    assert review["execution_capsule_authz_final_authz_final_authz_operator_review_hash"] == ""
+    assert review[
+        "execution_capsule_authz_final_authz_final_authz_handoff_packet_hash"
+    ] == expected_handoff[
+        "execution_capsule_authz_final_authz_final_authz_handoff_packet_hash"
+    ]
+    assert review["operator_review_hash"] == ""
+    assert review["claim_boundary_hash"]
+    assert review["no_call_counters_hash"]
+    assert review["component_count"] == 8
+    assert review["passed_component_count"] == 4
+    assert review["mismatch_count"] == 4
+    assert review["component_hash_count"] == 3
+    assert review["no_call_counter_count"] == 13
+    assert review["claim_boundary_check_count"] == 3
+    assert review["operator_review_count"] == 0
+    assert review["review_request_count"] == 0
+    assert review["execution_permission_count"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "manual_test_execution_capsule_authz_final_authz_final_authorization_operator_review",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_builds_execution_capsule_authz_final_authz_final_authz_operator_review_but_keeps_execution_disabled(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _final_authz_decision_precheck_payload(
+        "run-api56-review-complete",
+        include_final_authorization_operator_review=True,
+    )
+    expected_review = (
+        provider_manual_test_execution_capsule_authz_final_authz_final_authorization_operator_review_summary(
+            request_payload
+        )
+    )
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    review = data[
+        "manual_provider_test_execution_capsule_authz_final_authz_final_authz_operator_review"
+    ]
+
+    assert review["status"] == "blocked"
+    assert review["reason"] == (
+        "execution_capsule_authz_final_authz_final_authz_operator_review_execution_closed"
+    )
+    assert review[
+        "execution_capsule_authz_final_authz_final_authz_operator_review_hash"
+    ] == expected_review[
+        "execution_capsule_authz_final_authz_final_authz_operator_review_hash"
+    ]
+    assert review[
+        "execution_capsule_authz_final_authz_final_authz_handoff_packet_hash"
+    ] == expected_review[
+        "execution_capsule_authz_final_authz_final_authz_handoff_packet_hash"
+    ]
+    assert review["operator_review_hash"] == expected_review["operator_review_hash"]
+    assert review["claim_boundary_hash"] == expected_review["claim_boundary_hash"]
+    assert review["no_call_counters_hash"] == expected_review[
+        "no_call_counters_hash"
+    ]
+    assert review["component_count"] == 8
+    assert review["passed_component_count"] == 8
+    assert review["mismatch_count"] == 0
+    assert review["component_hash_count"] == 4
+    assert review["no_call_counter_count"] == 13
+    assert review["claim_boundary_check_count"] == 3
+    assert review["operator_review_count"] == 1
+    assert review["review_request_count"] == 1
+    assert review["execution_permission_count"] == 0
+    assert data["provider_envelope_admission"]["adapter_reached"] is True
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API56_REVIEW_AUTH_SENTINEL",
+        "API56_REVIEW_PROVIDER_PAYLOAD_SENTINEL",
+        "API56_OPERATOR_REF_SENTINEL",
+        "manual_test_execution_capsule_authz_final_authz_final_authorization_operator_review",
+        "review_requested",
+        "local-no-call-capsule-authz-final-final-reviewed",
         "authorization_material",
         "provider_payload",
         "raw_prompt",
