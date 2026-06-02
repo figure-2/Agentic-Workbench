@@ -111,6 +111,7 @@ sequenceDiagram
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_handoff_packet` | local disabled execution capsule authz final authorization final authorization handoff packet over authz final authorization final authorization export, export read-model, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_operator_review` | local disabled execution capsule authz final authorization final authorization operator review over authz final authorization final authorization handoff packet, operator-review, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_operator_decision` | local disabled execution capsule authz final authorization final authorization operator decision over authz final authorization final authorization operator-review, operator-decision, claim-boundary, and no-call counter hashes |
+| `manual_provider_test_execution_capsule_authz_final_authz_final_authz_release_attestation` | local disabled execution capsule authz final authorization final authorization release attestation over authz final authorization final authorization operator-decision, release-attestation, claim-boundary, and no-call counter hashes |
 
 ## Persistence Boundary
 
@@ -649,6 +650,16 @@ review hash and a separate expected review hash match. It binds the operator
 review, operator-decision, claim-boundary, and no-call counter hashes into one
 status/reason/hash/count projection. The operator decision still reports
 `execution_capsule_authz_final_authz_final_authz_operator_decision_execution_closed`
+and keeps `execution_permission_count=0`.
+
+`AW-LIVE-58` adds a disabled first-call execution capsule authz final
+authorization final authorization release attestation. The attestation requires
+the execution capsule authz final-authorization final authorization operator
+decision hash and a separate expected decision hash match. It binds the
+operator-decision, release-attestation, claim-boundary, and no-call counter
+hashes into one status/reason/hash/count projection. The release attestation
+still reports
+`execution_capsule_authz_final_authz_final_authz_release_attestation_execution_closed`
 and keeps `execution_permission_count=0`.
 
 ## Target-Only Runtime
