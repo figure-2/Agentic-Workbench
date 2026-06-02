@@ -4761,3 +4761,66 @@ but increasingly verbose. The next recommended task is `AW-LIVE-CHAIN-01`,
 which should consolidate expected-hash validation, payload validation,
 hash/count projection, claim-boundary hashing, and no-call counter hashing
 without changing public field names.
+
+## AW-LIVE-CHAIN-01 No-Call Boundary Helper Pattern Metrics
+
+Measured after consolidating the repeated no-call boundary pattern into a
+private helper and adopting it in `AW-LIVE-67` and `AW-LIVE-68`.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 573 |
+| Pytest passed cases | 573 |
+| Provider envelope integration tests passed | 198 |
+| Public claim document tests passed | 3 |
+| Demo provider envelope smoke tests passed | 1 |
+| Compileall result | passed |
+| Helper functions added | 1 |
+| Helper-adopted projections | 2 |
+| Helper-covered expected-hash validations | 2 |
+| Helper-covered payload-presence validations | 2 |
+| Helper-covered local evidence hash validations | 2 |
+| Helper-covered request-presence validations | 2 |
+| Helper-covered claim-boundary hash projections | 2 |
+| Helper-covered no-call counter hash projections | 2 |
+| Helper-covered hash/count projections | 2 |
+| Public field name changes | 0 |
+| Complete-path component count | 8 |
+| Complete-path component hash count | 4 |
+| No-call counter count | 13 |
+| Claim-boundary check count | 3 |
+| Execution permission count | 0 |
+| Repeated claim-boundary blocks removed from latest projections | 2 |
+| Repeated no-call counter blocks removed from latest projections | 2 |
+| Repeated component-check blocks removed from latest projections | 2 |
+| Product provider/env import findings | 0 |
+| Non-zero provider/network/env counter findings | 0 |
+| Raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Raw operator identity findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m compileall apps tests examples` | passed |
+| `python -m pytest tests\unit\test_public_claim_projection_docs.py -q --color=no` | 3 passed |
+| `python -m pytest tests\integration\test_api_public_projection.py -q --color=no` | 198 passed |
+| `python -m pytest tests\smoke\test_local_service_demo.py::test_local_service_demo_can_include_provider_envelope_precheck_without_calls -q --color=no` | 1 passed |
+| `python -m pytest tests -q --color=no` | 573 passed |
+| `.\scripts\verify.ps1` | 573 passed |
+| product provider/env import scan | 0 findings |
+| non-zero provider/network/env counter scan | 0 findings |
+
+Interpretation: AW-LIVE-CHAIN-01 is a local maintainability refactor over
+existing disabled no-call evidence. It does not add an external call path, SDK
+integration, env value access, network access, provider response parsing,
+hosted execution, live operator approval, execution permission, or production
+provider readiness.
+
+Next recommended task: `AW-LIVE-CHAIN-02`, extending helper adoption to
+`AW-LIVE-60` through `AW-LIVE-66` in small batches while keeping public
+projection tests green.

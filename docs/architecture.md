@@ -742,6 +742,21 @@ expected release-seal hash. It binds release-seal, final-authorization,
 claim-boundary, and no-call counter hashes into one status/reason/hash/count
 projection while keeping `execution_permission_count=0`.
 
+`AW-LIVE-68` adds the disabled first-call execution capsule authz final
+authorization final authorization final authorization final authorization
+export/read-model. The export requires the final-authorization hash from
+`AW-LIVE-67` and a matching expected final-authorization hash. It binds
+final-authorization, export metadata, claim-boundary, and no-call counter
+hashes into one status/reason/hash/count projection while keeping
+`execution_permission_count=0`.
+
+`AW-LIVE-CHAIN-01` introduces a private no-call boundary evaluation helper and
+adopts it in `AW-LIVE-67` and `AW-LIVE-68`. The helper centralizes
+expected-hash validation, payload/request presence validation, local evidence
+hash validation, claim-boundary hashing, no-call counter hashing, and
+hash/count/status/reason projection. It does not rename public fields and does
+not grant execution permission.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit

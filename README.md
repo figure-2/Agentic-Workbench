@@ -364,4 +364,6 @@ Current status addendum: AW-LIVE-67 adds the disabled first-call execution capsu
 
 Current status addendum: AW-LIVE-68 adds the disabled first-call execution capsule authorization final authorization final authorization final authorization final authorization export/read-model boundary over final-authorization, export metadata, claim-boundary, and no-call counter hashes while keeping execution permission closed.
 
-Next implementation track: AW-LIVE-CHAIN-01 repeated no-call boundary helper/pattern consolidation. Continuing the explicit no-call chain remains possible, but the current evidence pattern is repetitive enough that helper extraction should happen before more live-gate expansion.
+Current status addendum: AW-LIVE-CHAIN-01 consolidates repeated local no-call boundary evaluation into a private helper for AW-LIVE-67 and AW-LIVE-68 while keeping public field names unchanged and execution permission closed.
+
+Next implementation track: AW-LIVE-CHAIN-02 helper adoption for AW-LIVE-60 through AW-LIVE-66 in small batches. Continuing the explicit no-call chain remains possible, but helper rollout should stay green before more live-gate expansion.

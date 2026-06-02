@@ -213,6 +213,12 @@ authorization export/read-model boundary. It still keeps execution permission
 at `0` and does not open Solar Pro 3 calls, SDK imports, `.env` value reads,
 network calls, or DAACS target runtime calls.
 
+Status addendum: AW-LIVE-CHAIN-01 consolidates the repeated no-call boundary
+pattern behind a private helper for AW-LIVE-67 and AW-LIVE-68. It preserves
+public field names, status/reason/hash/count projections, and execution
+permission `0`; it does not open Solar Pro 3 calls, SDK imports, `.env` value
+reads, network calls, or DAACS target runtime calls.
+
 ## Reuse Plan
 
 DAACS 재사용 후보 14개:
