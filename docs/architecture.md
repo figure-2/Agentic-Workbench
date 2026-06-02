@@ -122,6 +122,7 @@ sequenceDiagram
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_release_seal` | local disabled execution capsule authz final authorization final authorization final authorization release seal over authz final authorization final authorization final authorization release-attestation, seal-material, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_final_authz` | local disabled execution capsule authz final authorization final authorization final authorization final authorization over authz final authorization final authorization final authorization release seal, final-authorization, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_export` | local disabled execution capsule authz final authorization final authorization final authorization final authorization export/read-model over authz final authorization final authorization final authorization final authorization, export metadata, claim-boundary, and no-call counter hashes |
+| `manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_handoff_packet` | local disabled execution capsule authz final authorization final authorization final authorization final authorization handoff packet over export/read-model, claim-boundary, and no-call counter hashes |
 
 ## Persistence Boundary
 
@@ -749,6 +750,13 @@ export/read-model. The export requires the final-authorization hash from
 final-authorization, export metadata, claim-boundary, and no-call counter
 hashes into one status/reason/hash/count projection while keeping
 `execution_permission_count=0`.
+
+`AW-LIVE-69` adds the disabled first-call execution capsule authz final
+authorization final authorization final authorization final authorization
+handoff packet. The handoff requires the export hash from `AW-LIVE-68` and a
+matching expected export hash. It binds export/read-model, claim-boundary, and
+no-call counter hashes into one status/reason/hash/count projection while
+keeping `execution_permission_count=0`.
 
 `AW-LIVE-CHAIN-01` introduces a private no-call boundary evaluation helper and
 adopts it in `AW-LIVE-67` and `AW-LIVE-68`. The helper centralizes

@@ -731,6 +731,24 @@ LIVE_68_WORK_ORDER_PATH = (
     / "work-orders"
     / "aw-live-68-execution-capsule-authz-final-authz-final-authorization-final-authorization-final-authorization-export.md"
 )
+LIVE_69_PATH = (
+    ROOT
+    / "docs"
+    / "evals"
+    / "aw-live-69-execution-capsule-authz-final-authz-final-authorization-final-authorization-final-authorization-handoff.md"
+)
+LIVE_69_RUNBOOK_PATH = (
+    ROOT
+    / "docs"
+    / "runbooks"
+    / "aw-live-69-execution-capsule-authz-final-authz-final-authorization-final-authorization-final-authorization-handoff.md"
+)
+LIVE_69_WORK_ORDER_PATH = (
+    ROOT
+    / "docs"
+    / "work-orders"
+    / "aw-live-69-execution-capsule-authz-final-authz-final-authorization-final-authorization-final-authorization-handoff.md"
+)
 LIVE_CHAIN_01_PATH = (
     ROOT / "docs" / "evals" / "aw-live-chain-01-no-call-boundary-helper-pattern.md"
 )
@@ -974,6 +992,9 @@ PUBLIC_CLAIM_DOCS = [
     LIVE_68_PATH,
     LIVE_68_RUNBOOK_PATH,
     LIVE_68_WORK_ORDER_PATH,
+    LIVE_69_PATH,
+    LIVE_69_RUNBOOK_PATH,
+    LIVE_69_WORK_ORDER_PATH,
     LIVE_CHAIN_01_PATH,
     LIVE_CHAIN_01_RUNBOOK_PATH,
     LIVE_CHAIN_01_WORK_ORDER_PATH,

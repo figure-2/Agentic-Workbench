@@ -4762,6 +4762,65 @@ which should consolidate expected-hash validation, payload validation,
 hash/count projection, claim-boundary hashing, and no-call counter hashing
 without changing public field names.
 
+## AW-LIVE-69 Disabled Execution Capsule Authz Final Authz Final Authorization Final Authorization Final Authorization Handoff Metrics
+
+Measured after adding the blocked disabled first-call execution capsule
+authorization final authorization final authorization final authorization
+final authorization handoff packet boundary.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 576 |
+| Pytest passed cases | 576 |
+| Regression delta vs AW-LIVE-68 baseline | +3 |
+| API execution capsule authz final authz final authorization final authorization final authorization handoff integration tests | 3 |
+| Provider envelope API integration tests, cumulative documented boundary cases | 201 |
+| Handoff public summary fields | 16 |
+| Handoff component count | 8 |
+| Handoff component hash count | 4 |
+| Handoff no-call counter count | 13 |
+| Claim-boundary check count | 3 |
+| Handoff packet count with complete handoff | 1 |
+| Export read-model count with complete handoff | 1 |
+| Handoff request count with complete handoff | 1 |
+| Handoff passed count with missing expected export hash | 7 |
+| Handoff mismatch count with missing expected export hash | 1 |
+| Handoff passed count with supplied export hash mismatch | 7 |
+| Handoff mismatch count with supplied export hash mismatch | 1 |
+| Handoff passed count with complete handoff | 8 |
+| Handoff mismatch count with complete handoff | 0 |
+| Execution permission count with complete handoff | 0 |
+| Missing expected export hash reason | expected_execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_export_hash_required |
+| Supplied export hash mismatch reason | execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_handoff_packet_hash_mismatch |
+| Complete handoff reason | execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_handoff_packet_execution_closed |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Raw operator identity findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| execution capsule authz final authorization final authorization final authorization final authorization export hash exists before handoff | covered |
+| expected execution capsule authz final authorization final authorization final authorization final authorization export hash must match | covered |
+| handoff packet payload is required | covered |
+| supplied handoff upstream hash must match computed export hash | covered |
+| export read-model is represented as hash/count evidence | covered |
+| handoff request is required | covered |
+| claim boundary is represented as hash/count evidence | covered |
+| public authz final authz final authorization final authorization final authorization handoff exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled execution capsule authorization
+final authorization final authorization final authorization final authorization
+handoff packet for a later manual provider test candidate. It does not add an
+external call path, SDK integration, env value access, network access, provider
+response parsing, hosted execution, live operator approval, or production
+provider readiness.
+
 ## AW-LIVE-CHAIN-01 No-Call Boundary Helper Pattern Metrics
 
 Measured after consolidating the repeated no-call boundary pattern into a
