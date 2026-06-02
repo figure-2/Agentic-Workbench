@@ -713,6 +713,24 @@ LIVE_67_WORK_ORDER_PATH = (
     / "work-orders"
     / "aw-live-67-execution-capsule-authz-final-authz-final-authorization-final-authorization-final-authorization.md"
 )
+LIVE_68_PATH = (
+    ROOT
+    / "docs"
+    / "evals"
+    / "aw-live-68-execution-capsule-authz-final-authz-final-authorization-final-authorization-final-authorization-export.md"
+)
+LIVE_68_RUNBOOK_PATH = (
+    ROOT
+    / "docs"
+    / "runbooks"
+    / "aw-live-68-execution-capsule-authz-final-authz-final-authorization-final-authorization-final-authorization-export.md"
+)
+LIVE_68_WORK_ORDER_PATH = (
+    ROOT
+    / "docs"
+    / "work-orders"
+    / "aw-live-68-execution-capsule-authz-final-authz-final-authorization-final-authorization-final-authorization-export.md"
+)
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -926,6 +944,9 @@ PUBLIC_CLAIM_DOCS = [
     LIVE_67_PATH,
     LIVE_67_RUNBOOK_PATH,
     LIVE_67_WORK_ORDER_PATH,
+    LIVE_68_PATH,
+    LIVE_68_RUNBOOK_PATH,
+    LIVE_68_WORK_ORDER_PATH,
 ]
 
 

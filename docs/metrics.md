@@ -4690,3 +4690,74 @@ readiness.
 Pattern note: the no-call evidence chain is now intentionally repetitive. A
 future helper-pattern task should consolidate repeated gate construction while
 preserving existing public fields and regression fixtures.
+
+## AW-LIVE-68 Disabled Execution Capsule Authz Final Authz Final Authorization Final Authorization Final Authorization Export Metrics
+
+Measured after adding the blocked disabled first-call execution capsule
+authorization final authorization final authorization final authorization
+final authorization export/read-model boundary.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 573 |
+| Pytest passed cases | 573 |
+| Regression delta vs AW-LIVE-67 baseline | +3 |
+| API execution capsule authz final authz final authorization final authorization final authorization export integration tests | 3 |
+| Provider envelope API integration tests, cumulative documented boundary cases | 198 |
+| Demo provider envelope smoke tests | 1 |
+| Export public summary fields | 17 |
+| Export read-model top-level fields | 3 |
+| Export component count | 8 |
+| Export component hash count | 4 |
+| Export no-call counter count | 13 |
+| Claim-boundary check count | 3 |
+| Export count with complete export | 1 |
+| Export metadata count with complete export | 1 |
+| Export request count with complete export | 1 |
+| Export passed count with missing expected final authorization hash | 7 |
+| Export mismatch count with missing expected final authorization hash | 1 |
+| Export passed count without export payload | 4 |
+| Export mismatch count without export payload | 4 |
+| Export passed count with complete export | 8 |
+| Export mismatch count with complete export | 0 |
+| Read-model export count with complete export | 1 |
+| Execution permission count with complete export | 0 |
+| Missing expected final authorization hash reason | expected_execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_hash_required |
+| Missing export payload reason | execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_export_required |
+| Complete export reason | execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_export_execution_closed |
+| Complete read-model reason | execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_export_read_model_available |
+| Repeated helper flag references in integration fixture helper | 21 |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Raw operator identity findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| execution capsule authz final authorization final authorization final authorization final authorization hash exists before export | covered |
+| expected execution capsule authz final authorization final authorization final authorization final authorization hash must match | covered |
+| execution capsule authz final authorization final authorization final authorization final authorization export payload is required | covered |
+| supplied export upstream hash must match computed final authorization hash | covered |
+| export metadata is represented as hash/count evidence | covered |
+| export request is required | covered |
+| export read-model is available only after complete export | covered |
+| claim boundary is represented as hash/count evidence | covered |
+| public authz final authz final authorization final authorization final authorization export exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled execution capsule authorization
+final authorization final authorization final authorization final authorization
+export/read-model for a later manual provider test candidate. It does not add
+an external call path, SDK integration, env value access, network access,
+provider response parsing, hosted execution, live operator approval, or
+production provider readiness.
+
+Pattern note: AW-LIVE-68 confirms the repeated no-call gate structure is stable
+but increasingly verbose. The next recommended task is `AW-LIVE-CHAIN-01`,
+which should consolidate expected-hash validation, payload validation,
+hash/count projection, claim-boundary hashing, and no-call counter hashing
+without changing public field names.

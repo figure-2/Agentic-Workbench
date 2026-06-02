@@ -55,6 +55,8 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_release_attestation_summary,
     provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_release_seal_summary,
     provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_final_authorization_summary,
+    provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_final_authorization_export_summary,
+    provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_final_authorization_export_read_model_summary,
     provider_manual_test_execution_capsule_authz_final_authz_final_authorization_release_seal_summary,
     provider_manual_test_arming_record_summary,
     provider_manual_test_final_release_packet_summary,
@@ -436,6 +438,13 @@ def _provider_envelope_precheck_payload(
         str | None
     ) = None,
     authz_final_final_authz_final_execution_capsule_authz_final_authz_final_authz_final_authz_release_seal_hash_override: (
+        str | None
+    ) = None,
+    include_execution_capsule_authz_final_authz_final_authorization_final_authorization_final_authorization_export: bool = False,
+    authz_final_final_authz_final_export_expected_execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_hash_override: (
+        str | None
+    ) = None,
+    authz_final_final_authz_final_export_execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_hash_override: (
         str | None
     ) = None,
 ) -> dict:
@@ -1886,6 +1895,41 @@ def _provider_envelope_precheck_payload(
             },
             "authorization_material": "API67_AUTH_SENTINEL",
             "provider_payload": "API67_PROVIDER_PAYLOAD_SENTINEL",
+        }
+    if include_execution_capsule_authz_final_authz_final_authorization_final_authorization_final_authorization_export:
+        authz_final_final_authz_final_summary = (
+            provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_final_authorization_summary(
+                payload
+            )
+        )
+        payload[
+            "expected_execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_hash"
+        ] = (
+            authz_final_final_authz_final_export_expected_execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_hash_override
+            or authz_final_final_authz_final_summary[
+                "execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_hash"
+            ]
+        )
+        payload[
+            "manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_final_authorization_export"
+        ] = {
+            "execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_hash": (
+                authz_final_final_authz_final_export_execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_hash_override
+                or authz_final_final_authz_final_summary[
+                    "execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_hash"
+                ]
+            ),
+            "export_requested": True,
+            "export_metadata": {
+                "export_kind": "final_authorization_read_model",
+                "export_reason_code": (
+                    "local-no-call-capsule-authz-final-final-final-final-exported"
+                ),
+                "exported_at": "2026-06-01T03:50:00Z",
+                "operator_ref": "API68_OPERATOR_REF_SENTINEL",
+            },
+            "authorization_material": "API68_EXPORT_AUTH_SENTINEL",
+            "provider_payload": "API68_EXPORT_PROVIDER_PAYLOAD_SENTINEL",
         }
     return payload
 
@@ -15086,6 +15130,7 @@ def _final_authz_decision_precheck_payload(
     include_final_authorization_final_authorization_release_attestation: bool = False,
     include_final_authorization_final_authorization_release_seal: bool = False,
     include_final_authorization_final_authorization_final_authorization: bool = False,
+    include_final_authorization_final_authorization_final_authorization_export: bool = False,
 ) -> dict:
     payload = _provider_envelope_precheck_payload(
         run_id=run_id,
@@ -15147,6 +15192,7 @@ def _final_authz_decision_precheck_payload(
             or include_final_authorization_final_authorization_release_attestation
             or include_final_authorization_final_authorization_release_seal
             or include_final_authorization_final_authorization_final_authorization
+            or include_final_authorization_final_authorization_final_authorization_export
         ),
         include_execution_capsule_authz_final_authz_release_seal=(
             include_release_seal
@@ -15165,6 +15211,7 @@ def _final_authz_decision_precheck_payload(
             or include_final_authorization_final_authorization_release_attestation
             or include_final_authorization_final_authorization_release_seal
             or include_final_authorization_final_authorization_final_authorization
+            or include_final_authorization_final_authorization_final_authorization_export
         ),
         include_execution_capsule_authz_final_authz_final_authorization=(
             include_final_authorization
@@ -15182,6 +15229,7 @@ def _final_authz_decision_precheck_payload(
             or include_final_authorization_final_authorization_release_attestation
             or include_final_authorization_final_authorization_release_seal
             or include_final_authorization_final_authorization_final_authorization
+            or include_final_authorization_final_authorization_final_authorization_export
         ),
         include_execution_capsule_authz_final_authz_final_authorization_export=(
             include_final_authorization_export
@@ -15198,6 +15246,7 @@ def _final_authz_decision_precheck_payload(
             or include_final_authorization_final_authorization_release_attestation
             or include_final_authorization_final_authorization_release_seal
             or include_final_authorization_final_authorization_final_authorization
+            or include_final_authorization_final_authorization_final_authorization_export
         ),
         include_execution_capsule_authz_final_authz_final_authorization_handoff_packet=(
             include_final_authorization_handoff
@@ -15213,6 +15262,7 @@ def _final_authz_decision_precheck_payload(
             or include_final_authorization_final_authorization_release_attestation
             or include_final_authorization_final_authorization_release_seal
             or include_final_authorization_final_authorization_final_authorization
+            or include_final_authorization_final_authorization_final_authorization_export
         ),
         include_execution_capsule_authz_final_authz_final_authorization_operator_review=(
             include_final_authorization_operator_review
@@ -15227,6 +15277,7 @@ def _final_authz_decision_precheck_payload(
             or include_final_authorization_final_authorization_release_attestation
             or include_final_authorization_final_authorization_release_seal
             or include_final_authorization_final_authorization_final_authorization
+            or include_final_authorization_final_authorization_final_authorization_export
         ),
         include_execution_capsule_authz_final_authz_final_authorization_operator_decision=(
             include_final_authorization_operator_decision
@@ -15240,6 +15291,7 @@ def _final_authz_decision_precheck_payload(
             or include_final_authorization_final_authorization_release_attestation
             or include_final_authorization_final_authorization_release_seal
             or include_final_authorization_final_authorization_final_authorization
+            or include_final_authorization_final_authorization_final_authorization_export
         ),
         include_execution_capsule_authz_final_authz_final_authorization_release_attestation=(
             include_final_authorization_release_attestation
@@ -15252,6 +15304,7 @@ def _final_authz_decision_precheck_payload(
             or include_final_authorization_final_authorization_release_attestation
             or include_final_authorization_final_authorization_release_seal
             or include_final_authorization_final_authorization_final_authorization
+            or include_final_authorization_final_authorization_final_authorization_export
         ),
         include_execution_capsule_authz_final_authz_final_authorization_release_seal=(
             include_final_authorization_release_seal
@@ -15263,6 +15316,7 @@ def _final_authz_decision_precheck_payload(
             or include_final_authorization_final_authorization_release_attestation
             or include_final_authorization_final_authorization_release_seal
             or include_final_authorization_final_authorization_final_authorization
+            or include_final_authorization_final_authorization_final_authorization_export
         ),
         include_execution_capsule_authz_final_authz_final_authorization_final_authorization=(
             include_final_authorization_final_authorization
@@ -15273,6 +15327,7 @@ def _final_authz_decision_precheck_payload(
             or include_final_authorization_final_authorization_release_attestation
             or include_final_authorization_final_authorization_release_seal
             or include_final_authorization_final_authorization_final_authorization
+            or include_final_authorization_final_authorization_final_authorization_export
         ),
         include_execution_capsule_authz_final_authz_final_authorization_final_authorization_export=(
             include_final_authorization_final_authorization_export
@@ -15282,6 +15337,7 @@ def _final_authz_decision_precheck_payload(
             or include_final_authorization_final_authorization_release_attestation
             or include_final_authorization_final_authorization_release_seal
             or include_final_authorization_final_authorization_final_authorization
+            or include_final_authorization_final_authorization_final_authorization_export
         ),
         include_execution_capsule_authz_final_authz_final_authorization_final_authorization_handoff_packet=(
             include_final_authorization_final_authorization_handoff
@@ -15290,6 +15346,7 @@ def _final_authz_decision_precheck_payload(
             or include_final_authorization_final_authorization_release_attestation
             or include_final_authorization_final_authorization_release_seal
             or include_final_authorization_final_authorization_final_authorization
+            or include_final_authorization_final_authorization_final_authorization_export
         ),
         include_execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_review=(
             include_final_authorization_final_authorization_operator_review
@@ -15297,24 +15354,32 @@ def _final_authz_decision_precheck_payload(
             or include_final_authorization_final_authorization_release_attestation
             or include_final_authorization_final_authorization_release_seal
             or include_final_authorization_final_authorization_final_authorization
+            or include_final_authorization_final_authorization_final_authorization_export
         ),
         include_execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_decision=(
             include_final_authorization_final_authorization_operator_decision
             or include_final_authorization_final_authorization_release_attestation
             or include_final_authorization_final_authorization_release_seal
             or include_final_authorization_final_authorization_final_authorization
+            or include_final_authorization_final_authorization_final_authorization_export
         ),
         include_execution_capsule_authz_final_authz_final_authorization_final_authorization_release_attestation=(
             include_final_authorization_final_authorization_release_attestation
             or include_final_authorization_final_authorization_release_seal
             or include_final_authorization_final_authorization_final_authorization
+            or include_final_authorization_final_authorization_final_authorization_export
         ),
         include_execution_capsule_authz_final_authz_final_authorization_final_authorization_release_seal=(
             include_final_authorization_final_authorization_release_seal
             or include_final_authorization_final_authorization_final_authorization
+            or include_final_authorization_final_authorization_final_authorization_export
         ),
         include_execution_capsule_authz_final_authz_final_authorization_final_authorization_final_authorization=(
             include_final_authorization_final_authorization_final_authorization
+            or include_final_authorization_final_authorization_final_authorization_export
+        ),
+        include_execution_capsule_authz_final_authz_final_authorization_final_authorization_final_authorization_export=(
+            include_final_authorization_final_authorization_final_authorization_export
         ),
     )
     expected_handoff = provider_manual_test_handoff_packet_summary(payload)
@@ -19757,6 +19822,305 @@ def test_provider_envelope_precheck_api_builds_execution_capsule_authz_final_aut
         "manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_final_authorization",
         "authorization_requested",
         "local-no-call-capsule-authz-final-final-final-final-authorized",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_export_without_expected_final_hash(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _final_authz_decision_precheck_payload(
+        "run-api68-export-missing-expected-final",
+        include_final_authorization_final_authorization_final_authorization_export=True,
+    )
+    expected_final_authz = (
+        provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_final_authorization_summary(
+            request_payload
+        )
+    )
+    request_payload.pop(
+        "expected_execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_hash"
+    )
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    export = data[
+        "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_export"
+    ]
+
+    assert export["status"] == "blocked"
+    assert export["reason"] == (
+        "expected_execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_hash_required"
+    )
+    assert (
+        export[
+            "execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_export_hash"
+        ]
+        == ""
+    )
+    assert (
+        export[
+            "execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_hash"
+        ]
+        == expected_final_authz[
+            "execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_hash"
+        ]
+    )
+    assert export["export_metadata_hash"]
+    assert export["claim_boundary_hash"]
+    assert export["no_call_counters_hash"]
+    assert export["component_count"] == 8
+    assert export["passed_component_count"] == 7
+    assert export["mismatch_count"] == 1
+    assert export["component_hash_count"] == 4
+    assert export["no_call_counter_count"] == 13
+    assert export["claim_boundary_check_count"] == 3
+    assert export["export_count"] == 0
+    assert export["export_metadata_count"] == 1
+    assert export["export_request_count"] == 1
+    assert export["execution_permission_count"] == 0
+    assert data["provider_envelope_admission"]["adapter_reached"] is True
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API68_EXPORT_AUTH_SENTINEL",
+        "API68_EXPORT_PROVIDER_PAYLOAD_SENTINEL",
+        "API68_OPERATOR_REF_SENTINEL",
+        "manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_final_authorization_export",
+        "export_requested",
+        "local-no-call-capsule-authz-final-final-final-final-exported",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_blocks_execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_export_without_export_payload(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _final_authz_decision_precheck_payload(
+        "run-api68-export-missing-payload",
+        include_final_authorization_final_authorization_final_authorization=True,
+    )
+    expected_final_authz = (
+        provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_final_authorization_summary(
+            request_payload
+        )
+    )
+    request_payload[
+        "expected_execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_hash"
+    ] = expected_final_authz[
+        "execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_hash"
+    ]
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    export = data[
+        "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_export"
+    ]
+
+    assert export["status"] == "blocked"
+    assert export["reason"] == (
+        "execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_export_required"
+    )
+    assert (
+        export[
+            "execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_export_hash"
+        ]
+        == ""
+    )
+    assert (
+        export[
+            "execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_hash"
+        ]
+        == expected_final_authz[
+            "execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_hash"
+        ]
+    )
+    assert export["export_metadata_hash"] == ""
+    assert export["claim_boundary_hash"]
+    assert export["no_call_counters_hash"]
+    assert export["component_count"] == 8
+    assert export["passed_component_count"] == 4
+    assert export["mismatch_count"] == 4
+    assert export["component_hash_count"] == 3
+    assert export["no_call_counter_count"] == 13
+    assert export["claim_boundary_check_count"] == 3
+    assert export["export_count"] == 0
+    assert export["export_metadata_count"] == 0
+    assert export["export_request_count"] == 0
+    assert export["execution_permission_count"] == 0
+    assert data["provider_envelope_admission"]["adapter_reached"] is True
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_final_authorization_export",
+        "export_requested",
+        "authorization_material",
+        "provider_payload",
+        "raw_prompt",
+        request_payload["approval"]["nonce"],
+        request_payload["approval"]["signature_id"],
+        request_payload["approval"]["signed_contract_hash"],
+        "signature_id",
+        "signed_contract_hash",
+        "nonce",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+
+
+def test_provider_envelope_precheck_api_builds_execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_export_read_model_but_keeps_execution_disabled(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            provider_envelope_repository_config=ProviderEnvelopeRepositoryConfig(root=tmp_path)
+        )
+    )
+    request_payload = _final_authz_decision_precheck_payload(
+        "run-api68-export-complete",
+        include_final_authorization_final_authorization_final_authorization_export=True,
+    )
+    expected_export = (
+        provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_final_authorization_export_summary(
+            request_payload
+        )
+    )
+    expected_read_model = (
+        provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_final_authorization_export_read_model_summary(
+            request_payload
+        )
+    )
+
+    response = client.post(
+        "/api/v1/admissions/provider/envelope/precheck",
+        json=request_payload,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    serialized = _serialized(payload)
+    data = payload["data"]
+    export = data[
+        "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_export"
+    ]
+    read_model = data[
+        "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_export_read_model"
+    ]
+
+    assert export["status"] == "blocked"
+    assert export["reason"] == (
+        "execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_export_execution_closed"
+    )
+    assert (
+        export[
+            "execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_export_hash"
+        ]
+        == expected_export[
+            "execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_export_hash"
+        ]
+    )
+    assert (
+        export[
+            "execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_hash"
+        ]
+        == expected_export[
+            "execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_hash"
+        ]
+    )
+    assert export["export_metadata_hash"] == expected_export["export_metadata_hash"]
+    assert export["claim_boundary_hash"] == expected_export["claim_boundary_hash"]
+    assert export["no_call_counters_hash"] == expected_export["no_call_counters_hash"]
+    assert export["export_count"] == 1
+    assert export["component_count"] == 8
+    assert export["passed_component_count"] == 8
+    assert export["mismatch_count"] == 0
+    assert export["component_hash_count"] == 4
+    assert export["no_call_counter_count"] == 13
+    assert export["claim_boundary_check_count"] == 3
+    assert export["export_metadata_count"] == 1
+    assert export["export_request_count"] == 1
+    assert export["execution_permission_count"] == 0
+    assert read_model["status"] == "available"
+    assert read_model["reason"] == (
+        "execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_export_read_model_available"
+    )
+    assert read_model == expected_read_model
+    assert (
+        read_model[
+            "latest_execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_export_hash"
+        ]
+        == export[
+            "execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_export_hash"
+        ]
+    )
+    assert (
+        read_model["counts"][
+            "execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_export_count"
+        ]
+        == 1
+    )
+    assert read_model["counts"]["component_count"] == 8
+    assert read_model["counts"]["execution_permission_count"] == 0
+    assert data["provider_envelope_admission"]["adapter_reached"] is True
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["solar_live_api_calls"] == 0
+
+    for forbidden in (
+        "API68_EXPORT_AUTH_SENTINEL",
+        "API68_EXPORT_PROVIDER_PAYLOAD_SENTINEL",
+        "API68_OPERATOR_REF_SENTINEL",
+        "manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_final_authorization_export",
+        "export_requested",
+        "local-no-call-capsule-authz-final-final-final-final-exported",
         "authorization_material",
         "provider_payload",
         "raw_prompt",

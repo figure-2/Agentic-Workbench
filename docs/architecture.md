@@ -121,6 +121,7 @@ sequenceDiagram
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_release_attestation` | local disabled execution capsule authz final authorization final authorization final authorization release attestation over authz final authorization final authorization final authorization operator-decision, release-attestation, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_release_seal` | local disabled execution capsule authz final authorization final authorization final authorization release seal over authz final authorization final authorization final authorization release-attestation, seal-material, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_final_authz` | local disabled execution capsule authz final authorization final authorization final authorization final authorization over authz final authorization final authorization final authorization release seal, final-authorization, claim-boundary, and no-call counter hashes |
+| `manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_final_authz_export` | local disabled execution capsule authz final authorization final authorization final authorization final authorization export/read-model over authz final authorization final authorization final authorization final authorization, export metadata, claim-boundary, and no-call counter hashes |
 
 ## Persistence Boundary
 

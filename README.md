@@ -279,6 +279,7 @@ Allowed public summary:
 - Local disabled execution capsule authorization final authorization final authorization final authorization release attestation over authz final authorization final authorization final authorization operator-decision, release-attestation, claim-boundary, and no-call counter hashes
 - Local disabled execution capsule authorization final authorization final authorization final authorization release seal over authz final authorization final authorization final authorization release-attestation, seal-material, claim-boundary, and no-call counter hashes
 - Local disabled execution capsule authorization final authorization final authorization final authorization final authorization over authz final authorization final authorization final authorization release seal, final-authorization, claim-boundary, and no-call counter hashes
+- Local disabled execution capsule authorization final authorization final authorization final authorization final authorization export/read-model over authz final authorization final authorization final authorization final authorization, export metadata, claim-boundary, and no-call counter hashes
 - Public output designed around sanitized summaries and correlation hashes
 
 Do not interpret current results as:
@@ -351,6 +352,7 @@ Do not interpret current results as:
 - Execution capsule authorization final authorization final authorization final authorization release attestation as provider execution permission, provider behavior evidence, live operator approval, hosted execution, or production provider readiness
 - Execution capsule authorization final authorization final authorization final authorization release seal as provider execution permission, provider behavior evidence, live operator approval, hosted execution, or production provider readiness
 - Execution capsule authorization final authorization final authorization final authorization final authorization as provider execution permission, provider behavior evidence, live operator approval, hosted execution, or production provider readiness
+- Execution capsule authorization final authorization final authorization final authorization final authorization export/read-model as provider execution permission, provider behavior evidence, live operator approval, hosted execution, or production provider readiness
 
 ## Status
 
@@ -360,4 +362,6 @@ Current status also includes a fail-closed live-open policy gate. A passing poli
 
 Current status addendum: AW-LIVE-67 adds the disabled first-call execution capsule authorization final authorization final authorization final authorization final authorization boundary over release-seal, final-authorization, claim-boundary, and no-call counter hashes while keeping execution permission closed.
 
-Next implementation track: disabled first-call final no-call execution capsule authorization final authorization final authorization final authorization final authorization export/read-model boundary. A separate helper-pattern cleanup should also be considered within one or two steps because the no-call capsule gates are now intentionally repetitive.
+Current status addendum: AW-LIVE-68 adds the disabled first-call execution capsule authorization final authorization final authorization final authorization final authorization export/read-model boundary over final-authorization, export metadata, claim-boundary, and no-call counter hashes while keeping execution permission closed.
+
+Next implementation track: AW-LIVE-CHAIN-01 repeated no-call boundary helper/pattern consolidation. Continuing the explicit no-call chain remains possible, but the current evidence pattern is repetitive enough that helper extraction should happen before more live-gate expansion.
