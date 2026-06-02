@@ -1156,6 +1156,82 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
         ]
         == 0
     )
+    assert (
+        envelope["execution_capsule_authz_final_authz_release_attestation_status"]
+        == "blocked"
+    )
+    assert (
+        envelope["execution_capsule_authz_final_authz_release_attestation_reason"]
+        == "execution_capsule_authz_final_authz_release_attestation_execution_closed"
+    )
+    assert envelope["execution_capsule_authz_final_authz_release_attestation_hash"]
+    assert (
+        envelope[
+            "execution_capsule_authz_final_authz_release_attestation_decision_hash"
+        ]
+        == envelope["execution_capsule_authz_final_authz_operator_decision_hash"]
+    )
+    assert envelope["execution_capsule_authz_final_authz_release_attestation_release_hash"]
+    assert envelope[
+        "execution_capsule_authz_final_authz_release_attestation_claim_boundary_hash"
+    ]
+    assert envelope[
+        "execution_capsule_authz_final_authz_release_attestation_no_call_counters_hash"
+    ]
+    assert (
+        envelope[
+            "execution_capsule_authz_final_authz_release_attestation_component_count"
+        ]
+        == 8
+    )
+    assert (
+        envelope[
+            "execution_capsule_authz_final_authz_release_attestation_passed_component_count"
+        ]
+        == 8
+    )
+    assert (
+        envelope[
+            "execution_capsule_authz_final_authz_release_attestation_mismatch_count"
+        ]
+        == 0
+    )
+    assert (
+        envelope[
+            "execution_capsule_authz_final_authz_release_attestation_component_hash_count"
+        ]
+        == 4
+    )
+    assert (
+        envelope[
+            "execution_capsule_authz_final_authz_release_attestation_no_call_counter_count"
+        ]
+        == 13
+    )
+    assert (
+        envelope[
+            "execution_capsule_authz_final_authz_release_attestation_claim_boundary_check_count"
+        ]
+        == 3
+    )
+    assert (
+        envelope[
+            "execution_capsule_authz_final_authz_release_attestation_release_attestation_count"
+        ]
+        == 1
+    )
+    assert (
+        envelope[
+            "execution_capsule_authz_final_authz_release_attestation_request_count"
+        ]
+        == 1
+    )
+    assert (
+        envelope[
+            "execution_capsule_authz_final_authz_release_attestation_execution_permission_count"
+        ]
+        == 0
+    )
     assert envelope["review_packet_read_model_status"] == "available"
     assert envelope["review_packet_read_export_hash"] == envelope["review_packet_hash"]
     assert envelope["review_packet_read_export_count"] == 1
@@ -1226,6 +1302,12 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
         ]
         is True
     )
+    assert (
+        checks[
+            "provider_execution_capsule_authz_final_authz_release_attestation_blocked"
+        ]
+        is True
+    )
     assert envelope["execution_boundary"]["provider_calls"] == 0
     assert envelope["execution_boundary"]["network_calls"] == 0
     assert envelope["execution_boundary"]["solar_live_api_calls"] == 0
@@ -1257,6 +1339,7 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
         "manual_test_execution_capsule_authz_final_authz_handoff_packet",
         "manual_test_execution_capsule_authz_final_authz_operator_review",
         "manual_test_execution_capsule_authz_final_authz_operator_decision",
+        "manual_test_execution_capsule_authz_final_authz_release_attestation",
         "packet_requested",
         "attestation_requested",
         "seal_requested",
@@ -1277,6 +1360,7 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
         "local-demo-no-call-capsule-authz-final-exported",
         "local-demo-no-call-capsule-authz-final-reviewed",
         "local-demo-no-call-capsule-authz-final-decided",
+        "local-demo-no-call-capsule-authz-final-release-attested",
         "local-demo-no-call-capsule-handoff",
         "local-demo-no-call-capsule-operator-reviewed",
         "local-demo-no-call-capsule-operator-decided",
