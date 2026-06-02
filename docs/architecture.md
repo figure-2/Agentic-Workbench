@@ -113,6 +113,7 @@ sequenceDiagram
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_operator_decision` | local disabled execution capsule authz final authorization final authorization operator decision over authz final authorization final authorization operator-review, operator-decision, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_release_attestation` | local disabled execution capsule authz final authorization final authorization release attestation over authz final authorization final authorization operator-decision, release-attestation, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_release_seal` | local disabled execution capsule authz final authorization final authorization release seal over authz final authorization final authorization release-attestation, seal-material, claim-boundary, and no-call counter hashes |
+| `manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz` | local disabled execution capsule authz final authorization final authorization final authorization over authz final authorization final authorization release seal, final-authorization, claim-boundary, and no-call counter hashes |
 
 ## Persistence Boundary
 
@@ -670,6 +671,16 @@ and a separate expected attestation hash match. It binds the
 release-attestation, seal-material, claim-boundary, and no-call counter hashes
 into one status/reason/hash/count projection. The release seal still reports
 `execution_capsule_authz_final_authz_final_authz_release_seal_execution_closed`
+and keeps `execution_permission_count=0`.
+
+`AW-LIVE-60` adds a disabled first-call execution capsule authz final
+authorization final authorization final authorization. The authorization
+requires the execution capsule authz final-authorization final authorization
+release seal hash and a separate expected seal hash match. It binds the
+release-seal, final-authorization, claim-boundary, and no-call counter hashes
+into one status/reason/hash/count projection. The final authorization still
+reports
+`execution_capsule_authz_final_authz_final_authz_final_authz_execution_closed`
 and keeps `execution_permission_count=0`.
 
 ## Target-Only Runtime
