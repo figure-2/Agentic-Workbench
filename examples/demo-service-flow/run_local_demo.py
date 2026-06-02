@@ -59,6 +59,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_summary,
     provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_export_summary,
     provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_handoff_packet_summary,
+    provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_review_summary,
     provider_manual_test_execution_capsule_authz_final_authz_final_authorization_release_seal_summary,
     provider_manual_test_execution_capsule_authz_release_attestation_summary,
     provider_manual_test_execution_capsule_authz_release_seal_summary,
@@ -1014,6 +1015,32 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
         "handoff_requested": True,
         "handoff_material": "local-demo-no-call-capsule-authz-final-final-final-handoff",
     }
+    execution_capsule_authz_final_authz_final_authz_final_authz_handoff_packet_hash = (
+        provider_manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_handoff_packet_summary(
+            payload
+        )[
+            "execution_capsule_authz_final_authz_final_authz_final_authz_handoff_packet_hash"
+        ]
+    )
+    payload[
+        "expected_execution_capsule_authz_final_authz_final_authz_final_authz_handoff_packet_hash"
+    ] = execution_capsule_authz_final_authz_final_authz_final_authz_handoff_packet_hash
+    payload[
+        "manual_test_execution_capsule_authz_final_authz_final_authorization_final_authorization_operator_review"
+    ] = {
+        "execution_capsule_authz_final_authz_final_authz_final_authz_handoff_packet_hash": (
+            execution_capsule_authz_final_authz_final_authz_final_authz_handoff_packet_hash
+        ),
+        "review_requested": True,
+        "operator_review": {
+            "review_decision": "reviewed",
+            "review_reason_code": (
+                "local-demo-no-call-capsule-authz-final-final-final-reviewed"
+            ),
+            "reviewed_at": "2026-06-01T03:15:00Z",
+            "operator_ref": "local-demo-operator",
+        },
+    }
     return payload
 
 
@@ -1862,6 +1889,30 @@ def _checks(
             == "execution_capsule_authz_final_authz_final_authz_final_authz_handoff_packet_execution_closed"
             and int(
                 execution_capsule_authz_final_authz_final_authz_final_authz_handoff_packet.get(
+                    "execution_permission_count", -1
+                )
+            )
+            == 0
+        )
+        execution_capsule_authz_final_authz_final_authz_final_authz_operator_review = (
+            provider_envelope_data.get(
+                "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review",
+                {},
+            )
+        )
+        checks[
+            "provider_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_blocked"
+        ] = (
+            execution_capsule_authz_final_authz_final_authz_final_authz_operator_review.get(
+                "status"
+            )
+            == "blocked"
+            and execution_capsule_authz_final_authz_final_authz_final_authz_operator_review.get(
+                "reason"
+            )
+            == "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_execution_closed"
+            and int(
+                execution_capsule_authz_final_authz_final_authz_final_authz_operator_review.get(
                     "execution_permission_count", -1
                 )
             )
@@ -4784,6 +4835,74 @@ def run_demo(
                 ).get("handoff_request_count"),
                 "execution_capsule_authz_final_authz_final_authz_final_authz_handoff_packet_execution_permission_count": provider_envelope_data.get(
                     "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_handoff_packet",
+                    {},
+                ).get("execution_permission_count"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_status": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review",
+                    {},
+                ).get("status"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_reason": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review",
+                    {},
+                ).get("reason"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review",
+                    {},
+                ).get(
+                    "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_hash"
+                ),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_handoff_packet_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review",
+                    {},
+                ).get(
+                    "execution_capsule_authz_final_authz_final_authz_final_authz_handoff_packet_hash"
+                ),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_operator_review_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review",
+                    {},
+                ).get("operator_review_hash"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_claim_boundary_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review",
+                    {},
+                ).get("claim_boundary_hash"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_no_call_counters_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review",
+                    {},
+                ).get("no_call_counters_hash"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_component_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review",
+                    {},
+                ).get("component_count"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_passed_component_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review",
+                    {},
+                ).get("passed_component_count"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review",
+                    {},
+                ).get("mismatch_count"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_component_hash_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review",
+                    {},
+                ).get("component_hash_count"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_no_call_counter_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review",
+                    {},
+                ).get("no_call_counter_count"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_claim_boundary_check_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review",
+                    {},
+                ).get("claim_boundary_check_count"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_operator_review_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review",
+                    {},
+                ).get("operator_review_count"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_request_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review",
+                    {},
+                ).get("review_request_count"),
+                "execution_capsule_authz_final_authz_final_authz_final_authz_operator_review_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review",
                     {},
                 ).get("execution_permission_count"),
                 "review_packet_read_model_status": (

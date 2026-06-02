@@ -187,6 +187,11 @@ Agentic Workbench is a local/dev AI agent workflow harness prototype. It may cla
   authorization final authorization final authorization export, export
   read-model, claim-boundary, and no-call counter hashes, with execution
   permission closed
+- Disabled first-call execution capsule authorization final authorization final
+  authorization final authorization operator review over authz final
+  authorization final authorization final authorization handoff packet,
+  operator-review, claim-boundary, and no-call counter hashes, with execution
+  permission closed
 - Sanitized public summaries and correlation hashes
 - Fixture-based smoke tests and local regression tests
 
@@ -397,6 +402,10 @@ Use only with a scope qualifier such as `local`, `fixture-based`, `dry-run`, `fa
   final authorization described as external provider behavior, provider result,
   live operator approval, execution permission, hosted execution, or production
   provider readiness
+- execution capsule authorization final authorization final authorization
+  final authorization operator review described as external provider behavior,
+  provider result, live operator approval, execution permission, hosted
+  execution, or production provider readiness
 
 ## Public Artifact Rules
 
@@ -473,3 +482,4 @@ Allowed replacements:
 | Execution Capsule Authorization Final Authz Final Authorization Final Authorization Gate | Execution capsule authorization final authorization final authorization final authorization binds authz final authorization final authorization release seal, final-authorization, claim-boundary, and no-call counter hashes but remains execution-closed |
 | Execution Capsule Authorization Final Authz Final Authorization Final Authorization Export Gate | Execution capsule authorization final authorization final authorization final authorization export/read-model binds authz final authorization final authorization final authorization, export metadata, claim-boundary, and no-call counter hashes but remains execution-closed |
 | Execution Capsule Authorization Final Authz Final Authorization Final Authorization Handoff Gate | Execution capsule authorization final authorization final authorization final authorization handoff packet binds authz final authorization final authorization final authorization export, export read-model, claim-boundary, and no-call counter hashes but remains execution-closed |
+| Execution Capsule Authorization Final Authz Final Authorization Final Authorization Operator Review Gate | Execution capsule authorization final authorization final authorization final authorization operator review binds authz final authorization final authorization final authorization handoff, operator-review, claim-boundary, and no-call counter hashes but remains execution-closed |
