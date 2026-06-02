@@ -764,6 +764,12 @@ local-evidence presence override so export read-model availability remains
 stricter than hash presence. Public fields, reason strings, and execution
 permission remain unchanged.
 
+`AW-LIVE-CHAIN-03` extends the same private helper to `AW-LIVE-53` through
+`AW-LIVE-59`. The helper now covers `AW-LIVE-53` through `AW-LIVE-68`.
+`AW-LIVE-55` uses the same local-evidence presence override so export
+read-model availability remains stricter than hash presence. Public fields,
+reason strings, and execution permission remain unchanged.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit

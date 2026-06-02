@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-67` disabled execution capsule authorization final authorization final authorization final authorization final authorization boundary.
+Current snapshot after `AW-LIVE-CHAIN-03` no-call boundary helper rollout.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 332 |
-| Counted code/doc files, excluding cache and private SoT | 331 |
-| Project lines, excluding cache and private SoT | 87,752 |
+| Project files, excluding cache and private SoT | 343 |
+| Counted code/doc files, excluding cache and private SoT | 343 |
+| Project lines, excluding cache and private SoT | 88,999 |
 | Python files | 76 |
-| Markdown files | 250 |
+| Markdown files | 262 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 567 |
-| Pytest passed cases | 567 |
+| Pytest collected cases | 573 |
+| Pytest passed cases | 573 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -4888,4 +4888,70 @@ provider readiness.
 
 Next recommended task: `AW-LIVE-69` if the priority is continuing the disabled
 no-call chain, or `AW-LIVE-CHAIN-03` if the priority is extending helper
+adoption into older no-call stages first.
+
+## AW-LIVE-CHAIN-03 No-Call Boundary Helper Rollout Metrics
+
+Measured after extending the private no-call boundary helper to `AW-LIVE-53`
+through `AW-LIVE-59`.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 573 |
+| Pytest passed cases | 573 |
+| Provider envelope integration tests passed | 198 |
+| Helper functions total | 1 |
+| Helper-adopted projections in CHAIN-01 | 2 |
+| Newly helper-adopted projections in CHAIN-02 | 7 |
+| Newly helper-adopted projections in CHAIN-03 | 7 |
+| Helper-adopted projections total | 16 |
+| Public field name changes | 0 |
+| Complete-path component count | 8 |
+| Complete-path component hash count | 4 |
+| No-call counter count | 13 |
+| Claim-boundary check count | 3 |
+| Execution permission count | 0 |
+| Repeated claim-boundary blocks removed total | 16 |
+| Repeated no-call counter blocks removed total | 16 |
+| Repeated component-check blocks removed total | 16 |
+| Product provider/env import findings | 0 |
+| Non-zero provider/network/env counter findings | 0 |
+| Raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Raw operator identity findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Comparison Metric | AW-LIVE-CHAIN-01 | AW-LIVE-CHAIN-02 | AW-LIVE-CHAIN-03 |
+|---|---:|---:|---:|
+| helper-adopted projections total | 2 | 9 | 16 |
+| newly helper-adopted projections | 2 | 7 | 7 |
+| repeated direct no-call boundary blocks removed total | 2 | 9 | 16 |
+| provider envelope integration tests passed | 198 | 198 | 198 |
+| public field name changes | 0 | 0 | 0 |
+| execution permission count | 0 | 0 | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m compileall apps tests examples` | passed |
+| `python -m pytest tests\integration\test_api_public_projection.py -q --color=no` | 198 passed |
+| `python -m pytest tests\unit\test_public_claim_projection_docs.py -q --color=no` | 3 passed |
+| `python -m pytest tests\smoke\test_local_service_demo.py::test_local_service_demo_can_include_provider_envelope_precheck_without_calls -q --color=no` | 1 passed |
+| `python -m pytest tests -q --color=no` | 573 passed |
+| `.\scripts\verify.ps1` | 573 passed |
+| `git diff --check` | passed |
+| product provider/env import scan | 0 findings |
+| non-zero provider/network/env counter scan | 0 findings |
+
+Interpretation: AW-LIVE-CHAIN-03 is a local helper rollout over existing
+disabled no-call evidence. It does not add an external call path, SDK
+integration, env value access, network access, provider response parsing,
+hosted execution, live operator approval, execution permission, or production
+provider readiness.
+
+Next recommended task: `AW-LIVE-69` if the priority is continuing the disabled
+no-call chain, or `AW-LIVE-CHAIN-04` if the priority is extending helper
 adoption into older no-call stages first.

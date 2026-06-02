@@ -8858,138 +8858,78 @@ def _manual_provider_test_execution_capsule_authz_final_authz_final_authorizatio
         else ""
     )
     authz_requested = authorization_payload.get("authorization_requested") is True
-    claim_boundary = _provider_envelope_claim_boundary_projection()
-    claim_boundary_closed = (
-        claim_boundary.get("external_provider_outcome") is False
-        and claim_boundary.get("target_runtime_outcome") is False
-        and claim_boundary.get("production_trust_claim") is False
-    )
-    claim_boundary_hash = (
-        stable_contract_hash(
-            {
-                "projection_version": (
-                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_VERSION
-                ),
-                "claim_boundary": claim_boundary,
-            }
-        )
-        if claim_boundary_closed
-        else ""
-    )
-    no_call_counters = _executor_preflight_no_call_counters(execution_boundary)
-    no_call_counters_closed = all(value == 0 for value in no_call_counters.values())
-    no_call_counters_hash = (
-        stable_contract_hash(
-            {
-                "projection_version": (
-                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_VERSION
-                ),
-                "no_call_counters": no_call_counters,
-            }
-        )
-        if no_call_counters_closed
-        else ""
-    )
-    component_checks = [
-        str(execution_capsule_authz_final_authz_release_seal.get("status", ""))
-        == "blocked"
-        and str(execution_capsule_authz_final_authz_release_seal.get("reason", ""))
-        == "execution_capsule_authz_final_authz_release_seal_execution_closed"
-        and bool(release_seal_hash)
-        and _coerce_int(
-            execution_capsule_authz_final_authz_release_seal.get(
-                "execution_permission_count", 0
-            )
-        )
-        == 0,
-        bool(expected_release_seal_hash)
-        and expected_release_seal_hash == release_seal_hash,
-        bool(authorization_payload),
-        bool(supplied_release_seal_hash)
-        and supplied_release_seal_hash == release_seal_hash,
-        bool(final_authz_hash),
-        authz_requested,
-        claim_boundary_closed,
-        no_call_counters_closed,
-    ]
-    component_count = len(component_checks)
-    passed_component_count = sum(1 for check in component_checks if check)
-    mismatch_count = component_count - passed_component_count
-    component_hash_count = sum(
-        1
-        for value in (
-            release_seal_hash,
-            final_authz_hash,
-            claim_boundary_hash,
-            no_call_counters_hash,
-        )
-        if value
-    )
-
-    if not component_checks[0]:
-        reason = "execution_capsule_authz_final_authz_release_seal_missing_or_mismatched"
-    elif not expected_release_seal_hash:
-        reason = (
+    evaluation = _evaluate_no_call_hash_boundary(
+        projection_version=(
+            MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_VERSION
+        ),
+        upstream_projection=execution_capsule_authz_final_authz_release_seal,
+        upstream_expected_reason=(
+            "execution_capsule_authz_final_authz_release_seal_execution_closed"
+        ),
+        upstream_hash=release_seal_hash,
+        expected_upstream_hash=expected_release_seal_hash,
+        payload_present=bool(authorization_payload),
+        supplied_upstream_hash=supplied_release_seal_hash,
+        local_evidence_hash=final_authz_hash,
+        request_present=authz_requested,
+        execution_boundary=execution_boundary,
+        reason_if_upstream_invalid=(
+            "execution_capsule_authz_final_authz_release_seal_missing_or_mismatched"
+        ),
+        reason_if_expected_missing=(
             "expected_execution_capsule_authz_final_authz_release_seal_hash_required"
-        )
-    elif expected_release_seal_hash != release_seal_hash:
-        reason = "execution_capsule_authz_final_authz_release_seal_hash_mismatch"
-    elif not component_checks[2]:
-        reason = "execution_capsule_authz_final_authz_final_authz_required"
-    elif not component_checks[3]:
-        reason = "execution_capsule_authz_final_authz_final_authz_seal_hash_mismatch"
-    elif not component_checks[4]:
-        reason = "execution_capsule_authz_final_authz_final_authz_required"
-    elif not component_checks[5]:
-        reason = "execution_capsule_authz_final_authz_final_authz_request_required"
-    elif not component_checks[6]:
-        reason = (
+        ),
+        reason_if_expected_mismatch=(
+            "execution_capsule_authz_final_authz_release_seal_hash_mismatch"
+        ),
+        reason_if_payload_missing=(
+            "execution_capsule_authz_final_authz_final_authz_required"
+        ),
+        reason_if_supplied_mismatch=(
+            "execution_capsule_authz_final_authz_final_authz_seal_hash_mismatch"
+        ),
+        reason_if_evidence_missing=(
+            "execution_capsule_authz_final_authz_final_authz_required"
+        ),
+        reason_if_request_missing=(
+            "execution_capsule_authz_final_authz_final_authz_request_required"
+        ),
+        reason_if_claim_boundary_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_claim_boundary_mismatch"
-        )
-    elif not component_checks[7]:
-        reason = (
+        ),
+        reason_if_no_call_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_no_call_counters_mismatch"
-        )
-    else:
-        reason = "execution_capsule_authz_final_authz_final_authz_execution_closed"
-
-    execution_capsule_authz_final_authz_final_authz_hash = ""
-    if mismatch_count == 0:
-        execution_capsule_authz_final_authz_final_authz_hash = stable_contract_hash(
-            {
-                "projection_version": (
-                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_VERSION
-                ),
-                "execution_capsule_authz_final_authz_release_seal_hash": (
-                    release_seal_hash
-                ),
-                "final_authz_hash": final_authz_hash,
-                "claim_boundary_hash": claim_boundary_hash,
-                "no_call_counters_hash": no_call_counters_hash,
-                "component_count": component_count,
-                "execution_permission": "closed",
-            }
-        )
+        ),
+        reason_if_complete=(
+            "execution_capsule_authz_final_authz_final_authz_execution_closed"
+        ),
+        boundary_hash_components={
+            "execution_capsule_authz_final_authz_release_seal_hash": (
+                release_seal_hash
+            ),
+            "final_authz_hash": final_authz_hash,
+        },
+    )
 
     return _safe_public_payload(
         {
             "status": "blocked",
-            "reason": reason,
+            "reason": evaluation.reason,
             "execution_capsule_authz_final_authz_final_authz_hash": (
-                execution_capsule_authz_final_authz_final_authz_hash
+                evaluation.boundary_hash
             ),
             "execution_capsule_authz_final_authz_release_seal_hash": (
                 release_seal_hash
             ),
             "final_authz_hash": final_authz_hash,
-            "claim_boundary_hash": claim_boundary_hash,
-            "no_call_counters_hash": no_call_counters_hash,
-            "component_count": component_count,
-            "passed_component_count": passed_component_count,
-            "mismatch_count": mismatch_count,
-            "component_hash_count": component_hash_count,
-            "no_call_counter_count": len(no_call_counters),
-            "claim_boundary_check_count": 3,
+            "claim_boundary_hash": evaluation.claim_boundary_hash,
+            "no_call_counters_hash": evaluation.no_call_counters_hash,
+            "component_count": evaluation.component_count,
+            "passed_component_count": evaluation.passed_component_count,
+            "mismatch_count": evaluation.mismatch_count,
+            "component_hash_count": evaluation.component_hash_count,
+            "no_call_counter_count": evaluation.no_call_counter_count,
+            "claim_boundary_check_count": evaluation.claim_boundary_check_count,
             "final_authz_count": 1 if final_authz_hash else 0,
             "authz_request_count": 1 if authz_requested else 0,
             "execution_permission_count": 0,
@@ -9060,153 +9000,77 @@ def _manual_provider_test_execution_capsule_authz_final_authz_final_authorizatio
         else ""
     )
     export_requested = export_payload.get("export_requested") is True
-    claim_boundary = _provider_envelope_claim_boundary_projection()
-    claim_boundary_closed = (
-        claim_boundary.get("external_provider_outcome") is False
-        and claim_boundary.get("target_runtime_outcome") is False
-        and claim_boundary.get("production_trust_claim") is False
-    )
-    claim_boundary_hash = (
-        stable_contract_hash(
-            {
-                "projection_version": (
-                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_EXPORT_VERSION
-                ),
-                "claim_boundary": claim_boundary,
-            }
-        )
-        if claim_boundary_closed
-        else ""
-    )
-    no_call_counters = _executor_preflight_no_call_counters(execution_boundary)
-    no_call_counters_closed = all(value == 0 for value in no_call_counters.values())
-    no_call_counters_hash = (
-        stable_contract_hash(
-            {
-                "projection_version": (
-                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_EXPORT_VERSION
-                ),
-                "no_call_counters": no_call_counters,
-            }
-        )
-        if no_call_counters_closed
-        else ""
-    )
-    component_checks = [
-        str(execution_capsule_authz_final_authz_final_authorization.get("status", ""))
-        == "blocked"
-        and str(
-            execution_capsule_authz_final_authz_final_authorization.get(
-                "reason", ""
-            )
-        )
-        == "execution_capsule_authz_final_authz_final_authz_execution_closed"
-        and bool(final_authz_hash)
-        and _coerce_int(
-            execution_capsule_authz_final_authz_final_authorization.get(
-                "execution_permission_count", 0
-            )
-        )
-        == 0,
-        bool(expected_final_authz_hash)
-        and expected_final_authz_hash == final_authz_hash,
-        bool(export_payload),
-        bool(supplied_final_authz_hash)
-        and supplied_final_authz_hash == final_authz_hash,
-        bool(export_metadata_hash),
-        export_requested,
-        claim_boundary_closed,
-        no_call_counters_closed,
-    ]
-    component_count = len(component_checks)
-    passed_component_count = sum(1 for check in component_checks if check)
-    mismatch_count = component_count - passed_component_count
-    component_hash_count = sum(
-        1
-        for value in (
-            final_authz_hash,
-            export_metadata_hash,
-            claim_boundary_hash,
-            no_call_counters_hash,
-        )
-        if value
-    )
-
-    if not component_checks[0]:
-        reason = "execution_capsule_authz_final_authz_final_authz_missing_or_mismatched"
-    elif not expected_final_authz_hash:
-        reason = (
+    evaluation = _evaluate_no_call_hash_boundary(
+        projection_version=(
+            MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_EXPORT_VERSION
+        ),
+        upstream_projection=execution_capsule_authz_final_authz_final_authorization,
+        upstream_expected_reason=(
+            "execution_capsule_authz_final_authz_final_authz_execution_closed"
+        ),
+        upstream_hash=final_authz_hash,
+        expected_upstream_hash=expected_final_authz_hash,
+        payload_present=bool(export_payload),
+        supplied_upstream_hash=supplied_final_authz_hash,
+        local_evidence_hash=export_metadata_hash,
+        request_present=export_requested,
+        execution_boundary=execution_boundary,
+        reason_if_upstream_invalid=(
+            "execution_capsule_authz_final_authz_final_authz_missing_or_mismatched"
+        ),
+        reason_if_expected_missing=(
             "expected_execution_capsule_authz_final_authz_final_authz_hash_required"
-        )
-    elif expected_final_authz_hash != final_authz_hash:
-        reason = "execution_capsule_authz_final_authz_final_authz_hash_mismatch"
-    elif not component_checks[2]:
-        reason = "execution_capsule_authz_final_authz_final_authz_export_required"
-    elif not component_checks[3]:
-        reason = (
+        ),
+        reason_if_expected_mismatch=(
+            "execution_capsule_authz_final_authz_final_authz_hash_mismatch"
+        ),
+        reason_if_payload_missing=(
+            "execution_capsule_authz_final_authz_final_authz_export_required"
+        ),
+        reason_if_supplied_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_export_hash_mismatch"
-        )
-    elif not component_checks[4]:
-        reason = (
+        ),
+        reason_if_evidence_missing=(
             "execution_capsule_authz_final_authz_final_authz_export_metadata_required"
-        )
-    elif not component_checks[5]:
-        reason = (
+        ),
+        reason_if_request_missing=(
             "execution_capsule_authz_final_authz_final_authz_export_request_required"
-        )
-    elif not component_checks[6]:
-        reason = (
+        ),
+        reason_if_claim_boundary_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_export_claim_boundary_mismatch"
-        )
-    elif not component_checks[7]:
-        reason = (
+        ),
+        reason_if_no_call_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_export_no_call_counters_mismatch"
-        )
-    else:
-        reason = "execution_capsule_authz_final_authz_final_authz_export_execution_closed"
-
-    execution_capsule_authz_final_authz_final_authz_export_hash = ""
-    if mismatch_count == 0:
-        execution_capsule_authz_final_authz_final_authz_export_hash = (
-            stable_contract_hash(
-                {
-                    "projection_version": (
-                        MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_EXPORT_VERSION
-                    ),
-                    "execution_capsule_authz_final_authz_final_authz_hash": (
-                        final_authz_hash
-                    ),
-                    "export_metadata_hash": export_metadata_hash,
-                    "claim_boundary_hash": claim_boundary_hash,
-                    "no_call_counters_hash": no_call_counters_hash,
-                    "component_count": component_count,
-                    "execution_permission": "closed",
-                }
-            )
-        )
+        ),
+        reason_if_complete=(
+            "execution_capsule_authz_final_authz_final_authz_export_execution_closed"
+        ),
+        boundary_hash_components={
+            "execution_capsule_authz_final_authz_final_authz_hash": final_authz_hash,
+            "export_metadata_hash": export_metadata_hash,
+        },
+    )
 
     return _safe_public_payload(
         {
             "status": "blocked",
-            "reason": reason,
+            "reason": evaluation.reason,
             "execution_capsule_authz_final_authz_final_authz_export_hash": (
-                execution_capsule_authz_final_authz_final_authz_export_hash
+                evaluation.boundary_hash
             ),
             "execution_capsule_authz_final_authz_final_authz_hash": (
                 final_authz_hash
             ),
             "export_metadata_hash": export_metadata_hash,
-            "claim_boundary_hash": claim_boundary_hash,
-            "no_call_counters_hash": no_call_counters_hash,
-            "export_count": (
-                1 if execution_capsule_authz_final_authz_final_authz_export_hash else 0
-            ),
-            "component_count": component_count,
-            "passed_component_count": passed_component_count,
-            "mismatch_count": mismatch_count,
-            "component_hash_count": component_hash_count,
-            "no_call_counter_count": len(no_call_counters),
-            "claim_boundary_check_count": 3,
+            "claim_boundary_hash": evaluation.claim_boundary_hash,
+            "no_call_counters_hash": evaluation.no_call_counters_hash,
+            "export_count": 1 if evaluation.boundary_hash else 0,
+            "component_count": evaluation.component_count,
+            "passed_component_count": evaluation.passed_component_count,
+            "mismatch_count": evaluation.mismatch_count,
+            "component_hash_count": evaluation.component_hash_count,
+            "no_call_counter_count": evaluation.no_call_counter_count,
+            "claim_boundary_check_count": evaluation.claim_boundary_check_count,
             "export_metadata_count": 1 if export_metadata_hash else 0,
             "export_request_count": 1 if export_requested else 0,
             "execution_permission_count": 0,
@@ -9300,38 +9164,6 @@ def _manual_provider_test_execution_capsule_authz_final_authz_final_authorizatio
         )
     ).strip()
     handoff_requested = handoff_payload.get("handoff_requested") is True
-    claim_boundary = _provider_envelope_claim_boundary_projection()
-    claim_boundary_closed = (
-        claim_boundary.get("external_provider_outcome") is False
-        and claim_boundary.get("target_runtime_outcome") is False
-        and claim_boundary.get("production_trust_claim") is False
-    )
-    claim_boundary_hash = (
-        stable_contract_hash(
-            {
-                "projection_version": (
-                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_HANDOFF_PACKET_VERSION
-                ),
-                "claim_boundary": claim_boundary,
-            }
-        )
-        if claim_boundary_closed
-        else ""
-    )
-    no_call_counters = _executor_preflight_no_call_counters(execution_boundary)
-    no_call_counters_closed = all(value == 0 for value in no_call_counters.values())
-    no_call_counters_hash = (
-        stable_contract_hash(
-            {
-                "projection_version": (
-                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_HANDOFF_PACKET_VERSION
-                ),
-                "no_call_counters": no_call_counters,
-            }
-        )
-        if no_call_counters_closed
-        else ""
-    )
     read_model_available = (
         str(
             execution_capsule_authz_final_authz_final_authorization_export_read_model.get(
@@ -9361,127 +9193,82 @@ def _manual_provider_test_execution_capsule_authz_final_authz_final_authorizatio
         )
         == 0
     )
-    component_checks = [
-        str(
-            execution_capsule_authz_final_authz_final_authorization_export.get(
-                "status", ""
-            )
-        )
-        == "blocked"
-        and str(
-            execution_capsule_authz_final_authz_final_authorization_export.get(
-                "reason", ""
-            )
-        )
-        == "execution_capsule_authz_final_authz_final_authz_export_execution_closed"
-        and bool(export_hash)
-        and _coerce_int(
-            execution_capsule_authz_final_authz_final_authorization_export.get(
-                "execution_permission_count", 0
-            )
-        )
-        == 0,
-        bool(expected_export_hash) and expected_export_hash == export_hash,
-        bool(handoff_payload),
-        bool(supplied_export_hash) and supplied_export_hash == export_hash,
-        read_model_available,
-        handoff_requested,
-        claim_boundary_closed,
-        no_call_counters_closed,
-    ]
-    component_count = len(component_checks)
-    passed_component_count = sum(1 for check in component_checks if check)
-    mismatch_count = component_count - passed_component_count
-    component_hash_count = sum(
-        1
-        for value in (
-            export_hash,
-            read_model_hash,
-            claim_boundary_hash,
-            no_call_counters_hash,
-        )
-        if value
-    )
-
-    if not component_checks[0]:
-        reason = (
+    evaluation = _evaluate_no_call_hash_boundary(
+        projection_version=(
+            MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_HANDOFF_PACKET_VERSION
+        ),
+        upstream_projection=execution_capsule_authz_final_authz_final_authorization_export,
+        upstream_expected_reason=(
+            "execution_capsule_authz_final_authz_final_authz_export_execution_closed"
+        ),
+        upstream_hash=export_hash,
+        expected_upstream_hash=expected_export_hash,
+        payload_present=bool(handoff_payload),
+        supplied_upstream_hash=supplied_export_hash,
+        local_evidence_hash=read_model_hash,
+        local_evidence_present=read_model_available,
+        request_present=handoff_requested,
+        execution_boundary=execution_boundary,
+        reason_if_upstream_invalid=(
             "execution_capsule_authz_final_authz_final_authz_export_missing_or_mismatched"
-        )
-    elif not expected_export_hash:
-        reason = (
+        ),
+        reason_if_expected_missing=(
             "expected_execution_capsule_authz_final_authz_final_authz_export_hash_required"
-        )
-    elif expected_export_hash != export_hash:
-        reason = "execution_capsule_authz_final_authz_final_authz_export_hash_mismatch"
-    elif not component_checks[2]:
-        reason = (
+        ),
+        reason_if_expected_mismatch=(
+            "execution_capsule_authz_final_authz_final_authz_export_hash_mismatch"
+        ),
+        reason_if_payload_missing=(
             "execution_capsule_authz_final_authz_final_authz_handoff_packet_required"
-        )
-    elif not component_checks[3]:
-        reason = (
+        ),
+        reason_if_supplied_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_handoff_packet_hash_mismatch"
-        )
-    elif not component_checks[4]:
-        reason = (
+        ),
+        reason_if_evidence_missing=(
             "execution_capsule_authz_final_authz_final_authz_export_read_model_missing_or_mismatched"
-        )
-    elif not component_checks[5]:
-        reason = (
+        ),
+        reason_if_request_missing=(
             "execution_capsule_authz_final_authz_final_authz_handoff_packet_request_required"
-        )
-    elif not component_checks[6]:
-        reason = (
+        ),
+        reason_if_claim_boundary_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_handoff_packet_claim_boundary_mismatch"
-        )
-    elif not component_checks[7]:
-        reason = (
+        ),
+        reason_if_no_call_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_handoff_packet_no_call_counters_mismatch"
-        )
-    else:
-        reason = (
+        ),
+        reason_if_complete=(
             "execution_capsule_authz_final_authz_final_authz_handoff_packet_execution_closed"
-        )
-
-    handoff_packet_hash = ""
-    if mismatch_count == 0:
-        handoff_packet_hash = stable_contract_hash(
-            {
-                "projection_version": (
-                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_HANDOFF_PACKET_VERSION
-                ),
-                "execution_capsule_authz_final_authz_final_authz_export_hash": (
-                    export_hash
-                ),
-                "execution_capsule_authz_final_authz_final_authz_export_read_model_hash": (
-                    read_model_hash
-                ),
-                "claim_boundary_hash": claim_boundary_hash,
-                "no_call_counters_hash": no_call_counters_hash,
-                "component_count": component_count,
-                "execution_permission": "closed",
-            }
-        )
+        ),
+        boundary_hash_components={
+            "execution_capsule_authz_final_authz_final_authz_export_hash": (
+                export_hash
+            ),
+            "execution_capsule_authz_final_authz_final_authz_export_read_model_hash": (
+                read_model_hash
+            ),
+        },
+    )
 
     return _safe_public_payload(
         {
             "status": "blocked",
-            "reason": reason,
+            "reason": evaluation.reason,
             "execution_capsule_authz_final_authz_final_authz_handoff_packet_hash": (
-                handoff_packet_hash
+                evaluation.boundary_hash
             ),
             "execution_capsule_authz_final_authz_final_authz_export_hash": export_hash,
             "execution_capsule_authz_final_authz_final_authz_export_read_model_hash": (
                 read_model_hash
             ),
-            "claim_boundary_hash": claim_boundary_hash,
-            "no_call_counters_hash": no_call_counters_hash,
-            "packet_count": 1 if handoff_packet_hash else 0,
-            "component_count": component_count,
-            "passed_component_count": passed_component_count,
-            "mismatch_count": mismatch_count,
-            "component_hash_count": component_hash_count,
-            "no_call_counter_count": len(no_call_counters),
-            "claim_boundary_check_count": 3,
+            "claim_boundary_hash": evaluation.claim_boundary_hash,
+            "no_call_counters_hash": evaluation.no_call_counters_hash,
+            "packet_count": 1 if evaluation.boundary_hash else 0,
+            "component_count": evaluation.component_count,
+            "passed_component_count": evaluation.passed_component_count,
+            "mismatch_count": evaluation.mismatch_count,
+            "component_hash_count": evaluation.component_hash_count,
+            "no_call_counter_count": evaluation.no_call_counter_count,
+            "claim_boundary_check_count": evaluation.claim_boundary_check_count,
             "export_read_model_count": 1 if read_model_available else 0,
             "handoff_request_count": 1 if handoff_requested else 0,
             "execution_permission_count": 0,
@@ -9557,160 +9344,78 @@ def _manual_provider_test_execution_capsule_authz_final_authz_final_authorizatio
         else ""
     )
     review_requested = review_payload.get("review_requested") is True
-    claim_boundary = _provider_envelope_claim_boundary_projection()
-    claim_boundary_closed = (
-        claim_boundary.get("external_provider_outcome") is False
-        and claim_boundary.get("target_runtime_outcome") is False
-        and claim_boundary.get("production_trust_claim") is False
-    )
-    claim_boundary_hash = (
-        stable_contract_hash(
-            {
-                "projection_version": (
-                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_OPERATOR_REVIEW_VERSION
-                ),
-                "claim_boundary": claim_boundary,
-            }
-        )
-        if claim_boundary_closed
-        else ""
-    )
-    no_call_counters = _executor_preflight_no_call_counters(execution_boundary)
-    no_call_counters_closed = all(value == 0 for value in no_call_counters.values())
-    no_call_counters_hash = (
-        stable_contract_hash(
-            {
-                "projection_version": (
-                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_OPERATOR_REVIEW_VERSION
-                ),
-                "no_call_counters": no_call_counters,
-            }
-        )
-        if no_call_counters_closed
-        else ""
-    )
-    component_checks = [
-        str(
-            execution_capsule_authz_final_authz_final_authorization_handoff_packet.get(
-                "status", ""
-            )
-        )
-        == "blocked"
-        and str(
-            execution_capsule_authz_final_authz_final_authorization_handoff_packet.get(
-                "reason", ""
-            )
-        )
-        == "execution_capsule_authz_final_authz_final_authz_handoff_packet_execution_closed"
-        and bool(handoff_packet_hash)
-        and _coerce_int(
-            execution_capsule_authz_final_authz_final_authorization_handoff_packet.get(
-                "execution_permission_count", 0
-            )
-        )
-        == 0,
-        bool(expected_handoff_packet_hash)
-        and expected_handoff_packet_hash == handoff_packet_hash,
-        bool(review_payload),
-        bool(supplied_handoff_packet_hash)
-        and supplied_handoff_packet_hash == handoff_packet_hash,
-        bool(operator_review_hash),
-        review_requested,
-        claim_boundary_closed,
-        no_call_counters_closed,
-    ]
-    component_count = len(component_checks)
-    passed_component_count = sum(1 for check in component_checks if check)
-    mismatch_count = component_count - passed_component_count
-    component_hash_count = sum(
-        1
-        for value in (
-            handoff_packet_hash,
-            operator_review_hash,
-            claim_boundary_hash,
-            no_call_counters_hash,
-        )
-        if value
-    )
-
-    if not component_checks[0]:
-        reason = (
+    evaluation = _evaluate_no_call_hash_boundary(
+        projection_version=(
+            MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_OPERATOR_REVIEW_VERSION
+        ),
+        upstream_projection=execution_capsule_authz_final_authz_final_authorization_handoff_packet,
+        upstream_expected_reason=(
+            "execution_capsule_authz_final_authz_final_authz_handoff_packet_execution_closed"
+        ),
+        upstream_hash=handoff_packet_hash,
+        expected_upstream_hash=expected_handoff_packet_hash,
+        payload_present=bool(review_payload),
+        supplied_upstream_hash=supplied_handoff_packet_hash,
+        local_evidence_hash=operator_review_hash,
+        request_present=review_requested,
+        execution_boundary=execution_boundary,
+        reason_if_upstream_invalid=(
             "execution_capsule_authz_final_authz_final_authz_handoff_packet_missing_or_mismatched"
-        )
-    elif not expected_handoff_packet_hash:
-        reason = (
+        ),
+        reason_if_expected_missing=(
             "expected_execution_capsule_authz_final_authz_final_authz_handoff_packet_hash_required"
-        )
-    elif expected_handoff_packet_hash != handoff_packet_hash:
-        reason = (
+        ),
+        reason_if_expected_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_handoff_packet_hash_mismatch"
-        )
-    elif not component_checks[2]:
-        reason = (
+        ),
+        reason_if_payload_missing=(
             "execution_capsule_authz_final_authz_final_authz_operator_review_required"
-        )
-    elif not component_checks[3]:
-        reason = (
+        ),
+        reason_if_supplied_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_operator_review_handoff_hash_mismatch"
-        )
-    elif not component_checks[4]:
-        reason = (
+        ),
+        reason_if_evidence_missing=(
             "execution_capsule_authz_final_authz_final_authz_operator_review_required"
-        )
-    elif not component_checks[5]:
-        reason = (
+        ),
+        reason_if_request_missing=(
             "execution_capsule_authz_final_authz_final_authz_operator_review_request_required"
-        )
-    elif not component_checks[6]:
-        reason = (
+        ),
+        reason_if_claim_boundary_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_operator_review_claim_boundary_mismatch"
-        )
-    elif not component_checks[7]:
-        reason = (
+        ),
+        reason_if_no_call_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_operator_review_no_call_counters_mismatch"
-        )
-    else:
-        reason = (
+        ),
+        reason_if_complete=(
             "execution_capsule_authz_final_authz_final_authz_operator_review_execution_closed"
-        )
-
-    operator_review_projection_hash = ""
-    if mismatch_count == 0:
-        operator_review_projection_hash = stable_contract_hash(
-            {
-                "projection_version": (
-                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_OPERATOR_REVIEW_VERSION
-                ),
-                "execution_capsule_authz_final_authz_final_authz_handoff_packet_hash": (
-                    handoff_packet_hash
-                ),
-                "operator_review_hash": operator_review_hash,
-                "claim_boundary_hash": claim_boundary_hash,
-                "no_call_counters_hash": no_call_counters_hash,
-                "component_count": component_count,
-                "execution_permission": "closed",
-            }
-        )
+        ),
+        boundary_hash_components={
+            "execution_capsule_authz_final_authz_final_authz_handoff_packet_hash": (
+                handoff_packet_hash
+            ),
+            "operator_review_hash": operator_review_hash,
+        },
+    )
 
     return _safe_public_payload(
         {
             "status": "blocked",
-            "reason": reason,
+            "reason": evaluation.reason,
             "execution_capsule_authz_final_authz_final_authz_operator_review_hash": (
-                operator_review_projection_hash
+                evaluation.boundary_hash
             ),
             "execution_capsule_authz_final_authz_final_authz_handoff_packet_hash": (
                 handoff_packet_hash
             ),
             "operator_review_hash": operator_review_hash,
-            "claim_boundary_hash": claim_boundary_hash,
-            "no_call_counters_hash": no_call_counters_hash,
-            "component_count": component_count,
-            "passed_component_count": passed_component_count,
-            "mismatch_count": mismatch_count,
-            "component_hash_count": component_hash_count,
-            "no_call_counter_count": len(no_call_counters),
-            "claim_boundary_check_count": 3,
+            "claim_boundary_hash": evaluation.claim_boundary_hash,
+            "no_call_counters_hash": evaluation.no_call_counters_hash,
+            "component_count": evaluation.component_count,
+            "passed_component_count": evaluation.passed_component_count,
+            "mismatch_count": evaluation.mismatch_count,
+            "component_hash_count": evaluation.component_hash_count,
+            "no_call_counter_count": evaluation.no_call_counter_count,
+            "claim_boundary_check_count": evaluation.claim_boundary_check_count,
             "operator_review_count": 1 if operator_review_hash else 0,
             "review_request_count": 1 if review_requested else 0,
             "execution_permission_count": 0,
@@ -9784,160 +9489,78 @@ def _manual_provider_test_execution_capsule_authz_final_authz_final_authorizatio
         else ""
     )
     decision_requested = decision_payload.get("decision_requested") is True
-    claim_boundary = _provider_envelope_claim_boundary_projection()
-    claim_boundary_closed = (
-        claim_boundary.get("external_provider_outcome") is False
-        and claim_boundary.get("target_runtime_outcome") is False
-        and claim_boundary.get("production_trust_claim") is False
-    )
-    claim_boundary_hash = (
-        stable_contract_hash(
-            {
-                "projection_version": (
-                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_OPERATOR_DECISION_VERSION
-                ),
-                "claim_boundary": claim_boundary,
-            }
-        )
-        if claim_boundary_closed
-        else ""
-    )
-    no_call_counters = _executor_preflight_no_call_counters(execution_boundary)
-    no_call_counters_closed = all(value == 0 for value in no_call_counters.values())
-    no_call_counters_hash = (
-        stable_contract_hash(
-            {
-                "projection_version": (
-                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_OPERATOR_DECISION_VERSION
-                ),
-                "no_call_counters": no_call_counters,
-            }
-        )
-        if no_call_counters_closed
-        else ""
-    )
-    component_checks = [
-        str(
-            execution_capsule_authz_final_authz_final_authorization_operator_review.get(
-                "status", ""
-            )
-        )
-        == "blocked"
-        and str(
-            execution_capsule_authz_final_authz_final_authorization_operator_review.get(
-                "reason", ""
-            )
-        )
-        == "execution_capsule_authz_final_authz_final_authz_operator_review_execution_closed"
-        and bool(operator_review_hash)
-        and _coerce_int(
-            execution_capsule_authz_final_authz_final_authorization_operator_review.get(
-                "execution_permission_count", 0
-            )
-        )
-        == 0,
-        bool(expected_operator_review_hash)
-        and expected_operator_review_hash == operator_review_hash,
-        bool(decision_payload),
-        bool(supplied_operator_review_hash)
-        and supplied_operator_review_hash == operator_review_hash,
-        bool(operator_decision_hash),
-        decision_requested,
-        claim_boundary_closed,
-        no_call_counters_closed,
-    ]
-    component_count = len(component_checks)
-    passed_component_count = sum(1 for check in component_checks if check)
-    mismatch_count = component_count - passed_component_count
-    component_hash_count = sum(
-        1
-        for value in (
-            operator_review_hash,
-            operator_decision_hash,
-            claim_boundary_hash,
-            no_call_counters_hash,
-        )
-        if value
-    )
-
-    if not component_checks[0]:
-        reason = (
+    evaluation = _evaluate_no_call_hash_boundary(
+        projection_version=(
+            MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_OPERATOR_DECISION_VERSION
+        ),
+        upstream_projection=execution_capsule_authz_final_authz_final_authorization_operator_review,
+        upstream_expected_reason=(
+            "execution_capsule_authz_final_authz_final_authz_operator_review_execution_closed"
+        ),
+        upstream_hash=operator_review_hash,
+        expected_upstream_hash=expected_operator_review_hash,
+        payload_present=bool(decision_payload),
+        supplied_upstream_hash=supplied_operator_review_hash,
+        local_evidence_hash=operator_decision_hash,
+        request_present=decision_requested,
+        execution_boundary=execution_boundary,
+        reason_if_upstream_invalid=(
             "execution_capsule_authz_final_authz_final_authz_operator_review_missing_or_mismatched"
-        )
-    elif not expected_operator_review_hash:
-        reason = (
+        ),
+        reason_if_expected_missing=(
             "expected_execution_capsule_authz_final_authz_final_authz_operator_review_hash_required"
-        )
-    elif expected_operator_review_hash != operator_review_hash:
-        reason = (
+        ),
+        reason_if_expected_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_operator_review_hash_mismatch"
-        )
-    elif not component_checks[2]:
-        reason = (
+        ),
+        reason_if_payload_missing=(
             "execution_capsule_authz_final_authz_final_authz_operator_decision_required"
-        )
-    elif not component_checks[3]:
-        reason = (
+        ),
+        reason_if_supplied_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_operator_decision_review_hash_mismatch"
-        )
-    elif not component_checks[4]:
-        reason = (
+        ),
+        reason_if_evidence_missing=(
             "execution_capsule_authz_final_authz_final_authz_operator_decision_required"
-        )
-    elif not component_checks[5]:
-        reason = (
+        ),
+        reason_if_request_missing=(
             "execution_capsule_authz_final_authz_final_authz_operator_decision_request_required"
-        )
-    elif not component_checks[6]:
-        reason = (
+        ),
+        reason_if_claim_boundary_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_operator_decision_claim_boundary_mismatch"
-        )
-    elif not component_checks[7]:
-        reason = (
+        ),
+        reason_if_no_call_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_operator_decision_no_call_counters_mismatch"
-        )
-    else:
-        reason = (
+        ),
+        reason_if_complete=(
             "execution_capsule_authz_final_authz_final_authz_operator_decision_execution_closed"
-        )
-
-    operator_decision_projection_hash = ""
-    if mismatch_count == 0:
-        operator_decision_projection_hash = stable_contract_hash(
-            {
-                "projection_version": (
-                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_OPERATOR_DECISION_VERSION
-                ),
-                "execution_capsule_authz_final_authz_final_authz_operator_review_hash": (
-                    operator_review_hash
-                ),
-                "operator_decision_hash": operator_decision_hash,
-                "claim_boundary_hash": claim_boundary_hash,
-                "no_call_counters_hash": no_call_counters_hash,
-                "component_count": component_count,
-                "execution_permission": "closed",
-            }
-        )
+        ),
+        boundary_hash_components={
+            "execution_capsule_authz_final_authz_final_authz_operator_review_hash": (
+                operator_review_hash
+            ),
+            "operator_decision_hash": operator_decision_hash,
+        },
+    )
 
     return _safe_public_payload(
         {
             "status": "blocked",
-            "reason": reason,
+            "reason": evaluation.reason,
             "execution_capsule_authz_final_authz_final_authz_operator_decision_hash": (
-                operator_decision_projection_hash
+                evaluation.boundary_hash
             ),
             "execution_capsule_authz_final_authz_final_authz_operator_review_hash": (
                 operator_review_hash
             ),
             "operator_decision_hash": operator_decision_hash,
-            "claim_boundary_hash": claim_boundary_hash,
-            "no_call_counters_hash": no_call_counters_hash,
-            "component_count": component_count,
-            "passed_component_count": passed_component_count,
-            "mismatch_count": mismatch_count,
-            "component_hash_count": component_hash_count,
-            "no_call_counter_count": len(no_call_counters),
-            "claim_boundary_check_count": 3,
+            "claim_boundary_hash": evaluation.claim_boundary_hash,
+            "no_call_counters_hash": evaluation.no_call_counters_hash,
+            "component_count": evaluation.component_count,
+            "passed_component_count": evaluation.passed_component_count,
+            "mismatch_count": evaluation.mismatch_count,
+            "component_hash_count": evaluation.component_hash_count,
+            "no_call_counter_count": evaluation.no_call_counter_count,
+            "claim_boundary_check_count": evaluation.claim_boundary_check_count,
             "operator_decision_count": 1 if operator_decision_hash else 0,
             "decision_request_count": 1 if decision_requested else 0,
             "execution_permission_count": 0,
@@ -10016,162 +9639,78 @@ def _manual_provider_test_execution_capsule_authz_final_authz_final_authorizatio
         else ""
     )
     attestation_requested = attestation_payload.get("attestation_requested") is True
-    claim_boundary = _provider_envelope_claim_boundary_projection()
-    claim_boundary_closed = (
-        claim_boundary.get("external_provider_outcome") is False
-        and claim_boundary.get("target_runtime_outcome") is False
-        and claim_boundary.get("production_trust_claim") is False
-    )
-    claim_boundary_hash = (
-        stable_contract_hash(
-            {
-                "projection_version": (
-                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_RELEASE_ATTESTATION_VERSION
-                ),
-                "claim_boundary": claim_boundary,
-            }
-        )
-        if claim_boundary_closed
-        else ""
-    )
-    no_call_counters = _executor_preflight_no_call_counters(execution_boundary)
-    no_call_counters_closed = all(value == 0 for value in no_call_counters.values())
-    no_call_counters_hash = (
-        stable_contract_hash(
-            {
-                "projection_version": (
-                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_RELEASE_ATTESTATION_VERSION
-                ),
-                "no_call_counters": no_call_counters,
-            }
-        )
-        if no_call_counters_closed
-        else ""
-    )
-    component_checks = [
-        str(
-            execution_capsule_authz_final_authz_final_authorization_operator_decision.get(
-                "status", ""
-            )
-        )
-        == "blocked"
-        and str(
-            execution_capsule_authz_final_authz_final_authorization_operator_decision.get(
-                "reason", ""
-            )
-        )
-        == "execution_capsule_authz_final_authz_final_authz_operator_decision_execution_closed"
-        and bool(operator_decision_hash)
-        and _coerce_int(
-            execution_capsule_authz_final_authz_final_authorization_operator_decision.get(
-                "execution_permission_count", 0
-            )
-        )
-        == 0,
-        bool(expected_operator_decision_hash)
-        and expected_operator_decision_hash == operator_decision_hash,
-        bool(attestation_payload),
-        bool(supplied_operator_decision_hash)
-        and supplied_operator_decision_hash == operator_decision_hash,
-        bool(release_attestation_hash),
-        attestation_requested,
-        claim_boundary_closed,
-        no_call_counters_closed,
-    ]
-    component_count = len(component_checks)
-    passed_component_count = sum(1 for check in component_checks if check)
-    mismatch_count = component_count - passed_component_count
-    component_hash_count = sum(
-        1
-        for value in (
-            operator_decision_hash,
-            release_attestation_hash,
-            claim_boundary_hash,
-            no_call_counters_hash,
-        )
-        if value
-    )
-
-    if not component_checks[0]:
-        reason = (
+    evaluation = _evaluate_no_call_hash_boundary(
+        projection_version=(
+            MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_RELEASE_ATTESTATION_VERSION
+        ),
+        upstream_projection=execution_capsule_authz_final_authz_final_authorization_operator_decision,
+        upstream_expected_reason=(
+            "execution_capsule_authz_final_authz_final_authz_operator_decision_execution_closed"
+        ),
+        upstream_hash=operator_decision_hash,
+        expected_upstream_hash=expected_operator_decision_hash,
+        payload_present=bool(attestation_payload),
+        supplied_upstream_hash=supplied_operator_decision_hash,
+        local_evidence_hash=release_attestation_hash,
+        request_present=attestation_requested,
+        execution_boundary=execution_boundary,
+        reason_if_upstream_invalid=(
             "execution_capsule_authz_final_authz_final_authz_operator_decision_missing_or_mismatched"
-        )
-    elif not expected_operator_decision_hash:
-        reason = (
+        ),
+        reason_if_expected_missing=(
             "expected_execution_capsule_authz_final_authz_final_authz_operator_decision_hash_required"
-        )
-    elif expected_operator_decision_hash != operator_decision_hash:
-        reason = (
+        ),
+        reason_if_expected_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_operator_decision_hash_mismatch"
-        )
-    elif not component_checks[2]:
-        reason = (
+        ),
+        reason_if_payload_missing=(
             "execution_capsule_authz_final_authz_final_authz_release_attestation_required"
-        )
-    elif not component_checks[3]:
-        reason = (
+        ),
+        reason_if_supplied_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_release_attestation_decision_hash_mismatch"
-        )
-    elif not component_checks[4]:
-        reason = (
+        ),
+        reason_if_evidence_missing=(
             "execution_capsule_authz_final_authz_final_authz_release_attestation_required"
-        )
-    elif not component_checks[5]:
-        reason = (
+        ),
+        reason_if_request_missing=(
             "execution_capsule_authz_final_authz_final_authz_release_attestation_request_required"
-        )
-    elif not component_checks[6]:
-        reason = (
+        ),
+        reason_if_claim_boundary_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_release_attestation_claim_boundary_mismatch"
-        )
-    elif not component_checks[7]:
-        reason = (
+        ),
+        reason_if_no_call_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_release_attestation_no_call_counters_mismatch"
-        )
-    else:
-        reason = (
+        ),
+        reason_if_complete=(
             "execution_capsule_authz_final_authz_final_authz_release_attestation_execution_closed"
-        )
-
-    execution_capsule_authz_final_authz_final_authz_release_attestation_hash = ""
-    if mismatch_count == 0:
-        execution_capsule_authz_final_authz_final_authz_release_attestation_hash = (
-            stable_contract_hash(
-                {
-                    "projection_version": (
-                        MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_RELEASE_ATTESTATION_VERSION
-                    ),
-                    "execution_capsule_authz_final_authz_final_authz_operator_decision_hash": (
-                        operator_decision_hash
-                    ),
-                    "release_attestation_hash": release_attestation_hash,
-                    "claim_boundary_hash": claim_boundary_hash,
-                    "no_call_counters_hash": no_call_counters_hash,
-                    "component_count": component_count,
-                    "execution_permission": "closed",
-                }
-            )
-        )
+        ),
+        boundary_hash_components={
+            "execution_capsule_authz_final_authz_final_authz_operator_decision_hash": (
+                operator_decision_hash
+            ),
+            "release_attestation_hash": release_attestation_hash,
+        },
+    )
 
     return _safe_public_payload(
         {
             "status": "blocked",
-            "reason": reason,
+            "reason": evaluation.reason,
             "execution_capsule_authz_final_authz_final_authz_release_attestation_hash": (
-                execution_capsule_authz_final_authz_final_authz_release_attestation_hash
+                evaluation.boundary_hash
             ),
             "execution_capsule_authz_final_authz_final_authz_operator_decision_hash": (
                 operator_decision_hash
             ),
             "release_attestation_hash": release_attestation_hash,
-            "claim_boundary_hash": claim_boundary_hash,
-            "no_call_counters_hash": no_call_counters_hash,
-            "component_count": component_count,
-            "passed_component_count": passed_component_count,
-            "mismatch_count": mismatch_count,
-            "component_hash_count": component_hash_count,
-            "no_call_counter_count": len(no_call_counters),
-            "claim_boundary_check_count": 3,
+            "claim_boundary_hash": evaluation.claim_boundary_hash,
+            "no_call_counters_hash": evaluation.no_call_counters_hash,
+            "component_count": evaluation.component_count,
+            "passed_component_count": evaluation.passed_component_count,
+            "mismatch_count": evaluation.mismatch_count,
+            "component_hash_count": evaluation.component_hash_count,
+            "no_call_counter_count": evaluation.no_call_counter_count,
+            "claim_boundary_check_count": evaluation.claim_boundary_check_count,
             "release_attestation_count": 1 if release_attestation_hash else 0,
             "attestation_request_count": 1 if attestation_requested else 0,
             "execution_permission_count": 0,
@@ -10248,162 +9787,78 @@ def _manual_provider_test_execution_capsule_authz_final_authz_final_authorizatio
         else ""
     )
     seal_requested = seal_payload.get("seal_requested") is True
-    claim_boundary = _provider_envelope_claim_boundary_projection()
-    claim_boundary_closed = (
-        claim_boundary.get("external_provider_outcome") is False
-        and claim_boundary.get("target_runtime_outcome") is False
-        and claim_boundary.get("production_trust_claim") is False
-    )
-    claim_boundary_hash = (
-        stable_contract_hash(
-            {
-                "projection_version": (
-                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_RELEASE_SEAL_VERSION
-                ),
-                "claim_boundary": claim_boundary,
-            }
-        )
-        if claim_boundary_closed
-        else ""
-    )
-    no_call_counters = _executor_preflight_no_call_counters(execution_boundary)
-    no_call_counters_closed = all(value == 0 for value in no_call_counters.values())
-    no_call_counters_hash = (
-        stable_contract_hash(
-            {
-                "projection_version": (
-                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_RELEASE_SEAL_VERSION
-                ),
-                "no_call_counters": no_call_counters,
-            }
-        )
-        if no_call_counters_closed
-        else ""
-    )
-    component_checks = [
-        str(
-            execution_capsule_authz_final_authz_final_authorization_release_attestation.get(
-                "status", ""
-            )
-        )
-        == "blocked"
-        and str(
-            execution_capsule_authz_final_authz_final_authorization_release_attestation.get(
-                "reason", ""
-            )
-        )
-        == "execution_capsule_authz_final_authz_final_authz_release_attestation_execution_closed"
-        and bool(release_attestation_hash)
-        and _coerce_int(
-            execution_capsule_authz_final_authz_final_authorization_release_attestation.get(
-                "execution_permission_count", 0
-            )
-        )
-        == 0,
-        bool(expected_release_attestation_hash)
-        and expected_release_attestation_hash == release_attestation_hash,
-        bool(seal_payload),
-        bool(supplied_release_attestation_hash)
-        and supplied_release_attestation_hash == release_attestation_hash,
-        bool(seal_material_hash),
-        seal_requested,
-        claim_boundary_closed,
-        no_call_counters_closed,
-    ]
-    component_count = len(component_checks)
-    passed_component_count = sum(1 for check in component_checks if check)
-    mismatch_count = component_count - passed_component_count
-    component_hash_count = sum(
-        1
-        for value in (
-            release_attestation_hash,
-            seal_material_hash,
-            claim_boundary_hash,
-            no_call_counters_hash,
-        )
-        if value
-    )
-
-    if not component_checks[0]:
-        reason = (
+    evaluation = _evaluate_no_call_hash_boundary(
+        projection_version=(
+            MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_RELEASE_SEAL_VERSION
+        ),
+        upstream_projection=execution_capsule_authz_final_authz_final_authorization_release_attestation,
+        upstream_expected_reason=(
+            "execution_capsule_authz_final_authz_final_authz_release_attestation_execution_closed"
+        ),
+        upstream_hash=release_attestation_hash,
+        expected_upstream_hash=expected_release_attestation_hash,
+        payload_present=bool(seal_payload),
+        supplied_upstream_hash=supplied_release_attestation_hash,
+        local_evidence_hash=seal_material_hash,
+        request_present=seal_requested,
+        execution_boundary=execution_boundary,
+        reason_if_upstream_invalid=(
             "execution_capsule_authz_final_authz_final_authz_release_attestation_missing_or_mismatched"
-        )
-    elif not expected_release_attestation_hash:
-        reason = (
+        ),
+        reason_if_expected_missing=(
             "expected_execution_capsule_authz_final_authz_final_authz_release_attestation_hash_required"
-        )
-    elif expected_release_attestation_hash != release_attestation_hash:
-        reason = (
+        ),
+        reason_if_expected_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_release_attestation_hash_mismatch"
-        )
-    elif not component_checks[2]:
-        reason = (
+        ),
+        reason_if_payload_missing=(
             "execution_capsule_authz_final_authz_final_authz_release_seal_required"
-        )
-    elif not component_checks[3]:
-        reason = (
+        ),
+        reason_if_supplied_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_release_seal_attestation_hash_mismatch"
-        )
-    elif not component_checks[4]:
-        reason = (
+        ),
+        reason_if_evidence_missing=(
             "execution_capsule_authz_final_authz_final_authz_release_seal_material_required"
-        )
-    elif not component_checks[5]:
-        reason = (
+        ),
+        reason_if_request_missing=(
             "execution_capsule_authz_final_authz_final_authz_release_seal_request_required"
-        )
-    elif not component_checks[6]:
-        reason = (
+        ),
+        reason_if_claim_boundary_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_release_seal_claim_boundary_mismatch"
-        )
-    elif not component_checks[7]:
-        reason = (
+        ),
+        reason_if_no_call_mismatch=(
             "execution_capsule_authz_final_authz_final_authz_release_seal_no_call_counters_mismatch"
-        )
-    else:
-        reason = (
+        ),
+        reason_if_complete=(
             "execution_capsule_authz_final_authz_final_authz_release_seal_execution_closed"
-        )
-
-    execution_capsule_authz_final_authz_final_authz_release_seal_hash = ""
-    if mismatch_count == 0:
-        execution_capsule_authz_final_authz_final_authz_release_seal_hash = (
-            stable_contract_hash(
-                {
-                    "projection_version": (
-                        MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_FINAL_AUTHORIZATION_RELEASE_SEAL_VERSION
-                    ),
-                    "execution_capsule_authz_final_authz_final_authz_release_attestation_hash": (
-                        release_attestation_hash
-                    ),
-                    "seal_material_hash": seal_material_hash,
-                    "claim_boundary_hash": claim_boundary_hash,
-                    "no_call_counters_hash": no_call_counters_hash,
-                    "component_count": component_count,
-                    "execution_permission": "closed",
-                }
-            )
-        )
+        ),
+        boundary_hash_components={
+            "execution_capsule_authz_final_authz_final_authz_release_attestation_hash": (
+                release_attestation_hash
+            ),
+            "seal_material_hash": seal_material_hash,
+        },
+    )
 
     return _safe_public_payload(
         {
             "status": "blocked",
-            "reason": reason,
+            "reason": evaluation.reason,
             "execution_capsule_authz_final_authz_final_authz_release_seal_hash": (
-                execution_capsule_authz_final_authz_final_authz_release_seal_hash
+                evaluation.boundary_hash
             ),
             "execution_capsule_authz_final_authz_final_authz_release_attestation_hash": (
                 release_attestation_hash
             ),
             "seal_material_hash": seal_material_hash,
-            "claim_boundary_hash": claim_boundary_hash,
-            "no_call_counters_hash": no_call_counters_hash,
-            "component_count": component_count,
-            "passed_component_count": passed_component_count,
-            "mismatch_count": mismatch_count,
-            "component_hash_count": component_hash_count,
-            "no_call_counter_count": len(no_call_counters),
-            "claim_boundary_check_count": 3,
+            "claim_boundary_hash": evaluation.claim_boundary_hash,
+            "no_call_counters_hash": evaluation.no_call_counters_hash,
+            "component_count": evaluation.component_count,
+            "passed_component_count": evaluation.passed_component_count,
+            "mismatch_count": evaluation.mismatch_count,
+            "component_hash_count": evaluation.component_hash_count,
+            "no_call_counter_count": evaluation.no_call_counter_count,
+            "claim_boundary_check_count": evaluation.claim_boundary_check_count,
             "seal_material_count": 1 if seal_material_hash else 0,
             "seal_request_count": 1 if seal_requested else 0,
             "execution_permission_count": 0,
