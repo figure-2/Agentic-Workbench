@@ -118,6 +118,7 @@ sequenceDiagram
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_handoff_packet` | local disabled execution capsule authz final authorization final authorization final authorization handoff packet over authz final authorization final authorization final authorization export, export read-model, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_review` | local disabled execution capsule authz final authorization final authorization final authorization operator review over authz final authorization final authorization final authorization handoff packet, operator-review, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_operator_decision` | local disabled execution capsule authz final authorization final authorization final authorization operator decision over authz final authorization final authorization final authorization operator-review, operator-decision, claim-boundary, and no-call counter hashes |
+| `manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_release_attestation` | local disabled execution capsule authz final authorization final authorization final authorization release attestation over authz final authorization final authorization final authorization operator-decision, release-attestation, claim-boundary, and no-call counter hashes |
 
 ## Persistence Boundary
 
@@ -716,6 +717,13 @@ decision requires the operator review hash from `AW-LIVE-63` and a matching
 expected review hash. It binds operator-review, operator-decision,
 claim-boundary, and no-call counter hashes into one status/reason/hash/count
 projection while keeping `execution_permission_count=0`.
+
+`AW-LIVE-65` adds the disabled first-call execution capsule authz final
+authorization final authorization final authorization release attestation. The
+attestation requires the operator decision hash from `AW-LIVE-64` and a
+matching expected decision hash. It binds operator-decision,
+release-attestation, claim-boundary, and no-call counter hashes into one
+status/reason/hash/count projection while keeping `execution_permission_count=0`.
 
 ## Target-Only Runtime
 

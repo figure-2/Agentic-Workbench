@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-64` disabled execution capsule authorization final authorization final authorization final authorization operator decision boundary.
+Current snapshot after `AW-LIVE-65` disabled execution capsule authorization final authorization final authorization final authorization release attestation boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 322 |
-| Counted code/doc files, excluding cache and private SoT | 322 |
-| Project lines, excluding cache and private SoT | 84,102 |
+| Project files, excluding cache and private SoT | 325 |
+| Counted code/doc files, excluding cache and private SoT | 325 |
+| Project lines, excluding cache and private SoT | 85,337 |
 | Python files | 76 |
-| Markdown files | 241 |
+| Markdown files | 244 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 561 |
-| Pytest passed cases | 561 |
+| Pytest collected cases | 564 |
+| Pytest passed cases | 564 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -4506,6 +4506,65 @@ operator decision boundary.
 
 Interpretation: this adds a local disabled execution capsule authorization
 final authorization final authorization final authorization operator decision
+for a later manual provider test candidate. It does not add an external call
+path, SDK integration, env value access, network access, provider response
+parsing, hosted execution, live operator approval, or production provider
+readiness.
+
+## AW-LIVE-65 Disabled Execution Capsule Authz Final Authz Final Authorization Final Authorization Release Attestation Metrics
+
+Measured after adding the blocked disabled first-call execution capsule
+authorization final authorization final authorization final authorization
+release attestation boundary.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 564 |
+| Pytest passed cases | 564 |
+| Regression delta vs AW-LIVE-64 baseline | +3 |
+| API execution capsule authz final authz final authorization final authorization release attestation integration tests | 3 |
+| Provider envelope API integration tests, cumulative documented boundary cases | 189 |
+| Demo provider envelope smoke tests | 1 |
+| Execution capsule authz final authz final authorization final authorization release attestation public summary fields | 16 |
+| Execution capsule authz final authz final authorization final authorization release attestation component count | 8 |
+| Execution capsule authz final authz final authorization final authorization release attestation component hash count | 4 |
+| Execution capsule authz final authz final authorization final authorization release attestation no-call counter count | 13 |
+| Claim-boundary check count | 3 |
+| Release attestation count with complete attestation | 1 |
+| Attestation request count with complete attestation | 1 |
+| Release attestation passed count with missing expected operator decision hash | 7 |
+| Release attestation mismatch count with missing expected operator decision hash | 1 |
+| Release attestation passed count without attestation payload | 4 |
+| Release attestation mismatch count without attestation payload | 4 |
+| Release attestation passed count with complete attestation | 8 |
+| Release attestation mismatch count with complete attestation | 0 |
+| Execution permission count with complete attestation | 0 |
+| Missing expected operator decision hash reason | expected_execution_capsule_authz_final_authz_final_authz_final_authz_operator_decision_hash_required |
+| Missing release attestation payload reason | execution_capsule_authz_final_authz_final_authz_final_authz_release_attestation_required |
+| Complete release attestation reason | execution_capsule_authz_final_authz_final_authz_final_authz_release_attestation_execution_closed |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Raw operator identity findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| execution capsule authz final authorization final authorization final authorization operator decision hash exists before release attestation | covered |
+| expected execution capsule authz final authorization final authorization final authorization operator decision hash must match | covered |
+| execution capsule authz final authorization final authorization final authorization release attestation payload is required | covered |
+| supplied attestation upstream hash must match computed operator decision hash | covered |
+| release attestation is represented as hash/count evidence | covered |
+| release attestation request is required | covered |
+| claim boundary is represented as hash/count evidence | covered |
+| public authz final authz final authorization final authorization release attestation exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled execution capsule authorization
+final authorization final authorization final authorization release attestation
 for a later manual provider test candidate. It does not add an external call
 path, SDK integration, env value access, network access, provider response
 parsing, hosted execution, live operator approval, or production provider
