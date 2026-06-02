@@ -140,6 +140,7 @@ Current implementation:
 - Disabled first-call execution capsule authorization final authorization final authorization final authorization operator decision over authz final authorization final authorization final authorization operator-review, operator-decision, claim-boundary, and no-call counter hashes
 - Disabled first-call execution capsule authorization final authorization final authorization final authorization release attestation over authz final authorization final authorization final authorization operator-decision, release-attestation, claim-boundary, and no-call counter hashes
 - Disabled first-call execution capsule authorization final authorization final authorization final authorization release seal over authz final authorization final authorization final authorization release-attestation, seal-material, claim-boundary, and no-call counter hashes
+- Disabled first-call execution capsule authorization final authorization final authorization final authorization final authorization over authz final authorization final authorization final authorization release seal, final-authorization, claim-boundary, and no-call counter hashes
 - Test-only DIV/DAACS source identity fixtures for parity reference
 - Fixture-based source identity smoke path from planning artifact to dry-run report
 - Source-to-target trace and portfolio-safe claim projection for parity evidence
@@ -276,6 +277,8 @@ Allowed public summary:
 - Local disabled execution capsule authorization final authorization final authorization final authorization operator review over authz final authorization final authorization final authorization handoff packet, operator-review, claim-boundary, and no-call counter hashes
 - Local disabled execution capsule authorization final authorization final authorization final authorization operator decision over authz final authorization final authorization final authorization operator-review, operator-decision, claim-boundary, and no-call counter hashes
 - Local disabled execution capsule authorization final authorization final authorization final authorization release attestation over authz final authorization final authorization final authorization operator-decision, release-attestation, claim-boundary, and no-call counter hashes
+- Local disabled execution capsule authorization final authorization final authorization final authorization release seal over authz final authorization final authorization final authorization release-attestation, seal-material, claim-boundary, and no-call counter hashes
+- Local disabled execution capsule authorization final authorization final authorization final authorization final authorization over authz final authorization final authorization final authorization release seal, final-authorization, claim-boundary, and no-call counter hashes
 - Public output designed around sanitized summaries and correlation hashes
 
 Do not interpret current results as:
@@ -347,6 +350,7 @@ Do not interpret current results as:
 - Execution capsule authorization final authorization final authorization final authorization operator decision as provider execution permission, provider behavior evidence, live operator approval, hosted execution, or production provider readiness
 - Execution capsule authorization final authorization final authorization final authorization release attestation as provider execution permission, provider behavior evidence, live operator approval, hosted execution, or production provider readiness
 - Execution capsule authorization final authorization final authorization final authorization release seal as provider execution permission, provider behavior evidence, live operator approval, hosted execution, or production provider readiness
+- Execution capsule authorization final authorization final authorization final authorization final authorization as provider execution permission, provider behavior evidence, live operator approval, hosted execution, or production provider readiness
 
 ## Status
 
@@ -354,4 +358,6 @@ Current status: contract/gate/dry-run/fake-boundary MVP with sanitized public AP
 
 Current status also includes a fail-closed live-open policy gate. A passing policy decision can only mark a future surface as eligible for a separate implementation unit; it does not grant execution permission.
 
-Next implementation track: disabled first-call final no-call execution capsule authorization final authorization final authorization final authorization final authorization boundary. It must still keep external calls closed by default until a later explicitly approved call-opening task.
+Current status addendum: AW-LIVE-67 adds the disabled first-call execution capsule authorization final authorization final authorization final authorization final authorization boundary over release-seal, final-authorization, claim-boundary, and no-call counter hashes while keeping execution permission closed.
+
+Next implementation track: disabled first-call final no-call execution capsule authorization final authorization final authorization final authorization final authorization export/read-model boundary. A separate helper-pattern cleanup should also be considered within one or two steps because the no-call capsule gates are now intentionally repetitive.
