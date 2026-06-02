@@ -114,6 +114,8 @@ sequenceDiagram
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_release_attestation` | local disabled execution capsule authz final authorization final authorization release attestation over authz final authorization final authorization operator-decision, release-attestation, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_release_seal` | local disabled execution capsule authz final authorization final authorization release seal over authz final authorization final authorization release-attestation, seal-material, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz` | local disabled execution capsule authz final authorization final authorization final authorization over authz final authorization final authorization release seal, final-authorization, claim-boundary, and no-call counter hashes |
+| `manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_export` | local disabled execution capsule authz final authorization final authorization final authorization export/read-model over authz final authorization final authorization final authorization, export metadata, claim-boundary, and no-call counter hashes |
+| `manual_provider_test_execution_capsule_authz_final_authz_final_authz_final_authz_handoff_packet` | local disabled execution capsule authz final authorization final authorization final authorization handoff packet over authz final authorization final authorization final authorization export, export read-model, claim-boundary, and no-call counter hashes |
 
 ## Persistence Boundary
 
@@ -692,6 +694,13 @@ counter hashes into one status/reason/hash/count projection. The export and
 read-model still keep `execution_permission_count=0` and do not open provider,
 SDK, env value, network, or target runtime calls.
 
+`AW-LIVE-62` adds the disabled first-call execution capsule authz final
+authorization final authorization final authorization handoff packet. The
+handoff requires the export hash from `AW-LIVE-61`, a matching expected export
+hash, and a read-model that points to the same export hash. It binds export,
+export read-model, claim-boundary, and no-call counter hashes into one
+status/reason/hash/count projection while keeping `execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -716,6 +725,9 @@ outside the current executable path.
   is local no-call evidence only and must not become provider-result evidence.
 - execution capsule authz final-authorization final authorization handoff packet
   is local no-call evidence only and must not become provider-result evidence.
+- execution capsule authz final-authorization final authorization final
+  authorization export/read-model and handoff packet are local no-call evidence
+  only and must not become provider-result evidence.
 - repository rows are checked for forbidden public keys and unsupported claims.
 - SQLite writes use constraints and transactions for sanitized projection rows.
 - SQLite approval/replay rows keep immutable subject/decision hashes and
