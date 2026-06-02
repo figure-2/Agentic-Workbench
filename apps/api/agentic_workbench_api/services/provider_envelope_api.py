@@ -169,6 +169,9 @@ MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_RELEASE_SEAL_VERSION = (
 MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHORIZATION_VERSION = (
     "manual-provider-test-disabled-first-call-execution-capsule-authz-final-authorization-v1"
 )
+MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_EXPORT_VERSION = (
+    "manual-provider-test-disabled-first-call-execution-capsule-authz-final-authz-export-v1"
+)
 
 EXECUTOR_PREFLIGHT_NO_CALL_COUNTER_FIELDS = (
     "live_llm_calls",
@@ -1296,6 +1299,49 @@ def _manual_provider_test_execution_capsule_authz_final_authorization_blocked(
             "final_authz_count": 0,
             "authz_request_count": 0,
             "execution_permission_count": 0,
+        }
+    )
+
+
+def _manual_provider_test_execution_capsule_authz_final_authz_export_blocked(
+    reason: str,
+) -> JsonDict:
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "execution_capsule_authz_final_authz_export_hash": "",
+            "execution_capsule_authz_final_authz_hash": "",
+            "export_metadata_hash": "",
+            "claim_boundary_hash": "",
+            "no_call_counters_hash": "",
+            "export_count": 0,
+            "component_count": 0,
+            "passed_component_count": 0,
+            "mismatch_count": 1,
+            "component_hash_count": 0,
+            "no_call_counter_count": 0,
+            "claim_boundary_check_count": 0,
+            "export_metadata_count": 0,
+            "export_request_count": 0,
+            "execution_permission_count": 0,
+        }
+    )
+
+
+def _manual_provider_test_execution_capsule_authz_final_authz_export_read_model_blocked(
+    reason: str,
+) -> JsonDict:
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "latest_execution_capsule_authz_final_authz_export_hash": "",
+            "counts": {
+                "execution_capsule_authz_final_authz_export_count": 0,
+                "component_count": 0,
+                "execution_permission_count": 0,
+            },
         }
     )
 
@@ -6670,6 +6716,241 @@ def _manual_provider_test_execution_capsule_authz_final_authorization_projection
     )
 
 
+def _manual_provider_test_execution_capsule_authz_final_authz_export_projection(
+    *,
+    payload: dict[str, Any],
+    execution_capsule_authz_final_authz: JsonDict,
+    execution_boundary: JsonDict,
+) -> JsonDict:
+    final_authz_hash = str(
+        execution_capsule_authz_final_authz.get(
+            "execution_capsule_authz_final_authz_hash", ""
+        )
+    ).strip()
+    expected_final_authz_hash = str(
+        payload.get("expected_execution_capsule_authz_final_authz_hash", "")
+    ).strip()
+    export_payload = (
+        payload.get("manual_test_execution_capsule_authz_final_authz_export")
+        if isinstance(
+            payload.get("manual_test_execution_capsule_authz_final_authz_export"),
+            dict,
+        )
+        else {}
+    )
+    supplied_final_authz_hash = str(
+        export_payload.get("execution_capsule_authz_final_authz_hash", "")
+    ).strip()
+    export_metadata = (
+        export_payload.get("export_metadata")
+        if isinstance(export_payload.get("export_metadata"), dict)
+        else {}
+    )
+    export_metadata_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": (
+                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_EXPORT_VERSION
+                ),
+                "export_kind": str(export_metadata.get("export_kind", "")).strip(),
+                "export_reason_code": str(
+                    export_metadata.get("export_reason_code", "")
+                ).strip(),
+                "exported_at": str(export_metadata.get("exported_at", "")).strip(),
+                "operator_ref_hash": stable_contract_hash(
+                    {
+                        "operator_ref": str(
+                            export_metadata.get("operator_ref", "")
+                        ).strip()
+                    }
+                )
+                if str(export_metadata.get("operator_ref", "")).strip()
+                else "",
+            }
+        )
+        if export_metadata
+        else ""
+    )
+    export_requested = export_payload.get("export_requested") is True
+    claim_boundary = _provider_envelope_claim_boundary_projection()
+    claim_boundary_closed = (
+        claim_boundary.get("external_provider_outcome") is False
+        and claim_boundary.get("target_runtime_outcome") is False
+        and claim_boundary.get("production_trust_claim") is False
+    )
+    claim_boundary_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": (
+                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_EXPORT_VERSION
+                ),
+                "claim_boundary": claim_boundary,
+            }
+        )
+        if claim_boundary_closed
+        else ""
+    )
+    no_call_counters = _executor_preflight_no_call_counters(execution_boundary)
+    no_call_counters_closed = all(value == 0 for value in no_call_counters.values())
+    no_call_counters_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": (
+                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_EXPORT_VERSION
+                ),
+                "no_call_counters": no_call_counters,
+            }
+        )
+        if no_call_counters_closed
+        else ""
+    )
+    component_checks = [
+        str(execution_capsule_authz_final_authz.get("status", "")) == "blocked"
+        and str(execution_capsule_authz_final_authz.get("reason", ""))
+        == "execution_capsule_authz_final_authz_execution_closed"
+        and bool(final_authz_hash)
+        and _coerce_int(
+            execution_capsule_authz_final_authz.get(
+                "execution_permission_count", 0
+            )
+        )
+        == 0,
+        bool(expected_final_authz_hash)
+        and expected_final_authz_hash == final_authz_hash,
+        bool(export_payload),
+        bool(supplied_final_authz_hash)
+        and supplied_final_authz_hash == final_authz_hash,
+        bool(export_metadata_hash),
+        export_requested,
+        claim_boundary_closed,
+        no_call_counters_closed,
+    ]
+    component_count = len(component_checks)
+    passed_component_count = sum(1 for check in component_checks if check)
+    mismatch_count = component_count - passed_component_count
+    component_hash_count = sum(
+        1
+        for value in (
+            final_authz_hash,
+            export_metadata_hash,
+            claim_boundary_hash,
+            no_call_counters_hash,
+        )
+        if value
+    )
+
+    if not component_checks[0]:
+        reason = "execution_capsule_authz_final_authz_missing_or_mismatched"
+    elif not expected_final_authz_hash:
+        reason = "expected_execution_capsule_authz_final_authz_hash_required"
+    elif expected_final_authz_hash != final_authz_hash:
+        reason = "execution_capsule_authz_final_authz_hash_mismatch"
+    elif not component_checks[2]:
+        reason = "execution_capsule_authz_final_authz_export_required"
+    elif not component_checks[3]:
+        reason = "execution_capsule_authz_final_authz_export_hash_mismatch"
+    elif not component_checks[4]:
+        reason = "execution_capsule_authz_final_authz_export_metadata_required"
+    elif not component_checks[5]:
+        reason = "execution_capsule_authz_final_authz_export_request_required"
+    elif not component_checks[6]:
+        reason = (
+            "execution_capsule_authz_final_authz_export_claim_boundary_mismatch"
+        )
+    elif not component_checks[7]:
+        reason = (
+            "execution_capsule_authz_final_authz_export_no_call_counters_mismatch"
+        )
+    else:
+        reason = "execution_capsule_authz_final_authz_export_execution_closed"
+
+    execution_capsule_authz_final_authz_export_hash = ""
+    if mismatch_count == 0:
+        execution_capsule_authz_final_authz_export_hash = stable_contract_hash(
+            {
+                "projection_version": (
+                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_EXPORT_VERSION
+                ),
+                "execution_capsule_authz_final_authz_hash": final_authz_hash,
+                "export_metadata_hash": export_metadata_hash,
+                "claim_boundary_hash": claim_boundary_hash,
+                "no_call_counters_hash": no_call_counters_hash,
+                "component_count": component_count,
+                "execution_permission": "closed",
+            }
+        )
+
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "execution_capsule_authz_final_authz_export_hash": (
+                execution_capsule_authz_final_authz_export_hash
+            ),
+            "execution_capsule_authz_final_authz_hash": final_authz_hash,
+            "export_metadata_hash": export_metadata_hash,
+            "claim_boundary_hash": claim_boundary_hash,
+            "no_call_counters_hash": no_call_counters_hash,
+            "export_count": (
+                1 if execution_capsule_authz_final_authz_export_hash else 0
+            ),
+            "component_count": component_count,
+            "passed_component_count": passed_component_count,
+            "mismatch_count": mismatch_count,
+            "component_hash_count": component_hash_count,
+            "no_call_counter_count": len(no_call_counters),
+            "claim_boundary_check_count": 3,
+            "export_metadata_count": 1 if export_metadata_hash else 0,
+            "export_request_count": 1 if export_requested else 0,
+            "execution_permission_count": 0,
+        }
+    )
+
+
+def _manual_provider_test_execution_capsule_authz_final_authz_export_read_model_projection(
+    export_projection: JsonDict,
+) -> JsonDict:
+    if (
+        str(export_projection.get("status", "")) == "blocked"
+        and str(export_projection.get("reason", ""))
+        == "execution_capsule_authz_final_authz_export_execution_closed"
+        and str(
+            export_projection.get(
+                "execution_capsule_authz_final_authz_export_hash", ""
+            )
+        ).strip()
+    ):
+        return _safe_public_payload(
+            {
+                "status": "available",
+                "reason": (
+                    "execution_capsule_authz_final_authz_export_read_model_available"
+                ),
+                "latest_execution_capsule_authz_final_authz_export_hash": str(
+                    export_projection.get(
+                        "execution_capsule_authz_final_authz_export_hash", ""
+                    )
+                ),
+                "counts": {
+                    "execution_capsule_authz_final_authz_export_count": int(
+                        export_projection.get("export_count", 0)
+                    ),
+                    "component_count": int(
+                        export_projection.get("component_count", 0)
+                    ),
+                    "execution_permission_count": int(
+                        export_projection.get("execution_permission_count", 0)
+                    ),
+                },
+            }
+        )
+    return (
+        _manual_provider_test_execution_capsule_authz_final_authz_export_read_model_blocked(
+            "execution_capsule_authz_final_authz_export_not_available"
+        )
+    )
+
+
 def _manual_test_proposal_projection(
     *,
     payload: dict[str, Any],
@@ -7412,6 +7693,40 @@ def provider_manual_test_execution_capsule_authz_final_authorization_summary(
     )
 
 
+def provider_manual_test_execution_capsule_authz_final_authz_export_summary(
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the public no-call first-call execution capsule authz final authz export."""
+    authz_final_authz = (
+        provider_manual_test_execution_capsule_authz_final_authorization_summary(
+            payload
+        )
+    )
+    return (
+        _manual_provider_test_execution_capsule_authz_final_authz_export_projection(
+            payload=payload,
+            execution_capsule_authz_final_authz=authz_final_authz,
+            execution_boundary=_zero_execution_boundary(),
+        )
+    )
+
+
+def provider_manual_test_execution_capsule_authz_final_authz_export_read_model_summary(
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the public no-call first-call execution capsule authz final authz export read model."""
+    authz_final_authz_export = (
+        provider_manual_test_execution_capsule_authz_final_authz_export_summary(
+            payload
+        )
+    )
+    return (
+        _manual_provider_test_execution_capsule_authz_final_authz_export_read_model_projection(
+            authz_final_authz_export
+        )
+    )
+
+
 def _review_packet_export_from_read_model(read_model: JsonDict) -> JsonDict:
     if str(read_model.get("status", "")) == "blocked":
         return _manual_provider_test_review_packet_export_blocked(
@@ -7563,6 +7878,8 @@ def _blocked_projection(
     manual_provider_test_execution_capsule_authz_release_attestation: JsonDict | None = None,
     manual_provider_test_execution_capsule_authz_release_seal: JsonDict | None = None,
     manual_provider_test_execution_capsule_authz_final_authorization: JsonDict | None = None,
+    manual_provider_test_execution_capsule_authz_final_authz_export: JsonDict | None = None,
+    manual_provider_test_execution_capsule_authz_final_authz_export_read_model: JsonDict | None = None,
 ) -> dict[str, Any]:
     selected_operator_approval = operator_approval_envelope or _operator_approval_missing_projection()
     selected_dry_admission = live_provider_dry_admission or _live_provider_dry_admission_checklist(
@@ -7813,6 +8130,18 @@ def _blocked_projection(
             "execution_capsule_authz_release_seal_not_evaluated"
         )
     )
+    selected_execution_capsule_authz_final_authz_export = (
+        manual_provider_test_execution_capsule_authz_final_authz_export
+        or _manual_provider_test_execution_capsule_authz_final_authz_export_blocked(
+            "execution_capsule_authz_final_authz_not_evaluated"
+        )
+    )
+    selected_execution_capsule_authz_final_authz_export_read_model = (
+        manual_provider_test_execution_capsule_authz_final_authz_export_read_model
+        or _manual_provider_test_execution_capsule_authz_final_authz_export_read_model_projection(
+            selected_execution_capsule_authz_final_authz_export
+        )
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -7921,6 +8250,12 @@ def _blocked_projection(
             ),
             "manual_provider_test_execution_capsule_authz_final_authz": (
                 selected_execution_capsule_authz_final_authorization
+            ),
+            "manual_provider_test_execution_capsule_authz_final_authz_export": (
+                selected_execution_capsule_authz_final_authz_export
+            ),
+            "manual_provider_test_execution_capsule_authz_final_authz_export_read_model": (
+                selected_execution_capsule_authz_final_authz_export_read_model
             ),
             "provider_envelope_read_model": read_model or {},
             "checks": [{"name": check_name, "passed": False}],
@@ -8466,6 +8801,20 @@ def _projection_from_result(
             execution_boundary=execution_boundary,
         )
     )
+    execution_capsule_authz_final_authz_export = (
+        _manual_provider_test_execution_capsule_authz_final_authz_export_projection(
+            payload=payload,
+            execution_capsule_authz_final_authz=(
+                execution_capsule_authz_final_authorization
+            ),
+            execution_boundary=execution_boundary,
+        )
+    )
+    execution_capsule_authz_final_authz_export_read_model = (
+        _manual_provider_test_execution_capsule_authz_final_authz_export_read_model_projection(
+            execution_capsule_authz_final_authz_export
+        )
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -8568,6 +8917,12 @@ def _projection_from_result(
             ),
             "manual_provider_test_execution_capsule_authz_final_authz": (
                 execution_capsule_authz_final_authorization
+            ),
+            "manual_provider_test_execution_capsule_authz_final_authz_export": (
+                execution_capsule_authz_final_authz_export
+            ),
+            "manual_provider_test_execution_capsule_authz_final_authz_export_read_model": (
+                execution_capsule_authz_final_authz_export_read_model
             ),
             "provider_envelope_read_model": read_model,
             "checks": _check_map(result.checks),
@@ -9185,6 +9540,16 @@ def read_provider_envelope_precheck(
                     "execution_capsule_authz_release_seal_missing_or_mismatched"
                 )
             ),
+            "manual_provider_test_execution_capsule_authz_final_authz_export": (
+                _manual_provider_test_execution_capsule_authz_final_authz_export_blocked(
+                    "execution_capsule_authz_final_authz_missing_or_mismatched"
+                )
+            ),
+            "manual_provider_test_execution_capsule_authz_final_authz_export_read_model": (
+                _manual_provider_test_execution_capsule_authz_final_authz_export_read_model_blocked(
+                    "execution_capsule_authz_final_authz_export_not_available"
+                )
+            ),
             "provider_envelope_read_model": read_model,
             "checks": [{"name": "provider_envelope_read_model_available", "passed": True}],
             "errors": [],
@@ -9248,6 +9613,7 @@ __all__ = [
     "MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_RELEASE_ATTESTATION_VERSION",
     "MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_RELEASE_SEAL_VERSION",
     "MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHORIZATION_VERSION",
+    "MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_EXPORT_VERSION",
     "provider_manual_test_proposal_summary",
     "provider_manual_test_preflight_summary",
     "provider_manual_test_review_packet_summary",
@@ -9284,6 +9650,8 @@ __all__ = [
     "provider_manual_test_execution_capsule_authz_release_attestation_summary",
     "provider_manual_test_execution_capsule_authz_release_seal_summary",
     "provider_manual_test_execution_capsule_authz_final_authorization_summary",
+    "provider_manual_test_execution_capsule_authz_final_authz_export_summary",
+    "provider_manual_test_execution_capsule_authz_final_authz_export_read_model_summary",
     "provider_precheck_operator_policy_summary",
     "read_provider_envelope_precheck",
     "run_provider_envelope_precheck",

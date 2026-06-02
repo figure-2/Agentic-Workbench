@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-46` disabled execution capsule authorization final authorization boundary.
+Current snapshot after `AW-LIVE-47` disabled execution capsule authorization final authorization export/read-model boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 268 |
-| Counted code/doc files, excluding cache and private SoT | 268 |
-| Project lines, excluding cache and private SoT | 62,498 |
+| Project files, excluding cache and private SoT | 271 |
+| Counted code/doc files, excluding cache and private SoT | 271 |
+| Project lines, excluding cache and private SoT | 63,846 |
 | Python files | 76 |
-| Markdown files | 187 |
+| Markdown files | 190 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 507 |
-| Pytest passed cases | 507 |
+| Pytest collected cases | 510 |
+| Pytest passed cases | 510 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -3505,3 +3505,62 @@ final authorization for a later manual provider test candidate. It does not add
 an external call path, SDK integration, env value access, network access,
 provider response parsing, hosted execution, live operator approval, or
 production provider readiness.
+
+## AW-LIVE-47 Disabled Execution Capsule Authz Final Authz Export Metrics
+
+Measured after adding the blocked disabled first-call execution capsule
+authorization final authorization export/read-model boundary.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 510 |
+| Pytest passed cases | 510 |
+| Regression delta vs AW-LIVE-46 baseline | +3 |
+| API execution capsule authz final authz export integration tests | 3 |
+| Provider envelope API integration tests | 135 |
+| Demo provider envelope smoke tests | 1 |
+| Execution capsule authz final authz export public summary fields | 17 |
+| Execution capsule authz final authz export read-model top-level fields | 4 |
+| Execution capsule authz final authz export component count | 8 |
+| Execution capsule authz final authz export component hash count | 4 |
+| Execution capsule authz final authz export no-call counter count | 13 |
+| Claim-boundary check count | 3 |
+| Export count with complete export | 1 |
+| Export metadata count with complete export | 1 |
+| Export request count with complete export | 1 |
+| Export passed count with missing expected authz final authz hash | 7 |
+| Export mismatch count with missing expected authz final authz hash | 1 |
+| Export passed count without export payload | 4 |
+| Export mismatch count without export payload | 4 |
+| Export passed count with complete export | 8 |
+| Execution permission count with complete export | 0 |
+| Read-model latest export hash count with complete export | 1 |
+| Read-model execution permission count with complete export | 0 |
+| Missing expected authz final authz hash reason | expected_execution_capsule_authz_final_authz_hash_required |
+| Missing final authz export payload reason | execution_capsule_authz_final_authz_export_required |
+| Complete final authz export reason | execution_capsule_authz_final_authz_export_execution_closed |
+| Read-model available reason | execution_capsule_authz_final_authz_export_read_model_available |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| execution capsule authz final authorization hash exists before export | covered |
+| expected execution capsule authz final authorization hash must match | covered |
+| execution capsule authz final authorization export payload is required | covered |
+| export metadata is represented as hash/count evidence | covered |
+| claim boundary is represented as hash/count evidence | covered |
+| read-model exposes latest export hash and counts only | covered |
+| public authz final authz export exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled execution capsule authorization
+final authorization export/read-model for a later manual provider test
+candidate. It does not add an external call path, SDK integration, env value
+access, network access, provider response parsing, hosted execution, live
+operator approval, or production provider readiness.

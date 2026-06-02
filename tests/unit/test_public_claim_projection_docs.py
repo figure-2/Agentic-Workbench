@@ -335,6 +335,24 @@ LIVE_46_WORK_ORDER_PATH = (
     / "work-orders"
     / "aw-live-46-execution-capsule-authz-final-authorization.md"
 )
+LIVE_47_PATH = (
+    ROOT
+    / "docs"
+    / "evals"
+    / "aw-live-47-execution-capsule-authz-final-authz-export.md"
+)
+LIVE_47_RUNBOOK_PATH = (
+    ROOT
+    / "docs"
+    / "runbooks"
+    / "aw-live-47-execution-capsule-authz-final-authz-export.md"
+)
+LIVE_47_WORK_ORDER_PATH = (
+    ROOT
+    / "docs"
+    / "work-orders"
+    / "aw-live-47-execution-capsule-authz-final-authz-export.md"
+)
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -485,6 +503,9 @@ PUBLIC_CLAIM_DOCS = [
     LIVE_46_PATH,
     LIVE_46_RUNBOOK_PATH,
     LIVE_46_WORK_ORDER_PATH,
+    LIVE_47_PATH,
+    LIVE_47_RUNBOOK_PATH,
+    LIVE_47_WORK_ORDER_PATH,
 ]
 
 
