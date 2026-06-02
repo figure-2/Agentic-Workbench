@@ -99,6 +99,7 @@ sequenceDiagram
 | `manual_provider_test_execution_capsule_authz_operator_decision` | local disabled execution capsule authz operator decision over authz operator-review, operator-decision, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_release_attestation` | local disabled execution capsule authz release attestation over authz operator-decision, release-attestation, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_release_seal` | local disabled execution capsule authz release seal over authz release-attestation, seal-material, claim-boundary, and no-call counter hashes |
+| `manual_provider_test_execution_capsule_authz_final_authz` | local disabled execution capsule authz final authorization over authz release seal, final-authorization, claim-boundary, and no-call counter hashes |
 
 ## Persistence Boundary
 
@@ -530,6 +531,14 @@ into one status/reason/hash/count projection. The seal still reports
 `execution_capsule_authz_release_seal_execution_closed` and keeps
 `execution_permission_count=0`.
 
+`AW-LIVE-46` adds a disabled first-call execution capsule authz final
+authorization. The authorization requires an execution capsule authz release
+seal hash and a separate expected authz release seal hash match. It binds authz
+release-seal, final-authorization, claim-boundary, and no-call counter hashes
+into one status/reason/hash/count projection. The authorization still reports
+`execution_capsule_authz_final_authz_execution_closed` and keeps
+`execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -679,3 +688,6 @@ outside the current executable path.
 - execution capsule authz release seals must bind to execution capsule authz
   release-attestation, seal-material, claim-boundary, and no-call counter
   hashes only and must not grant execution permission.
+- execution capsule authz final authorization must bind to execution capsule
+  authz release seal, final-authorization material, claim-boundary, and no-call
+  counter hashes only and must not grant execution permission.
