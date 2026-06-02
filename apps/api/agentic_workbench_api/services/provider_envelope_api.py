@@ -172,6 +172,9 @@ MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHORIZATION_VERSION = (
 MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_EXPORT_VERSION = (
     "manual-provider-test-disabled-first-call-execution-capsule-authz-final-authz-export-v1"
 )
+MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_HANDOFF_PACKET_VERSION = (
+    "manual-provider-test-disabled-first-call-execution-capsule-authz-final-authz-handoff-packet-v1"
+)
 
 EXECUTOR_PREFLIGHT_NO_CALL_COUNTER_FIELDS = (
     "live_llm_calls",
@@ -1342,6 +1345,32 @@ def _manual_provider_test_execution_capsule_authz_final_authz_export_read_model_
                 "component_count": 0,
                 "execution_permission_count": 0,
             },
+        }
+    )
+
+
+def _manual_provider_test_execution_capsule_authz_final_authz_handoff_packet_blocked(
+    reason: str,
+) -> JsonDict:
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "execution_capsule_authz_final_authz_handoff_packet_hash": "",
+            "execution_capsule_authz_final_authz_export_hash": "",
+            "execution_capsule_authz_final_authz_export_read_model_hash": "",
+            "claim_boundary_hash": "",
+            "no_call_counters_hash": "",
+            "packet_count": 0,
+            "component_count": 0,
+            "passed_component_count": 0,
+            "mismatch_count": 1,
+            "component_hash_count": 0,
+            "no_call_counter_count": 0,
+            "claim_boundary_check_count": 0,
+            "export_read_model_count": 0,
+            "handoff_request_count": 0,
+            "execution_permission_count": 0,
         }
     )
 
@@ -6951,6 +6980,201 @@ def _manual_provider_test_execution_capsule_authz_final_authz_export_read_model_
     )
 
 
+def _manual_provider_test_execution_capsule_authz_final_authz_handoff_packet_projection(
+    *,
+    payload: dict[str, Any],
+    execution_capsule_authz_final_authz_export: JsonDict,
+    execution_capsule_authz_final_authz_export_read_model: JsonDict,
+    execution_boundary: JsonDict,
+) -> JsonDict:
+    export_hash = str(
+        execution_capsule_authz_final_authz_export.get(
+            "execution_capsule_authz_final_authz_export_hash", ""
+        )
+    ).strip()
+    expected_export_hash = str(
+        payload.get("expected_execution_capsule_authz_final_authz_export_hash", "")
+    ).strip()
+    handoff_payload = (
+        payload.get("manual_test_execution_capsule_authz_final_authz_handoff_packet")
+        if isinstance(
+            payload.get(
+                "manual_test_execution_capsule_authz_final_authz_handoff_packet"
+            ),
+            dict,
+        )
+        else {}
+    )
+    supplied_export_hash = str(
+        handoff_payload.get("execution_capsule_authz_final_authz_export_hash", "")
+    ).strip()
+    read_model_hash = str(
+        execution_capsule_authz_final_authz_export_read_model.get(
+            "latest_execution_capsule_authz_final_authz_export_hash", ""
+        )
+    ).strip()
+    handoff_requested = handoff_payload.get("handoff_requested") is True
+    claim_boundary = _provider_envelope_claim_boundary_projection()
+    claim_boundary_closed = (
+        claim_boundary.get("external_provider_outcome") is False
+        and claim_boundary.get("target_runtime_outcome") is False
+        and claim_boundary.get("production_trust_claim") is False
+    )
+    claim_boundary_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": (
+                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_HANDOFF_PACKET_VERSION
+                ),
+                "claim_boundary": claim_boundary,
+            }
+        )
+        if claim_boundary_closed
+        else ""
+    )
+    no_call_counters = _executor_preflight_no_call_counters(execution_boundary)
+    no_call_counters_closed = all(value == 0 for value in no_call_counters.values())
+    no_call_counters_hash = (
+        stable_contract_hash(
+            {
+                "projection_version": (
+                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_HANDOFF_PACKET_VERSION
+                ),
+                "no_call_counters": no_call_counters,
+            }
+        )
+        if no_call_counters_closed
+        else ""
+    )
+    read_model_available = (
+        str(execution_capsule_authz_final_authz_export_read_model.get("status", ""))
+        == "available"
+        and str(
+            execution_capsule_authz_final_authz_export_read_model.get("reason", "")
+        )
+        == "execution_capsule_authz_final_authz_export_read_model_available"
+        and bool(read_model_hash)
+        and read_model_hash == export_hash
+        and _coerce_int(
+            execution_capsule_authz_final_authz_export_read_model.get(
+                "counts", {}
+            ).get("execution_permission_count", 0)
+            if isinstance(
+                execution_capsule_authz_final_authz_export_read_model.get(
+                    "counts", {}
+                ),
+                dict,
+            )
+            else 0
+        )
+        == 0
+    )
+    component_checks = [
+        str(execution_capsule_authz_final_authz_export.get("status", ""))
+        == "blocked"
+        and str(execution_capsule_authz_final_authz_export.get("reason", ""))
+        == "execution_capsule_authz_final_authz_export_execution_closed"
+        and bool(export_hash)
+        and _coerce_int(
+            execution_capsule_authz_final_authz_export.get(
+                "execution_permission_count", 0
+            )
+        )
+        == 0,
+        bool(expected_export_hash) and expected_export_hash == export_hash,
+        bool(handoff_payload),
+        bool(supplied_export_hash) and supplied_export_hash == export_hash,
+        read_model_available,
+        handoff_requested,
+        claim_boundary_closed,
+        no_call_counters_closed,
+    ]
+    component_count = len(component_checks)
+    passed_component_count = sum(1 for check in component_checks if check)
+    mismatch_count = component_count - passed_component_count
+    component_hash_count = sum(
+        1
+        for value in (
+            export_hash,
+            read_model_hash,
+            claim_boundary_hash,
+            no_call_counters_hash,
+        )
+        if value
+    )
+
+    if not component_checks[0]:
+        reason = "execution_capsule_authz_final_authz_export_missing_or_mismatched"
+    elif not expected_export_hash:
+        reason = "expected_execution_capsule_authz_final_authz_export_hash_required"
+    elif expected_export_hash != export_hash:
+        reason = "execution_capsule_authz_final_authz_export_hash_mismatch"
+    elif not component_checks[2]:
+        reason = "execution_capsule_authz_final_authz_handoff_packet_required"
+    elif not component_checks[3]:
+        reason = "execution_capsule_authz_final_authz_handoff_packet_hash_mismatch"
+    elif not component_checks[4]:
+        reason = (
+            "execution_capsule_authz_final_authz_export_read_model_missing_or_mismatched"
+        )
+    elif not component_checks[5]:
+        reason = "execution_capsule_authz_final_authz_handoff_packet_request_required"
+    elif not component_checks[6]:
+        reason = (
+            "execution_capsule_authz_final_authz_handoff_packet_claim_boundary_mismatch"
+        )
+    elif not component_checks[7]:
+        reason = (
+            "execution_capsule_authz_final_authz_handoff_packet_no_call_counters_mismatch"
+        )
+    else:
+        reason = "execution_capsule_authz_final_authz_handoff_packet_execution_closed"
+
+    handoff_packet_hash = ""
+    if mismatch_count == 0:
+        handoff_packet_hash = stable_contract_hash(
+            {
+                "projection_version": (
+                    MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_HANDOFF_PACKET_VERSION
+                ),
+                "execution_capsule_authz_final_authz_export_hash": export_hash,
+                "execution_capsule_authz_final_authz_export_read_model_hash": (
+                    read_model_hash
+                ),
+                "claim_boundary_hash": claim_boundary_hash,
+                "no_call_counters_hash": no_call_counters_hash,
+                "component_count": component_count,
+                "execution_permission": "closed",
+            }
+        )
+
+    return _safe_public_payload(
+        {
+            "status": "blocked",
+            "reason": reason,
+            "execution_capsule_authz_final_authz_handoff_packet_hash": (
+                handoff_packet_hash
+            ),
+            "execution_capsule_authz_final_authz_export_hash": export_hash,
+            "execution_capsule_authz_final_authz_export_read_model_hash": (
+                read_model_hash
+            ),
+            "claim_boundary_hash": claim_boundary_hash,
+            "no_call_counters_hash": no_call_counters_hash,
+            "packet_count": 1 if handoff_packet_hash else 0,
+            "component_count": component_count,
+            "passed_component_count": passed_component_count,
+            "mismatch_count": mismatch_count,
+            "component_hash_count": component_hash_count,
+            "no_call_counter_count": len(no_call_counters),
+            "claim_boundary_check_count": 3,
+            "export_read_model_count": 1 if read_model_available else 0,
+            "handoff_request_count": 1 if handoff_requested else 0,
+            "execution_permission_count": 0,
+        }
+    )
+
+
 def _manual_test_proposal_projection(
     *,
     payload: dict[str, Any],
@@ -7727,6 +7951,34 @@ def provider_manual_test_execution_capsule_authz_final_authz_export_read_model_s
     )
 
 
+def provider_manual_test_execution_capsule_authz_final_authz_handoff_packet_summary(
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the public no-call first-call execution capsule authz final authz handoff packet."""
+    authz_final_authz_export = (
+        provider_manual_test_execution_capsule_authz_final_authz_export_summary(
+            payload
+        )
+    )
+    authz_final_authz_export_read_model = (
+        _manual_provider_test_execution_capsule_authz_final_authz_export_read_model_projection(
+            authz_final_authz_export
+        )
+    )
+    return (
+        _manual_provider_test_execution_capsule_authz_final_authz_handoff_packet_projection(
+            payload=payload,
+            execution_capsule_authz_final_authz_export=(
+                authz_final_authz_export
+            ),
+            execution_capsule_authz_final_authz_export_read_model=(
+                authz_final_authz_export_read_model
+            ),
+            execution_boundary=_zero_execution_boundary(),
+        )
+    )
+
+
 def _review_packet_export_from_read_model(read_model: JsonDict) -> JsonDict:
     if str(read_model.get("status", "")) == "blocked":
         return _manual_provider_test_review_packet_export_blocked(
@@ -7880,6 +8132,7 @@ def _blocked_projection(
     manual_provider_test_execution_capsule_authz_final_authorization: JsonDict | None = None,
     manual_provider_test_execution_capsule_authz_final_authz_export: JsonDict | None = None,
     manual_provider_test_execution_capsule_authz_final_authz_export_read_model: JsonDict | None = None,
+    manual_provider_test_execution_capsule_authz_final_authz_handoff_packet: JsonDict | None = None,
 ) -> dict[str, Any]:
     selected_operator_approval = operator_approval_envelope or _operator_approval_missing_projection()
     selected_dry_admission = live_provider_dry_admission or _live_provider_dry_admission_checklist(
@@ -8142,6 +8395,12 @@ def _blocked_projection(
             selected_execution_capsule_authz_final_authz_export
         )
     )
+    selected_execution_capsule_authz_final_authz_handoff_packet = (
+        manual_provider_test_execution_capsule_authz_final_authz_handoff_packet
+        or _manual_provider_test_execution_capsule_authz_final_authz_handoff_packet_blocked(
+            "execution_capsule_authz_final_authz_export_not_evaluated"
+        )
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -8256,6 +8515,9 @@ def _blocked_projection(
             ),
             "manual_provider_test_execution_capsule_authz_final_authz_export_read_model": (
                 selected_execution_capsule_authz_final_authz_export_read_model
+            ),
+            "manual_provider_test_execution_capsule_authz_final_authz_handoff_packet": (
+                selected_execution_capsule_authz_final_authz_handoff_packet
             ),
             "provider_envelope_read_model": read_model or {},
             "checks": [{"name": check_name, "passed": False}],
@@ -8815,6 +9077,18 @@ def _projection_from_result(
             execution_capsule_authz_final_authz_export
         )
     )
+    execution_capsule_authz_final_authz_handoff_packet = (
+        _manual_provider_test_execution_capsule_authz_final_authz_handoff_packet_projection(
+            payload=payload,
+            execution_capsule_authz_final_authz_export=(
+                execution_capsule_authz_final_authz_export
+            ),
+            execution_capsule_authz_final_authz_export_read_model=(
+                execution_capsule_authz_final_authz_export_read_model
+            ),
+            execution_boundary=execution_boundary,
+        )
+    )
     return _safe_public_payload(
         {
             "projection_version": PROVIDER_ENVELOPE_API_PROJECTION_VERSION,
@@ -8923,6 +9197,9 @@ def _projection_from_result(
             ),
             "manual_provider_test_execution_capsule_authz_final_authz_export_read_model": (
                 execution_capsule_authz_final_authz_export_read_model
+            ),
+            "manual_provider_test_execution_capsule_authz_final_authz_handoff_packet": (
+                execution_capsule_authz_final_authz_handoff_packet
             ),
             "provider_envelope_read_model": read_model,
             "checks": _check_map(result.checks),
@@ -9550,6 +9827,11 @@ def read_provider_envelope_precheck(
                     "execution_capsule_authz_final_authz_export_not_available"
                 )
             ),
+            "manual_provider_test_execution_capsule_authz_final_authz_handoff_packet": (
+                _manual_provider_test_execution_capsule_authz_final_authz_handoff_packet_blocked(
+                    "execution_capsule_authz_final_authz_export_missing_or_mismatched"
+                )
+            ),
             "provider_envelope_read_model": read_model,
             "checks": [{"name": "provider_envelope_read_model_available", "passed": True}],
             "errors": [],
@@ -9614,6 +9896,7 @@ __all__ = [
     "MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_RELEASE_SEAL_VERSION",
     "MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHORIZATION_VERSION",
     "MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_EXPORT_VERSION",
+    "MANUAL_PROVIDER_TEST_EXECUTION_CAPSULE_AUTHZ_FINAL_AUTHZ_HANDOFF_PACKET_VERSION",
     "provider_manual_test_proposal_summary",
     "provider_manual_test_preflight_summary",
     "provider_manual_test_review_packet_summary",
@@ -9652,6 +9935,7 @@ __all__ = [
     "provider_manual_test_execution_capsule_authz_final_authorization_summary",
     "provider_manual_test_execution_capsule_authz_final_authz_export_summary",
     "provider_manual_test_execution_capsule_authz_final_authz_export_read_model_summary",
+    "provider_manual_test_execution_capsule_authz_final_authz_handoff_packet_summary",
     "provider_precheck_operator_policy_summary",
     "read_provider_envelope_precheck",
     "run_provider_envelope_precheck",

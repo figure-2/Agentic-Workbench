@@ -101,6 +101,7 @@ sequenceDiagram
 | `manual_provider_test_execution_capsule_authz_release_seal` | local disabled execution capsule authz release seal over authz release-attestation, seal-material, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_final_authz` | local disabled execution capsule authz final authorization over authz release seal, final-authorization, claim-boundary, and no-call counter hashes |
 | `manual_provider_test_execution_capsule_authz_final_authz_export` | local disabled execution capsule authz final authorization export/read-model over authz final authorization, export metadata, claim-boundary, and no-call counter hashes |
+| `manual_provider_test_execution_capsule_authz_final_authz_handoff_packet` | local disabled execution capsule authz final authorization handoff packet over authz final authorization export, export read-model, claim-boundary, and no-call counter hashes |
 
 ## Persistence Boundary
 
@@ -549,6 +550,15 @@ read-model exposes only the latest export hash and counts. The export still
 reports `execution_capsule_authz_final_authz_export_execution_closed` and keeps
 `execution_permission_count=0`.
 
+`AW-LIVE-48` adds a disabled first-call execution capsule authz final
+authorization handoff packet. The handoff requires an execution capsule authz
+final-authorization export hash, an available export read-model, and a
+separate expected authz final-authorization export hash match. It binds authz
+final-authorization export, export read-model, claim-boundary, and no-call
+counter hashes into one status/reason/hash/count projection. The handoff still
+reports `execution_capsule_authz_final_authz_handoff_packet_execution_closed`
+and keeps `execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -703,5 +713,9 @@ outside the current executable path.
   counter hashes only and must not grant execution permission.
 - execution capsule authz final authorization export/read-model must bind to
   execution capsule authz final authorization, export metadata,
+  claim-boundary, and no-call counter hashes only and must not grant execution
+  permission.
+- execution capsule authz final authorization handoff packets must bind to
+  execution capsule authz final authorization export, export read-model,
   claim-boundary, and no-call counter hashes only and must not grant execution
   permission.

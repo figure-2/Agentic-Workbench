@@ -946,6 +946,80 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
         ]
         == 0
     )
+    assert (
+        envelope["execution_capsule_authz_final_authz_handoff_packet_status"]
+        == "blocked"
+    )
+    assert (
+        envelope["execution_capsule_authz_final_authz_handoff_packet_reason"]
+        == "execution_capsule_authz_final_authz_handoff_packet_execution_closed"
+    )
+    assert envelope["execution_capsule_authz_final_authz_handoff_packet_hash"]
+    assert (
+        envelope["execution_capsule_authz_final_authz_handoff_packet_export_hash"]
+        == envelope["execution_capsule_authz_final_authz_export_hash"]
+    )
+    assert (
+        envelope["execution_capsule_authz_final_authz_handoff_packet_read_model_hash"]
+        == envelope["execution_capsule_authz_final_authz_export_hash"]
+    )
+    assert envelope[
+        "execution_capsule_authz_final_authz_handoff_packet_claim_boundary_hash"
+    ]
+    assert envelope[
+        "execution_capsule_authz_final_authz_handoff_packet_no_call_counters_hash"
+    ]
+    assert envelope["execution_capsule_authz_final_authz_handoff_packet_count"] == 1
+    assert (
+        envelope["execution_capsule_authz_final_authz_handoff_packet_component_count"]
+        == 8
+    )
+    assert (
+        envelope[
+            "execution_capsule_authz_final_authz_handoff_packet_passed_component_count"
+        ]
+        == 8
+    )
+    assert (
+        envelope["execution_capsule_authz_final_authz_handoff_packet_mismatch_count"]
+        == 0
+    )
+    assert (
+        envelope[
+            "execution_capsule_authz_final_authz_handoff_packet_component_hash_count"
+        ]
+        == 4
+    )
+    assert (
+        envelope[
+            "execution_capsule_authz_final_authz_handoff_packet_no_call_counter_count"
+        ]
+        == 13
+    )
+    assert (
+        envelope[
+            "execution_capsule_authz_final_authz_handoff_packet_claim_boundary_check_count"
+        ]
+        == 3
+    )
+    assert (
+        envelope[
+            "execution_capsule_authz_final_authz_handoff_packet_export_read_model_count"
+        ]
+        == 1
+    )
+    assert (
+        envelope[
+            "execution_capsule_authz_final_authz_handoff_packet_handoff_request_count"
+        ]
+        == 1
+    )
+    assert (
+        envelope[
+            "execution_capsule_authz_final_authz_handoff_packet_execution_permission_count"
+        ]
+        == 0
+    )
     assert envelope["review_packet_read_model_status"] == "available"
     assert envelope["review_packet_read_export_hash"] == envelope["review_packet_hash"]
     assert envelope["review_packet_read_export_count"] == 1
@@ -998,6 +1072,12 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
         ]
         is True
     )
+    assert (
+        checks[
+            "provider_execution_capsule_authz_final_authz_handoff_packet_blocked"
+        ]
+        is True
+    )
     assert envelope["execution_boundary"]["provider_calls"] == 0
     assert envelope["execution_boundary"]["network_calls"] == 0
     assert envelope["execution_boundary"]["solar_live_api_calls"] == 0
@@ -1026,6 +1106,7 @@ def test_local_service_demo_can_include_provider_envelope_precheck_without_calls
         "manual_test_execution_capsule_authz_release_seal",
         "manual_test_execution_capsule_authz_final_authorization",
         "manual_test_execution_capsule_authz_final_authz_export",
+        "manual_test_execution_capsule_authz_final_authz_handoff_packet",
         "packet_requested",
         "attestation_requested",
         "seal_requested",

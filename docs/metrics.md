@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-47` disabled execution capsule authorization final authorization export/read-model boundary.
+Current snapshot after `AW-LIVE-48` disabled execution capsule authorization final authorization handoff packet boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 271 |
-| Counted code/doc files, excluding cache and private SoT | 271 |
-| Project lines, excluding cache and private SoT | 63,846 |
+| Project files, excluding cache and private SoT | 274 |
+| Counted code/doc files, excluding cache and private SoT | 274 |
+| Project lines, excluding cache and private SoT | 65,036 |
 | Python files | 76 |
-| Markdown files | 190 |
+| Markdown files | 193 |
 | Test files | 31 |
 | Unit test files | 24 |
 | Smoke test files | 6 |
 | Integration test files | 1 |
-| Pytest collected cases | 510 |
-| Pytest passed cases | 510 |
+| Pytest collected cases | 513 |
+| Pytest passed cases | 513 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -3564,3 +3564,57 @@ final authorization export/read-model for a later manual provider test
 candidate. It does not add an external call path, SDK integration, env value
 access, network access, provider response parsing, hosted execution, live
 operator approval, or production provider readiness.
+
+## AW-LIVE-48 Disabled Execution Capsule Authz Final Authz Handoff Metrics
+
+Measured after adding the blocked disabled first-call execution capsule
+authorization final authorization handoff packet boundary.
+
+| Metric | Value |
+|---|---:|
+| Pytest collected cases | 513 |
+| Pytest passed cases | 513 |
+| Regression delta vs AW-LIVE-47 baseline | +3 |
+| API execution capsule authz final authz handoff integration tests | 3 |
+| Provider envelope API integration tests | 138 |
+| Demo provider envelope smoke tests | 1 |
+| Execution capsule authz final authz handoff public summary fields | 17 |
+| Execution capsule authz final authz handoff component count | 8 |
+| Execution capsule authz final authz handoff component hash count | 4 |
+| Execution capsule authz final authz handoff no-call counter count | 13 |
+| Claim-boundary check count | 3 |
+| Handoff packet count with complete handoff | 1 |
+| Export read-model count with complete handoff | 1 |
+| Handoff request count with complete handoff | 1 |
+| Handoff passed count with missing expected authz final authz export hash | 7 |
+| Handoff mismatch count with missing expected authz final authz export hash | 1 |
+| Handoff passed count without handoff payload | 5 |
+| Handoff mismatch count without handoff payload | 3 |
+| Handoff passed count with complete handoff | 8 |
+| Execution permission count with complete handoff | 0 |
+| Missing expected authz final authz export hash reason | expected_execution_capsule_authz_final_authz_export_hash_required |
+| Missing final authz handoff payload reason | execution_capsule_authz_final_authz_handoff_packet_required |
+| Complete final authz handoff reason | execution_capsule_authz_final_authz_handoff_packet_execution_closed |
+| Public raw prompt/provider body/provider payload findings | 0 |
+| Raw approval authorization field findings | 0 |
+| Env value reads | 0 |
+| Provider SDK imports | 0 |
+| Network calls | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+
+| Gate | Result |
+|---|---|
+| execution capsule authz final authorization export hash exists before handoff | covered |
+| expected execution capsule authz final authorization export hash must match | covered |
+| execution capsule authz final authorization handoff payload is required | covered |
+| export read-model must point to the same export hash | covered |
+| claim boundary is represented as hash/count evidence | covered |
+| public authz final authz handoff exposes status/reason/hash/count fields only | covered |
+| provider/runtime calls remain at 0 | covered |
+
+Interpretation: this adds a local disabled execution capsule authorization
+final authorization handoff packet for a later manual provider test candidate.
+It does not add an external call path, SDK integration, env value access,
+network access, provider response parsing, hosted execution, live operator
+approval, or production provider readiness.
