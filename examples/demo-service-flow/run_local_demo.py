@@ -52,6 +52,7 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     provider_manual_test_execution_capsule_authz_final_authz_release_attestation_summary,
     provider_manual_test_execution_capsule_authz_final_authz_release_seal_summary,
     provider_manual_test_execution_capsule_authz_final_authz_final_authorization_summary,
+    provider_manual_test_execution_capsule_authz_final_authz_final_authorization_handoff_packet_summary,
     provider_manual_test_execution_capsule_authz_release_attestation_summary,
     provider_manual_test_execution_capsule_authz_release_seal_summary,
     provider_manual_test_execution_capsule_release_attestation_summary,
@@ -826,6 +827,23 @@ def _provider_envelope_precheck_payload(run_id: str, prompt_contract_hash: str) 
             ),
         },
     }
+    execution_capsule_authz_final_authz_final_authz_export_hash = (
+        provider_manual_test_execution_capsule_authz_final_authz_final_authorization_handoff_packet_summary(
+            payload
+        )["execution_capsule_authz_final_authz_final_authz_export_hash"]
+    )
+    payload[
+        "expected_execution_capsule_authz_final_authz_final_authz_export_hash"
+    ] = execution_capsule_authz_final_authz_final_authz_export_hash
+    payload[
+        "manual_test_execution_capsule_authz_final_authz_final_authorization_handoff_packet"
+    ] = {
+        "execution_capsule_authz_final_authz_final_authz_export_hash": (
+            execution_capsule_authz_final_authz_final_authz_export_hash
+        ),
+        "handoff_requested": True,
+        "handoff_material": "local-demo-no-call-capsule-authz-final-final-handoff",
+    }
     return payload
 
 
@@ -1464,6 +1482,30 @@ def _checks(
                 execution_capsule_authz_final_authz_final_authz_export_read_model.get(
                     "counts", {}
                 ).get("execution_permission_count", -1)
+            )
+            == 0
+        )
+        execution_capsule_authz_final_authz_final_authz_handoff_packet = (
+            provider_envelope_data.get(
+                "manual_provider_test_execution_capsule_authz_final_authz_final_authz_handoff_packet",
+                {},
+            )
+        )
+        checks[
+            "provider_execution_capsule_authz_final_authz_final_authz_handoff_packet_blocked"
+        ] = (
+            execution_capsule_authz_final_authz_final_authz_handoff_packet.get(
+                "status"
+            )
+            == "blocked"
+            and execution_capsule_authz_final_authz_final_authz_handoff_packet.get(
+                "reason"
+            )
+            == "execution_capsule_authz_final_authz_final_authz_handoff_packet_execution_closed"
+            and int(
+                execution_capsule_authz_final_authz_final_authz_handoff_packet.get(
+                    "execution_permission_count", -1
+                )
             )
             == 0
         )
@@ -3818,6 +3860,74 @@ def run_demo(
                 )
                 .get("counts", {})
                 .get("execution_permission_count"),
+                "execution_capsule_authz_final_authz_final_authz_handoff_packet_status": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_handoff_packet",
+                    {},
+                ).get("status"),
+                "execution_capsule_authz_final_authz_final_authz_handoff_packet_reason": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_handoff_packet",
+                    {},
+                ).get("reason"),
+                "execution_capsule_authz_final_authz_final_authz_handoff_packet_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_handoff_packet",
+                    {},
+                ).get("execution_capsule_authz_final_authz_final_authz_handoff_packet_hash"),
+                "execution_capsule_authz_final_authz_final_authz_handoff_packet_export_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_handoff_packet",
+                    {},
+                ).get("execution_capsule_authz_final_authz_final_authz_export_hash"),
+                "execution_capsule_authz_final_authz_final_authz_handoff_packet_read_model_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_handoff_packet",
+                    {},
+                ).get("execution_capsule_authz_final_authz_final_authz_export_read_model_hash"),
+                "execution_capsule_authz_final_authz_final_authz_handoff_packet_claim_boundary_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_handoff_packet",
+                    {},
+                ).get("claim_boundary_hash"),
+                "execution_capsule_authz_final_authz_final_authz_handoff_packet_no_call_counters_hash": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_handoff_packet",
+                    {},
+                ).get("no_call_counters_hash"),
+                "execution_capsule_authz_final_authz_final_authz_handoff_packet_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_handoff_packet",
+                    {},
+                ).get("packet_count"),
+                "execution_capsule_authz_final_authz_final_authz_handoff_packet_component_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_handoff_packet",
+                    {},
+                ).get("component_count"),
+                "execution_capsule_authz_final_authz_final_authz_handoff_packet_passed_component_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_handoff_packet",
+                    {},
+                ).get("passed_component_count"),
+                "execution_capsule_authz_final_authz_final_authz_handoff_packet_mismatch_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_handoff_packet",
+                    {},
+                ).get("mismatch_count"),
+                "execution_capsule_authz_final_authz_final_authz_handoff_packet_component_hash_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_handoff_packet",
+                    {},
+                ).get("component_hash_count"),
+                "execution_capsule_authz_final_authz_final_authz_handoff_packet_no_call_counter_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_handoff_packet",
+                    {},
+                ).get("no_call_counter_count"),
+                "execution_capsule_authz_final_authz_final_authz_handoff_packet_claim_boundary_check_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_handoff_packet",
+                    {},
+                ).get("claim_boundary_check_count"),
+                "execution_capsule_authz_final_authz_final_authz_handoff_packet_export_read_model_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_handoff_packet",
+                    {},
+                ).get("export_read_model_count"),
+                "execution_capsule_authz_final_authz_final_authz_handoff_packet_handoff_request_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_handoff_packet",
+                    {},
+                ).get("handoff_request_count"),
+                "execution_capsule_authz_final_authz_final_authz_handoff_packet_execution_permission_count": provider_envelope_data.get(
+                    "manual_provider_test_execution_capsule_authz_final_authz_final_authz_handoff_packet",
+                    {},
+                ).get("execution_permission_count"),
                 "review_packet_read_model_status": (
                     provider_envelope_read_data or {}
                 )
