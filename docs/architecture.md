@@ -725,6 +725,13 @@ matching expected decision hash. It binds operator-decision,
 release-attestation, claim-boundary, and no-call counter hashes into one
 status/reason/hash/count projection while keeping `execution_permission_count=0`.
 
+`AW-LIVE-66` adds the disabled first-call execution capsule authz final
+authorization final authorization final authorization release seal. The seal
+requires the release-attestation hash from `AW-LIVE-65` and a matching expected
+attestation hash. It binds release-attestation, seal-material, claim-boundary,
+and no-call counter hashes into one status/reason/hash/count projection while
+keeping `execution_permission_count=0`.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit
@@ -752,6 +759,9 @@ outside the current executable path.
 - execution capsule authz final-authorization final authorization final
   authorization export/read-model and handoff packet are local no-call evidence
   only and must not become provider-result evidence.
+- execution capsule authz final-authorization final authorization final
+  authorization release seal is local no-call evidence only and must not become
+  provider-result evidence.
 - repository rows are checked for forbidden public keys and unsupported claims.
 - SQLite writes use constraints and transactions for sanitized projection rows.
 - SQLite approval/replay rows keep immutable subject/decision hashes and
