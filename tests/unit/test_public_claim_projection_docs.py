@@ -389,6 +389,24 @@ LIVE_49_WORK_ORDER_PATH = (
     / "work-orders"
     / "aw-live-49-execution-capsule-authz-final-authz-operator-review.md"
 )
+LIVE_50_PATH = (
+    ROOT
+    / "docs"
+    / "evals"
+    / "aw-live-50-execution-capsule-authz-final-authz-operator-decision.md"
+)
+LIVE_50_RUNBOOK_PATH = (
+    ROOT
+    / "docs"
+    / "runbooks"
+    / "aw-live-50-execution-capsule-authz-final-authz-operator-decision.md"
+)
+LIVE_50_WORK_ORDER_PATH = (
+    ROOT
+    / "docs"
+    / "work-orders"
+    / "aw-live-50-execution-capsule-authz-final-authz-operator-decision.md"
+)
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -548,6 +566,9 @@ PUBLIC_CLAIM_DOCS = [
     LIVE_49_PATH,
     LIVE_49_RUNBOOK_PATH,
     LIVE_49_WORK_ORDER_PATH,
+    LIVE_50_PATH,
+    LIVE_50_RUNBOOK_PATH,
+    LIVE_50_WORK_ORDER_PATH,
 ]
 
 
