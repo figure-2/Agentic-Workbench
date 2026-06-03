@@ -778,6 +778,12 @@ permission remain unchanged.
 read-model availability remains stricter than hash presence. Public fields,
 reason strings, and execution permission remain unchanged.
 
+`AW-LIVE-CHAIN-04` extends the same private helper to `AW-LIVE-46` through
+`AW-LIVE-52`. The helper now covers `AW-LIVE-46` through `AW-LIVE-69`.
+`AW-LIVE-48` uses the same local-evidence presence override so export
+read-model availability remains stricter than hash presence. Public fields,
+reason strings, and execution permission remain unchanged.
+
 ## Target-Only Runtime
 
 Future work may connect live provider calls and runtime execution after explicit

@@ -239,6 +239,13 @@ projection semantics, and execution permission `0`; it does not open Solar Pro
 3 calls, SDK imports, `.env` value reads, network calls, or DAACS target
 runtime calls.
 
+Status addendum: AW-LIVE-CHAIN-04 extends the private no-call boundary helper
+to AW-LIVE-46 through AW-LIVE-52, so the helper now covers AW-LIVE-46 through
+AW-LIVE-69. It preserves public field names, reason strings, hash/count
+projection semantics, and execution permission `0`; it does not open Solar Pro
+3 calls, SDK imports, `.env` value reads, network calls, or DAACS target
+runtime calls.
+
 ## Reuse Plan
 
 DAACS 재사용 후보 14개:

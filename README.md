@@ -372,4 +372,6 @@ Current status addendum: AW-LIVE-CHAIN-02 extends the no-call boundary helper to
 
 Current status addendum: AW-LIVE-CHAIN-03 extends the no-call boundary helper to AW-LIVE-53 through AW-LIVE-59. The consolidated helper now covers AW-LIVE-53 through AW-LIVE-68 while preserving public field names and execution permission `0`.
 
-Next implementation track: AW-LIVE-69 can resume the disabled no-call chain after the consolidated helper rollout remains green. If maintainability remains the priority, use AW-LIVE-CHAIN-04 to extend the helper into older no-call stages first.
+Current status addendum: AW-LIVE-CHAIN-04 extends the no-call boundary helper to AW-LIVE-46 through AW-LIVE-52. The consolidated helper now covers AW-LIVE-46 through AW-LIVE-69 while preserving public field names and execution permission `0`.
+
+Next implementation track: AW-LIVE-70 can resume the disabled no-call chain after the consolidated helper rollout remains green. If maintainability remains the priority, inspect older duplicated no-call blocks before adding another helper backfill.

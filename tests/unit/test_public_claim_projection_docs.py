@@ -776,6 +776,15 @@ LIVE_CHAIN_03_RUNBOOK_PATH = (
 LIVE_CHAIN_03_WORK_ORDER_PATH = (
     ROOT / "docs" / "work-orders" / "aw-live-chain-03-no-call-boundary-helper-rollout.md"
 )
+LIVE_CHAIN_04_PATH = (
+    ROOT / "docs" / "evals" / "aw-live-chain-04-no-call-boundary-helper-rollout.md"
+)
+LIVE_CHAIN_04_RUNBOOK_PATH = (
+    ROOT / "docs" / "runbooks" / "aw-live-chain-04-no-call-boundary-helper-rollout.md"
+)
+LIVE_CHAIN_04_WORK_ORDER_PATH = (
+    ROOT / "docs" / "work-orders" / "aw-live-chain-04-no-call-boundary-helper-rollout.md"
+)
 
 PUBLIC_CLAIM_DOCS = [
     README_PATH,
@@ -1004,6 +1013,9 @@ PUBLIC_CLAIM_DOCS = [
     LIVE_CHAIN_03_PATH,
     LIVE_CHAIN_03_RUNBOOK_PATH,
     LIVE_CHAIN_03_WORK_ORDER_PATH,
+    LIVE_CHAIN_04_PATH,
+    LIVE_CHAIN_04_RUNBOOK_PATH,
+    LIVE_CHAIN_04_WORK_ORDER_PATH,
 ]
 
 

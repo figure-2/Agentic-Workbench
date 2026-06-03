@@ -536,3 +536,4 @@ Allowed replacements:
 | No-Call Boundary Helper Pattern Gate | Repeated no-call boundary evaluation is consolidated behind a private helper while public output remains status/reason/hash/count only and execution remains closed |
 | No-Call Boundary Helper Rollout Gate | Helper adoption across AW-LIVE-60 through AW-LIVE-68 preserves public field names and reason/hash/count semantics while execution remains closed |
 | No-Call Boundary Helper Backfill Gate | Helper adoption across AW-LIVE-53 through AW-LIVE-68 preserves public field names and reason/hash/count semantics while execution remains closed |
+| No-Call Boundary Helper Earlier Backfill Gate | Helper adoption across AW-LIVE-46 through AW-LIVE-69 preserves public field names and reason/hash/count semantics while execution remains closed |
