@@ -33,6 +33,9 @@ from .services.target_runtime_admission import (
     read_target_runtime_adapter_admissions,
     run_target_runtime_adapter_admission,
 )
+from .services.target_runtime_output_manifest import (
+    run_target_runtime_output_manifest,
+)
 from .services.target_runtime_preflight import run_target_runtime_preflight
 from .services.canonical_run_store import (
     RunArtifactRepositoryConfig,
@@ -195,6 +198,13 @@ def create_app(
                     repository_provider=target_runtime_admission_repositories,
                 )
             }
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/daacs/runtime/output-manifest")
+    def create_daacs_runtime_output_manifest(payload: dict):
+        try:
+            return {"data": run_target_runtime_output_manifest(payload)}
         except (KeyError, TypeError, ValueError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 

@@ -381,4 +381,6 @@ Current status addendum: AW-LIVE-CHAIN-04 extends the no-call boundary helper to
 
 Current status addendum: AW-DAACS-RUNTIME-02 adds persisted disabled DAACS target runtime adapter admission evidence and a public read model. The SQLite row stores only hash/status/count fields, the read-model returns hash/status/count and repository boundary flags only, and execution permission remains `0`.
 
-Next implementation track: AW-DAACS-RUNTIME-03 should define a disabled target runtime output manifest contract over the persisted adapter admission read model. The goal is to prepare artifact-output evidence without writing generated application files or running DAACS target runtime code.
+Current status addendum: AW-DAACS-RUNTIME-03 adds a disabled target runtime output manifest contract over the persisted adapter admission read model. The manifest exposes output group labels, hashes, counts, and zero-call boundaries only. It does not write generated files or run DAACS target runtime code.
+
+Next implementation track: AW-DAACS-RUNTIME-04 should define a disabled output manifest persistence/read-model boundary. The goal is to make the manifest durable without storing generated file bodies or opening target runtime execution.

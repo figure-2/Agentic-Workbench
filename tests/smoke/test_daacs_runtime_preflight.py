@@ -14,6 +14,9 @@ from packages.core.schemas import stable_contract_hash
 from packages.daacs_builder.target_runtime_admission import (
     TARGET_RUNTIME_MODE_DISABLED_ADAPTER_ADMISSION,
 )
+from packages.daacs_builder.target_runtime_output_manifest import (
+    TARGET_RUNTIME_OUTPUT_MANIFEST_MODE_DISABLED,
+)
 from packages.daacs_builder.target_runtime_sandbox import (
     TARGET_RUNTIME_MODE_DISABLED_PREFLIGHT,
 )
@@ -251,21 +254,104 @@ def test_daacs_runtime_adapter_admission_api_persists_and_reads_hash_only_eviden
     assert_public_projection_safe(read_model)
 
 
+def test_daacs_runtime_output_manifest_api_requires_adapter_read_model_and_stays_no_call(
+    tmp_path,
+):
+    client = TestClient(
+        create_app(
+            target_runtime_admission_repository_config=(
+                TargetRuntimeAdmissionRepositoryConfig(
+                    root=tmp_path / "target-runtime-admission-evidence"
+                )
+            )
+        )
+    )
+    preflight_response = client.post(
+        "/api/v1/daacs/runtime/preflight",
+        json=_payload("run-daacs-runtime-output-manifest-api"),
+    )
+    preflight_response.raise_for_status()
+    preflight = preflight_response.json()["data"]
+    admission_response = client.post(
+        "/api/v1/daacs/runtime/adapter/admission",
+        json={
+            "run_id": preflight["run_id"],
+            "runner_plan_hash": preflight["runner_plan_hash"],
+            "expected_preflight_hash": preflight["preflight_hash"],
+            "mode": TARGET_RUNTIME_MODE_DISABLED_ADAPTER_ADMISSION,
+            "preflight_projection": preflight,
+        },
+    )
+    read_response = client.get(
+        f"/api/v1/daacs/runtime/adapter/admissions/{preflight['run_id']}"
+    )
+    admission = admission_response.json()["data"]
+    read_model = read_response.json()["data"]
+
+    response = client.post(
+        "/api/v1/daacs/runtime/output-manifest",
+        json={
+            "run_id": preflight["run_id"],
+            "runner_plan_hash": preflight["runner_plan_hash"],
+            "adapter_admission_hash": admission["adapter_admission_hash"],
+            "adapter_admission_read_model": read_model,
+            "mode": TARGET_RUNTIME_OUTPUT_MANIFEST_MODE_DISABLED,
+            "raw_file_body": "DAACS_RUNTIME_OUTPUT_MANIFEST_RAW_SENTINEL",
+        },
+    )
+    mismatch_response = client.post(
+        "/api/v1/daacs/runtime/output-manifest",
+        json={
+            "run_id": preflight["run_id"],
+            "runner_plan_hash": preflight["runner_plan_hash"],
+            "adapter_admission_hash": "a" * 64,
+            "adapter_admission_read_model": read_model,
+            "mode": TARGET_RUNTIME_OUTPUT_MANIFEST_MODE_DISABLED,
+        },
+    )
+
+    assert response.status_code == 200
+    assert mismatch_response.status_code == 200
+    data = response.json()["data"]
+    mismatch = mismatch_response.json()["data"]
+    serialized = _serialized(data)
+
+    assert data["projection_version"] == "target-runtime-output-manifest-public-v1"
+    assert data["status"] == "blocked"
+    assert data["reason"] == "target_runtime_output_manifest_execution_closed"
+    assert data["counts"]["adapter_admission_read_model_count"] == 1
+    assert data["counts"]["adapter_admission_hash_match_count"] == 1
+    assert data["counts"]["output_group_count"] == 3
+    assert data["counts"]["output_group_hash_count"] == 3
+    assert data["execution_boundary"]["target_runtime_calls"] == 0
+    assert data["execution_boundary"]["filesystem_writes"] == 0
+    assert data["execution_boundary"]["subprocess_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["generated_artifact_body_write_count"] == 0
+    assert mismatch["status"] == "blocked"
+    assert mismatch["reason"] == "adapter_admission_hash_mismatch"
+    assert mismatch["counts"]["adapter_admission_hash_match_count"] == 0
+    assert "DAACS_RUNTIME_OUTPUT_MANIFEST_RAW_SENTINEL" not in serialized
+    assert "raw_file_body" not in serialized
+    assert_public_projection_safe(data)
+
+
 def test_local_service_demo_compares_dry_run_and_target_runtime_preflight(tmp_path):
     module = _load_demo_module()
 
     summary = module.run_demo(
         tmp_path / "daacs-runtime-store",
-        include_daacs_runtime_adapter_admission=True,
+        include_daacs_runtime_output_manifest=True,
     )
     serialized = _serialized(summary)
     comparison = summary["daacs_runtime_comparison"]
     preflight = summary["daacs_runtime_preflight"]
     adapter_admission = summary["daacs_runtime_adapter_admission"]
+    output_manifest = summary["daacs_runtime_output_manifest"]
     checks = summary["checks"]
 
     assert summary["status"] == "passed"
-    assert comparison["comparison_variant_count"] == 3
+    assert comparison["comparison_variant_count"] == 4
     assert comparison["dry_run_stage_coverage"] == "7/7"
     assert comparison["target_runtime_preflight_status"] == "blocked"
     assert comparison["target_runtime_calls"] == 0
@@ -279,6 +365,18 @@ def test_local_service_demo_compares_dry_run_and_target_runtime_preflight(tmp_pa
     assert comparison["adapter_disabled_block_count"] == 1
     assert comparison["adapter_persisted_count"] == 1
     assert comparison["adapter_read_model_record_count"] == 1
+    assert comparison["output_manifest_status"] == "blocked"
+    assert comparison["output_manifest_reason"] == (
+        "target_runtime_output_manifest_execution_closed"
+    )
+    assert comparison["output_manifest_hash_count"] == 1
+    assert comparison["output_manifest_group_count"] == 3
+    assert comparison["output_manifest_prerequisite_count"] == 1
+    assert comparison["output_manifest_generated_body_writes"] == 0
+    assert comparison["output_manifest_target_runtime_calls"] == 0
+    assert comparison["output_manifest_filesystem_writes"] == 0
+    assert comparison["output_manifest_subprocess_calls"] == 0
+    assert comparison["output_manifest_network_calls"] == 0
     assert comparison["adapter_target_runtime_calls"] == 0
     assert comparison["adapter_filesystem_writes"] == 0
     assert comparison["adapter_subprocess_calls"] == 0
@@ -299,6 +397,12 @@ def test_local_service_demo_compares_dry_run_and_target_runtime_preflight(tmp_pa
     assert adapter_admission["read_model"]["counts"][
         "adapter_admission_record_count"
     ] == 1
+    assert output_manifest["status"] == "blocked"
+    assert output_manifest["reason"] == "target_runtime_output_manifest_execution_closed"
+    assert output_manifest["counts"]["adapter_admission_read_model_count"] == 1
+    assert output_manifest["counts"]["adapter_admission_hash_match_count"] == 1
+    assert output_manifest["counts"]["output_group_count"] == 3
+    assert output_manifest["counts"]["generated_artifact_body_write_count"] == 0
     assert checks["daacs_runtime_preflight_projection"] is True
     assert checks["daacs_runtime_preflight_blocked"] is True
     assert checks["daacs_runtime_preflight_execution_zero"] is True
@@ -311,6 +415,11 @@ def test_local_service_demo_compares_dry_run_and_target_runtime_preflight(tmp_pa
     assert checks["daacs_runtime_adapter_admission_persisted"] is True
     assert checks["daacs_runtime_adapter_admission_read_model"] is True
     assert checks["daacs_runtime_adapter_read_model_execution_zero"] is True
+    assert checks["daacs_runtime_output_manifest_projection"] is True
+    assert checks["daacs_runtime_output_manifest_blocked"] is True
+    assert checks["daacs_runtime_output_manifest_prerequisite"] is True
+    assert checks["daacs_runtime_output_manifest_groups"] is True
+    assert checks["daacs_runtime_output_manifest_execution_zero"] is True
 
     for forbidden in (
         "raw_prompt",

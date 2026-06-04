@@ -28,7 +28,7 @@ Runner Boundary
 
 Target Runtime Boundary
   RunnerPlan hash, sandbox preflight, disabled adapter admission, path allowlist,
-  command policy, rollback policy
+  command policy, rollback policy, disabled output manifest contract
 
 Verification Boundary
   VerificationReport with sanitized checks, counts, hashes, and metrics
@@ -88,6 +88,9 @@ sequenceDiagram
 | `TargetRuntimeAdapterAdmissionRecord` | SQLite-safe hash/status/count row for disabled adapter admission evidence |
 | `SQLiteTargetRuntimeAdmissionStore` | local evidence store for adapter admission records, with fail-closed schema validation |
 | `target_runtime_adapter_admission_public_read_model` | public read model that returns adapter admission hashes, status, reason, counts, repository flags, and zero-call counters only |
+| `TargetRuntimeOutputManifestRequest` | hash-only request that binds expected output groups to persisted adapter admission read-model evidence |
+| `TargetRuntimeOutputManifestService` | fail-closed evaluator that produces a disabled output manifest contract without generated file writes |
+| `TargetRuntimeOutputManifestResult` | public projection with output group hashes, counts, claim boundary, and zero-call execution counters |
 | `VerificationReport` | sanitized check/error/file/metric projection |
 | repository records | hash/count/linkage rows that exclude raw prompt, raw body, logs, and provider payloads |
 | `ProviderEnvelopeRecord` | no-call provider envelope evidence with contract hashes, counts, and status |
