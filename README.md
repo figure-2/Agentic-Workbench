@@ -383,4 +383,6 @@ Current status addendum: AW-DAACS-RUNTIME-02 adds persisted disabled DAACS targe
 
 Current status addendum: AW-DAACS-RUNTIME-03 adds a disabled target runtime output manifest contract over the persisted adapter admission read model. The manifest exposes output group labels, hashes, counts, and zero-call boundaries only. It does not write generated files or run DAACS target runtime code.
 
-Next implementation track: AW-DAACS-RUNTIME-04 should define a disabled output manifest persistence/read-model boundary. The goal is to make the manifest durable without storing generated file bodies or opening target runtime execution.
+Current status addendum: AW-DAACS-RUNTIME-04 persists the disabled output manifest as a hash/status/count-only SQLite evidence row and exposes a public read model by run_id. The read model returns manifest hashes, status, reason, counts, repository flags, and zero-call counters only.
+
+Next implementation track: AW-DAACS-RUNTIME-05 should define a disabled generated artifact bundle contract over the persisted output manifest read model. The goal is to describe future generated artifact bundles without storing generated file bodies or opening target runtime execution.

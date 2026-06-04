@@ -89,6 +89,9 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
 from apps.api.agentic_workbench_api.services.target_runtime_admission import (
     TargetRuntimeAdmissionRepositoryConfig,
 )
+from apps.api.agentic_workbench_api.services.target_runtime_output_manifest import (
+    TargetRuntimeOutputManifestRepositoryConfig,
+)
 from packages.core.live_open_policy import LIVE_OPEN_REQUIRED_CONTROLS
 from packages.core.public_projection import assert_public_projection_safe
 from packages.core.schemas import stable_contract_hash
@@ -143,6 +146,7 @@ def _client(
     *,
     include_provider_precheck: bool = False,
     include_target_runtime_admission: bool = False,
+    include_target_runtime_output_manifest: bool = False,
 ) -> TestClient:
     provider_envelope_config = (
         ProviderEnvelopeRepositoryConfig(root=store_root / "provider-envelope-evidence")
@@ -156,6 +160,13 @@ def _client(
         if include_target_runtime_admission
         else None
     )
+    target_runtime_output_manifest_config = (
+        TargetRuntimeOutputManifestRepositoryConfig(
+            root=store_root / "target-runtime-output-manifest-evidence"
+        )
+        if include_target_runtime_output_manifest
+        else None
+    )
     return TestClient(
         create_app(
             run_repository_config=RunArtifactRepositoryConfig(
@@ -166,6 +177,9 @@ def _client(
             ),
             provider_envelope_repository_config=provider_envelope_config,
             target_runtime_admission_repository_config=target_runtime_admission_config,
+            target_runtime_output_manifest_repository_config=(
+                target_runtime_output_manifest_config
+            ),
         )
     )
 
@@ -1499,6 +1513,7 @@ def _checks(
     daacs_runtime_adapter_admission_data: dict[str, Any] | None = None,
     daacs_runtime_adapter_admission_read_data: dict[str, Any] | None = None,
     daacs_runtime_output_manifest_data: dict[str, Any] | None = None,
+    daacs_runtime_output_manifest_read_data: dict[str, Any] | None = None,
 ) -> dict[str, bool]:
     artifact_kinds = _artifact_kinds(run_data.get("artifacts", []))
     evidence_summary = run_data.get("evidence_summary", {})
@@ -2637,6 +2652,33 @@ def _checks(
             and int(execution.get("execution_permission_count", -1)) == 0
             and int(execution.get("generated_artifact_body_write_count", -1)) == 0
         )
+        persistence = daacs_runtime_output_manifest_data.get(
+            "output_manifest_persistence", {}
+        )
+        persistence_counts = persistence.get("counts", {})
+        checks["daacs_runtime_output_manifest_persisted"] = (
+            persistence.get("status") in {"persisted", "duplicate"}
+            and int(persistence_counts.get("local_evidence_repository_write_count", -1))
+            >= 0
+        )
+        read_model = daacs_runtime_output_manifest_read_data or {}
+        read_counts = read_model.get("counts", {})
+        read_execution = read_model.get("execution_boundary", {})
+        checks["daacs_runtime_output_manifest_read_model"] = (
+            read_model.get("projection_version")
+            == "target-runtime-output-manifest-read-model-public-v1"
+            and read_model.get("status") == "available"
+            and int(read_counts.get("output_manifest_record_count", -1)) >= 1
+            and int(read_counts.get("output_manifest_hash_count", -1)) >= 1
+        )
+        checks["daacs_runtime_output_manifest_read_model_execution_zero"] = (
+            int(read_execution.get("target_runtime_calls", -1)) == 0
+            and int(read_execution.get("filesystem_writes", -1)) == 0
+            and int(read_execution.get("subprocess_calls", -1)) == 0
+            and int(read_execution.get("network_calls", -1)) == 0
+            and int(read_execution.get("execution_permission_count", -1)) == 0
+            and int(read_execution.get("generated_artifact_body_write_count", -1)) == 0
+        )
     return checks
 
 
@@ -2658,6 +2700,7 @@ def run_demo(
             include_daacs_runtime_adapter_admission
             or include_daacs_runtime_output_manifest
         ),
+        include_target_runtime_output_manifest=include_daacs_runtime_output_manifest,
     )
 
     create_data = _post_run(client)
@@ -2672,6 +2715,7 @@ def run_demo(
     daacs_runtime_adapter_admission_data = None
     daacs_runtime_adapter_admission_read_data = None
     daacs_runtime_output_manifest_data = None
+    daacs_runtime_output_manifest_read_data = None
     if include_provider_precheck:
         provider_envelope_data = _post_provider_envelope_precheck(
             client,
@@ -2725,6 +2769,10 @@ def run_demo(
                         daacs_runtime_adapter_admission_read_data or {}
                     ),
                 )
+                daacs_runtime_output_manifest_read_data = _get_data(
+                    client,
+                    f"/api/v1/daacs/runtime/output-manifests/{run_id}",
+                )
 
     checks = _checks(
         create_data,
@@ -2738,6 +2786,9 @@ def run_demo(
             daacs_runtime_adapter_admission_read_data
         ),
         daacs_runtime_output_manifest_data=daacs_runtime_output_manifest_data,
+        daacs_runtime_output_manifest_read_data=(
+            daacs_runtime_output_manifest_read_data
+        ),
     )
     artifact_kinds = sorted(_artifact_kinds(run_data.get("artifacts", [])))
     evidence_summary = run_data.get("evidence_summary", {})
@@ -3000,6 +3051,22 @@ def run_demo(
                 .get("counts", {})
                 .get("adapter_admission_read_model_count")
             ),
+            "output_manifest_persisted_count": _as_int(
+                (daacs_runtime_output_manifest_data or {})
+                .get("output_manifest_persistence", {})
+                .get("counts", {})
+                .get("output_manifest_persisted_count")
+            ),
+            "output_manifest_read_model_record_count": _as_int(
+                (daacs_runtime_output_manifest_read_data or {})
+                .get("counts", {})
+                .get("output_manifest_record_count")
+            ),
+            "output_manifest_read_model_hash_count": _as_int(
+                (daacs_runtime_output_manifest_read_data or {})
+                .get("counts", {})
+                .get("output_manifest_hash_count")
+            ),
             "output_manifest_generated_body_writes": _as_int(
                 daacs_runtime_output_manifest_execution.get(
                     "generated_artifact_body_write_count"
@@ -3104,6 +3171,23 @@ def run_demo(
                     "output_groups", []
                 ),
                 "counts": daacs_runtime_output_manifest_data.get("counts", {}),
+                "persistence": daacs_runtime_output_manifest_data.get(
+                    "output_manifest_persistence", {}
+                ),
+                "read_model": {
+                    "status": (
+                        daacs_runtime_output_manifest_read_data or {}
+                    ).get("status"),
+                    "counts": (
+                        daacs_runtime_output_manifest_read_data or {}
+                    ).get("counts", {}),
+                    "repository_boundary": (
+                        daacs_runtime_output_manifest_read_data or {}
+                    ).get("repository_boundary", {}),
+                    "execution_boundary": (
+                        daacs_runtime_output_manifest_read_data or {}
+                    ).get("execution_boundary", {}),
+                },
                 "execution_boundary": daacs_runtime_output_manifest_data.get(
                     "execution_boundary", {}
                 ),

@@ -34,6 +34,9 @@ from .services.target_runtime_admission import (
     run_target_runtime_adapter_admission,
 )
 from .services.target_runtime_output_manifest import (
+    TargetRuntimeOutputManifestRepositoryConfig,
+    TargetRuntimeOutputManifestRepositoryProvider,
+    read_target_runtime_output_manifests,
     run_target_runtime_output_manifest,
 )
 from .services.target_runtime_preflight import run_target_runtime_preflight
@@ -74,6 +77,12 @@ def create_app(
     target_runtime_admission_repository_provider: (
         TargetRuntimeAdmissionRepositoryProvider | None
     ) = None,
+    target_runtime_output_manifest_repository_config: (
+        TargetRuntimeOutputManifestRepositoryConfig | None
+    ) = None,
+    target_runtime_output_manifest_repository_provider: (
+        TargetRuntimeOutputManifestRepositoryProvider | None
+    ) = None,
 ):
     if FastAPI is None:
         raise RuntimeError("fastapi is not installed. Install API dependencies before serving.")
@@ -96,6 +105,12 @@ def create_app(
         target_runtime_admission_repository_provider
         or TargetRuntimeAdmissionRepositoryProvider(
             target_runtime_admission_repository_config
+        )
+    )
+    target_runtime_output_manifest_repositories = (
+        target_runtime_output_manifest_repository_provider
+        or TargetRuntimeOutputManifestRepositoryProvider(
+            target_runtime_output_manifest_repository_config
         )
     )
 
@@ -204,7 +219,24 @@ def create_app(
     @app.post("/api/v1/daacs/runtime/output-manifest")
     def create_daacs_runtime_output_manifest(payload: dict):
         try:
-            return {"data": run_target_runtime_output_manifest(payload)}
+            return {
+                "data": run_target_runtime_output_manifest(
+                    payload,
+                    repository_provider=target_runtime_output_manifest_repositories,
+                )
+            }
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.get("/api/v1/daacs/runtime/output-manifests/{run_id}")
+    def get_daacs_runtime_output_manifests(run_id: str):
+        try:
+            return {
+                "data": read_target_runtime_output_manifests(
+                    run_id,
+                    repository_provider=target_runtime_output_manifest_repositories,
+                )
+            }
         except (KeyError, TypeError, ValueError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 

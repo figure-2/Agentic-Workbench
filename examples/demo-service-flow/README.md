@@ -51,10 +51,11 @@ admission comparison plus persisted adapter admission read-model evidence:
 python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-daacs-runtime-01-demo --include-daacs-runtime-adapter-admission
 ```
 
-To include the AW-DAACS-RUNTIME-03 no-call output manifest contract comparison:
+To include the AW-DAACS-RUNTIME-03/04 no-call output manifest contract,
+persistence, and read-model comparison:
 
 ```powershell
-python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-daacs-runtime-03-demo --include-daacs-runtime-output-manifest
+python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-daacs-runtime-04-demo --include-daacs-runtime-output-manifest
 ```
 
 The printed JSON is a sanitized summary. It includes run status, artifact
@@ -135,10 +136,12 @@ rows.
   subprocess calls, network calls, and target runtime calls all remain `0`.
 - When `--include-daacs-runtime-output-manifest` is used, the demo compares
   four variants: dry-run runner, target runtime preflight, persisted disabled
-  adapter admission, and disabled output manifest contract. The manifest shows
-  expected output group labels and hashes only. It does not include generated
-  file bodies, generated source bodies, raw paths, filesystem writes,
-  subprocess calls, network calls, or target runtime calls.
+  adapter admission, and persisted disabled output manifest evidence. The
+  manifest shows expected output group labels and hashes only, and the
+  read-model returns manifest hashes/status/counts only. It does not include
+  generated file bodies, generated source bodies, raw paths, filesystem writes
+  outside local SQLite evidence stores, subprocess calls, network calls, or
+  target runtime calls.
 - When `--include-provider-precheck` is used, manual proposal, disabled
   executor, one-shot permission, preflight audit, readiness decision, review
   packet, review packet export/read-model, handoff packet, and operator opt-in

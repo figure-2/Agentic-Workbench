@@ -33,22 +33,22 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-DAACS-RUNTIME-03` disabled target runtime output
-manifest contract.
+Current snapshot after `AW-DAACS-RUNTIME-04` disabled output manifest
+persistence/read-model boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and local artifacts | 378 |
-| Counted code/doc files, excluding cache and local artifacts | 377 |
-| Project lines, excluding cache and local artifacts | 97,275 |
-| Python files | 93 |
-| Markdown files | 280 |
-| Test files | 39 |
-| Unit test files | 29 |
+| Project files, excluding cache and local artifacts | 405 |
+| Counted code/doc files, excluding cache and local artifacts | 402 |
+| Project lines, excluding cache and local artifacts | 102,682 |
+| Python files | 95 |
+| Markdown files | 303 |
+| Test files | 40 |
+| Unit test files | 30 |
 | Smoke test files | 9 |
 | Integration test files | 1 |
-| Pytest collected cases | 620 |
-| Pytest passed cases | 620 |
+| Pytest collected cases | 625 |
+| Pytest passed cases | 625 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -5380,20 +5380,77 @@ explicit while keeping runtime execution closed. It does not add generated app
 files, provider calls, network calls, subprocess calls, package installation,
 server start, raw file storage, or hosted behavior.
 
+## AW-DAACS-RUNTIME-04 Disabled Output Manifest Persistence Read Model Metrics
+
+`AW-DAACS-RUNTIME-04` persists the disabled output manifest contract as a
+hash/status/count-only SQLite evidence row and exposes a public read model by
+run_id. It does not store generated file bodies or open target runtime
+execution.
+
+| Metric | Value |
+|---|---:|
+| Comparison variants | 4 |
+| Dry-run fixture stage coverage | 7/7 |
+| Dry-run fixture stage coverage percent | 100.0% |
+| Target runtime preflight status | blocked |
+| Disabled adapter admission status | blocked |
+| Adapter admission read-model status | available |
+| Output manifest status | blocked |
+| Output manifest persistence status | persisted |
+| Output manifest read-model status | available |
+| Output manifest persisted count | 1 |
+| Output manifest read-model record count | 1 |
+| Output manifest read-model hash count | 1 |
+| Output group count | 3 |
+| Output group hash count | 3 |
+| Generated artifact body writes | 0 |
+| Execution permission count | 0 |
+| Filesystem writes outside local SQLite evidence stores | 0 |
+| Subprocess calls | 0 |
+| Network calls | 0 |
+| DAACS target runtime calls | 0 |
+| Raw exposure findings | 0 |
+| Public claim drift findings | 0 |
+| Bad SQLite store block cases | 3/3 |
+| Duplicate partial extra rows | 0 |
+| New unit tests | 5 |
+| Updated smoke tests | 5 |
+
+| Comparison Variant | Status | Stage Coverage | Persisted Rows | Read Model Hashes | Filesystem Writes | Subprocess Calls | Network Calls | Runtime Calls |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| `dry_run_runner` | passed | 7/7 | n/a | n/a | 0 | 0 | 0 | 0 |
+| `target_runtime_preflight` | blocked | preflight-only | n/a | n/a | 0 | 0 | 0 | 0 |
+| `persisted_disabled_adapter_admission` | blocked/read-model available | adapter-disabled | 1 | 1 | 0 | 0 | 0 | 0 |
+| `persisted_disabled_output_manifest` | blocked/read-model available | manifest-only | 1 | 1 | 0 | 0 | 0 | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m compileall apps examples packages tests` | passed |
+| `python -m pytest tests\unit\test_target_runtime_output_manifest_store.py tests\unit\test_target_runtime_output_manifest.py tests\unit\test_target_runtime_admission_store.py tests\smoke\test_daacs_runtime_preflight.py -q --color=no` | 22 passed |
+| `python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-daacs-runtime-04-demo --include-daacs-runtime-output-manifest` | passed |
+| `python -m pytest tests\unit\test_public_claim_projection_docs.py tests\unit\test_target_runtime_output_manifest_store.py tests\unit\test_target_runtime_output_manifest.py tests\smoke\test_daacs_runtime_preflight.py -q --color=no` | 20 passed |
+| `python -m pytest tests -q --color=no` | 625 passed |
+
+Interpretation: AW-DAACS-RUNTIME-04 makes disabled output manifest evidence
+durable and queryable without storing generated file bodies or claiming a
+runtime result. It does not add generated app files, provider calls, network
+calls, subprocess calls, package installation, server start, raw file storage,
+or hosted behavior.
+
 ## Next Implementation Measurement Plan
 
-The next implementation work should persist the disabled output manifest as a
-hash/status/count read model. These are target metrics, not observed
-implementation results.
+The next implementation work should define a disabled generated artifact bundle
+contract over the persisted output manifest read model. These are target
+metrics, not observed implementation results.
 
 | Work Order | Comparison variants | Primary target | Required zero-call counters |
 |---|---:|---|---|
-| `AW-DAACS-RUNTIME-04` | 4 | disabled output manifest persistence/read-model | filesystem writes outside local evidence store, subprocess calls, network calls, DAACS target runtime calls |
+| `AW-DAACS-RUNTIME-05` | 5 | disabled generated artifact bundle contract | filesystem writes outside local evidence store, subprocess calls, network calls, DAACS target runtime calls |
 
 | Planned Metric | Target |
 |---|---:|
-| `AW-DAACS-RUNTIME-04` output manifest hash persisted | 100% |
-| `AW-DAACS-RUNTIME-04` public read-model hash/count projection | 100% |
-| `AW-DAACS-RUNTIME-04` generated artifact body writes | 0 |
-| `AW-DAACS-RUNTIME-04` DAACS target runtime calls | 0 |
+| `AW-DAACS-RUNTIME-05` output manifest read-model prerequisite coverage | 100% |
+| `AW-DAACS-RUNTIME-05` generated artifact bundle hash coverage | 100% |
+| `AW-DAACS-RUNTIME-05` generated artifact body writes | 0 |
+| `AW-DAACS-RUNTIME-05` DAACS target runtime calls | 0 |
 | Public claim drift findings | 0 |

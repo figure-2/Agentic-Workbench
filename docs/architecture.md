@@ -37,7 +37,7 @@ Persistence Boundary
   sanitized in-memory repositories, file-backed replay fixture,
   SQLite skeletons for runner/report/audit, approval/replay, and canonical
   run/artifact projection rows, plus provider envelope evidence rows and
-  target runtime adapter admission evidence rows
+  target runtime adapter admission/output manifest evidence rows
 ```
 
 ## Current Flow
@@ -91,6 +91,9 @@ sequenceDiagram
 | `TargetRuntimeOutputManifestRequest` | hash-only request that binds expected output groups to persisted adapter admission read-model evidence |
 | `TargetRuntimeOutputManifestService` | fail-closed evaluator that produces a disabled output manifest contract without generated file writes |
 | `TargetRuntimeOutputManifestResult` | public projection with output group hashes, counts, claim boundary, and zero-call execution counters |
+| `TargetRuntimeOutputManifestRecord` | SQLite-safe hash/status/count row for disabled output manifest evidence |
+| `SQLiteTargetRuntimeOutputManifestStore` | local evidence store for output manifest records, with fail-closed schema validation |
+| `target_runtime_output_manifest_public_read_model` | public read model that returns output manifest hashes, status, reason, counts, repository flags, and zero-call counters only |
 | `VerificationReport` | sanitized check/error/file/metric projection |
 | repository records | hash/count/linkage rows that exclude raw prompt, raw body, logs, and provider payloads |
 | `ProviderEnvelopeRecord` | no-call provider envelope evidence with contract hashes, counts, and status |

@@ -8,6 +8,9 @@ from apps.api.agentic_workbench_api.main import create_app
 from apps.api.agentic_workbench_api.services.target_runtime_admission import (
     TargetRuntimeAdmissionRepositoryConfig,
 )
+from apps.api.agentic_workbench_api.services.target_runtime_output_manifest import (
+    TargetRuntimeOutputManifestRepositoryConfig,
+)
 from packages.core.live_open_policy import LIVE_OPEN_REQUIRED_CONTROLS
 from packages.core.public_projection import assert_public_projection_safe
 from packages.core.schemas import stable_contract_hash
@@ -263,6 +266,11 @@ def test_daacs_runtime_output_manifest_api_requires_adapter_read_model_and_stays
                 TargetRuntimeAdmissionRepositoryConfig(
                     root=tmp_path / "target-runtime-admission-evidence"
                 )
+            ),
+            target_runtime_output_manifest_repository_config=(
+                TargetRuntimeOutputManifestRepositoryConfig(
+                    root=tmp_path / "target-runtime-output-manifest-evidence"
+                )
             )
         )
     )
@@ -309,12 +317,19 @@ def test_daacs_runtime_output_manifest_api_requires_adapter_read_model_and_stays
             "mode": TARGET_RUNTIME_OUTPUT_MANIFEST_MODE_DISABLED,
         },
     )
+    output_manifest_read_response = client.get(
+        f"/api/v1/daacs/runtime/output-manifests/{preflight['run_id']}"
+    )
 
     assert response.status_code == 200
     assert mismatch_response.status_code == 200
+    assert output_manifest_read_response.status_code == 200
     data = response.json()["data"]
     mismatch = mismatch_response.json()["data"]
-    serialized = _serialized(data)
+    output_manifest_read_model = output_manifest_read_response.json()["data"]
+    serialized = _serialized(
+        {"output_manifest": data, "read_model": output_manifest_read_model}
+    )
 
     assert data["projection_version"] == "target-runtime-output-manifest-public-v1"
     assert data["status"] == "blocked"
@@ -323,17 +338,39 @@ def test_daacs_runtime_output_manifest_api_requires_adapter_read_model_and_stays
     assert data["counts"]["adapter_admission_hash_match_count"] == 1
     assert data["counts"]["output_group_count"] == 3
     assert data["counts"]["output_group_hash_count"] == 3
+    assert data["output_manifest_persistence"]["status"] == "persisted"
+    assert data["output_manifest_persistence"]["counts"][
+        "output_manifest_persisted_count"
+    ] == 1
+    assert data["output_manifest_read_model"]["status"] == "available"
+    assert data["output_manifest_read_model"]["counts"][
+        "output_manifest_record_count"
+    ] == 1
     assert data["execution_boundary"]["target_runtime_calls"] == 0
     assert data["execution_boundary"]["filesystem_writes"] == 0
     assert data["execution_boundary"]["subprocess_calls"] == 0
     assert data["execution_boundary"]["network_calls"] == 0
     assert data["execution_boundary"]["generated_artifact_body_write_count"] == 0
+    assert output_manifest_read_model["projection_version"] == (
+        "target-runtime-output-manifest-read-model-public-v1"
+    )
+    assert output_manifest_read_model["status"] == "available"
+    assert output_manifest_read_model["counts"]["output_manifest_record_count"] == 1
+    assert output_manifest_read_model["counts"]["output_manifest_hash_count"] == 1
+    assert output_manifest_read_model["counts"]["output_group_count"] == 3
+    assert output_manifest_read_model["counts"][
+        "generated_artifact_body_write_count"
+    ] == 0
+    assert output_manifest_read_model["counts"]["target_runtime_call_count"] == 0
+    assert output_manifest_read_model["repository_boundary"]["raw_row_returned"] is False
+    assert output_manifest_read_model["repository_boundary"]["root_path_returned"] is False
     assert mismatch["status"] == "blocked"
     assert mismatch["reason"] == "adapter_admission_hash_mismatch"
     assert mismatch["counts"]["adapter_admission_hash_match_count"] == 0
     assert "DAACS_RUNTIME_OUTPUT_MANIFEST_RAW_SENTINEL" not in serialized
     assert "raw_file_body" not in serialized
     assert_public_projection_safe(data)
+    assert_public_projection_safe(output_manifest_read_model)
 
 
 def test_local_service_demo_compares_dry_run_and_target_runtime_preflight(tmp_path):
@@ -372,6 +409,9 @@ def test_local_service_demo_compares_dry_run_and_target_runtime_preflight(tmp_pa
     assert comparison["output_manifest_hash_count"] == 1
     assert comparison["output_manifest_group_count"] == 3
     assert comparison["output_manifest_prerequisite_count"] == 1
+    assert comparison["output_manifest_persisted_count"] == 1
+    assert comparison["output_manifest_read_model_record_count"] == 1
+    assert comparison["output_manifest_read_model_hash_count"] == 1
     assert comparison["output_manifest_generated_body_writes"] == 0
     assert comparison["output_manifest_target_runtime_calls"] == 0
     assert comparison["output_manifest_filesystem_writes"] == 0
@@ -403,6 +443,10 @@ def test_local_service_demo_compares_dry_run_and_target_runtime_preflight(tmp_pa
     assert output_manifest["counts"]["adapter_admission_hash_match_count"] == 1
     assert output_manifest["counts"]["output_group_count"] == 3
     assert output_manifest["counts"]["generated_artifact_body_write_count"] == 0
+    assert output_manifest["persistence"]["status"] == "persisted"
+    assert output_manifest["read_model"]["status"] == "available"
+    assert output_manifest["read_model"]["counts"]["output_manifest_record_count"] == 1
+    assert output_manifest["read_model"]["counts"]["output_manifest_hash_count"] == 1
     assert checks["daacs_runtime_preflight_projection"] is True
     assert checks["daacs_runtime_preflight_blocked"] is True
     assert checks["daacs_runtime_preflight_execution_zero"] is True
@@ -420,6 +464,9 @@ def test_local_service_demo_compares_dry_run_and_target_runtime_preflight(tmp_pa
     assert checks["daacs_runtime_output_manifest_prerequisite"] is True
     assert checks["daacs_runtime_output_manifest_groups"] is True
     assert checks["daacs_runtime_output_manifest_execution_zero"] is True
+    assert checks["daacs_runtime_output_manifest_persisted"] is True
+    assert checks["daacs_runtime_output_manifest_read_model"] is True
+    assert checks["daacs_runtime_output_manifest_read_model_execution_zero"] is True
 
     for forbidden in (
         "raw_prompt",
