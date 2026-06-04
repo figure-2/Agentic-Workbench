@@ -28,7 +28,8 @@ Runner Boundary
 
 Target Runtime Boundary
   RunnerPlan hash, sandbox preflight, disabled adapter admission, path allowlist,
-  command policy, rollback policy, disabled output manifest contract
+  command policy, rollback policy, disabled output manifest contract,
+  disabled generated artifact bundle contract
 
 Verification Boundary
   VerificationReport with sanitized checks, counts, hashes, and metrics
@@ -94,6 +95,9 @@ sequenceDiagram
 | `TargetRuntimeOutputManifestRecord` | SQLite-safe hash/status/count row for disabled output manifest evidence |
 | `SQLiteTargetRuntimeOutputManifestStore` | local evidence store for output manifest records, with fail-closed schema validation |
 | `target_runtime_output_manifest_public_read_model` | public read model that returns output manifest hashes, status, reason, counts, repository flags, and zero-call counters only |
+| `TargetRuntimeGeneratedArtifactBundleRequest` | hash-only request that binds future artifact bundle evidence to a persisted output manifest read model |
+| `TargetRuntimeGeneratedArtifactBundleService` | fail-closed evaluator that produces disabled artifact unit labels, hashes, counts, and zero-call counters without file writes |
+| `TargetRuntimeGeneratedArtifactBundleResult` | public projection with generated bundle hash, artifact unit hashes, prerequisite counts, claim boundary, and zero-call counters |
 | `VerificationReport` | sanitized check/error/file/metric projection |
 | repository records | hash/count/linkage rows that exclude raw prompt, raw body, logs, and provider payloads |
 | `ProviderEnvelopeRecord` | no-call provider envelope evidence with contract hashes, counts, and status |

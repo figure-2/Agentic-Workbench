@@ -39,6 +39,9 @@ from .services.target_runtime_output_manifest import (
     read_target_runtime_output_manifests,
     run_target_runtime_output_manifest,
 )
+from .services.target_runtime_generated_artifact_bundle import (
+    run_target_runtime_generated_artifact_bundle,
+)
 from .services.target_runtime_preflight import run_target_runtime_preflight
 from .services.canonical_run_store import (
     RunArtifactRepositoryConfig,
@@ -237,6 +240,13 @@ def create_app(
                     repository_provider=target_runtime_output_manifest_repositories,
                 )
             }
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/daacs/runtime/generated-artifact-bundle")
+    def create_daacs_runtime_generated_artifact_bundle(payload: dict):
+        try:
+            return {"data": run_target_runtime_generated_artifact_bundle(payload)}
         except (KeyError, TypeError, ValueError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 

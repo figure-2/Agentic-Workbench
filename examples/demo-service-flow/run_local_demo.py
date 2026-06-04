@@ -105,6 +105,10 @@ from packages.daacs_builder.target_runtime_output_manifest import (
     TARGET_RUNTIME_OUTPUT_MANIFEST_MODE_DISABLED,
     TARGET_RUNTIME_OUTPUT_MANIFEST_VERSION,
 )
+from packages.daacs_builder.target_runtime_generated_artifact_bundle import (
+    TARGET_RUNTIME_GENERATED_ARTIFACT_BUNDLE_MODE_DISABLED,
+    TARGET_RUNTIME_GENERATED_ARTIFACT_BUNDLE_VERSION,
+)
 from packages.div_planner.provider_boundary import PLANNER_PROVIDER_MODE_SOLAR_DISABLED
 
 
@@ -1433,6 +1437,51 @@ def _post_daacs_runtime_output_manifest(
     return response.json()["data"]
 
 
+def _daacs_runtime_generated_artifact_bundle_payload(
+    *,
+    run_id: str,
+    runner_plan_hash: str,
+    output_manifest_hash: str,
+    output_manifest_read_model: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "run_id": run_id,
+        "runner_plan_hash": runner_plan_hash,
+        "output_manifest_hash": output_manifest_hash,
+        "output_manifest_read_model": output_manifest_read_model,
+        "mode": TARGET_RUNTIME_GENERATED_ARTIFACT_BUNDLE_MODE_DISABLED,
+        "artifact_units": [
+            {"label": "backend", "artifact_kind": "backend"},
+            {"label": "frontend", "artifact_kind": "frontend"},
+            {
+                "label": "verification_report",
+                "artifact_kind": "verification_report",
+            },
+        ],
+    }
+
+
+def _post_daacs_runtime_generated_artifact_bundle(
+    client: TestClient,
+    *,
+    run_id: str,
+    runner_plan_hash: str,
+    output_manifest_hash: str,
+    output_manifest_read_model: dict[str, Any],
+) -> dict[str, Any]:
+    response = client.post(
+        "/api/v1/daacs/runtime/generated-artifact-bundle",
+        json=_daacs_runtime_generated_artifact_bundle_payload(
+            run_id=run_id,
+            runner_plan_hash=runner_plan_hash,
+            output_manifest_hash=output_manifest_hash,
+            output_manifest_read_model=output_manifest_read_model,
+        ),
+    )
+    response.raise_for_status()
+    return response.json()["data"]
+
+
 def _artifact_kinds(artifacts: list[dict[str, Any]]) -> set[str]:
     return {str(artifact.get("kind") or "") for artifact in artifacts}
 
@@ -1514,6 +1563,7 @@ def _checks(
     daacs_runtime_adapter_admission_read_data: dict[str, Any] | None = None,
     daacs_runtime_output_manifest_data: dict[str, Any] | None = None,
     daacs_runtime_output_manifest_read_data: dict[str, Any] | None = None,
+    daacs_runtime_generated_artifact_bundle_data: dict[str, Any] | None = None,
 ) -> dict[str, bool]:
     artifact_kinds = _artifact_kinds(run_data.get("artifacts", []))
     evidence_summary = run_data.get("evidence_summary", {})
@@ -2679,6 +2729,39 @@ def _checks(
             and int(read_execution.get("execution_permission_count", -1)) == 0
             and int(read_execution.get("generated_artifact_body_write_count", -1)) == 0
         )
+    if daacs_runtime_generated_artifact_bundle_data is None:
+        checks["daacs_runtime_generated_artifact_bundle_optional"] = True
+    else:
+        execution = daacs_runtime_generated_artifact_bundle_data.get(
+            "execution_boundary", {}
+        )
+        counts = daacs_runtime_generated_artifact_bundle_data.get("counts", {})
+        checks["daacs_runtime_generated_artifact_bundle_projection"] = (
+            daacs_runtime_generated_artifact_bundle_data.get("projection_version")
+            == TARGET_RUNTIME_GENERATED_ARTIFACT_BUNDLE_VERSION
+        )
+        checks["daacs_runtime_generated_artifact_bundle_blocked"] = (
+            daacs_runtime_generated_artifact_bundle_data.get("status") == "blocked"
+            and daacs_runtime_generated_artifact_bundle_data.get("reason")
+            == "target_runtime_generated_artifact_bundle_execution_closed"
+        )
+        checks["daacs_runtime_generated_artifact_bundle_prerequisite"] = (
+            int(counts.get("output_manifest_read_model_count", -1)) == 1
+            and int(counts.get("output_manifest_hash_match_count", -1)) == 1
+            and int(counts.get("output_manifest_record_count", -1)) >= 1
+        )
+        checks["daacs_runtime_generated_artifact_bundle_units"] = (
+            int(counts.get("artifact_unit_count", -1)) >= 3
+            and int(counts.get("artifact_unit_hash_count", -1)) >= 3
+        )
+        checks["daacs_runtime_generated_artifact_bundle_execution_zero"] = (
+            int(execution.get("target_runtime_calls", -1)) == 0
+            and int(execution.get("filesystem_writes", -1)) == 0
+            and int(execution.get("subprocess_calls", -1)) == 0
+            and int(execution.get("network_calls", -1)) == 0
+            and int(execution.get("execution_permission_count", -1)) == 0
+            and int(execution.get("generated_artifact_body_write_count", -1)) == 0
+        )
     return checks
 
 
@@ -2690,6 +2773,7 @@ def run_demo(
     include_daacs_runtime_preflight: bool = False,
     include_daacs_runtime_adapter_admission: bool = False,
     include_daacs_runtime_output_manifest: bool = False,
+    include_daacs_runtime_generated_artifact_bundle: bool = False,
 ) -> dict[str, Any]:
     selected_root = Path(store_root) if store_root else Path(__file__).resolve().parent / ".local"
     selected_root.mkdir(parents=True, exist_ok=True)
@@ -2699,8 +2783,12 @@ def run_demo(
         include_target_runtime_admission=(
             include_daacs_runtime_adapter_admission
             or include_daacs_runtime_output_manifest
+            or include_daacs_runtime_generated_artifact_bundle
         ),
-        include_target_runtime_output_manifest=include_daacs_runtime_output_manifest,
+        include_target_runtime_output_manifest=(
+            include_daacs_runtime_output_manifest
+            or include_daacs_runtime_generated_artifact_bundle
+        ),
     )
 
     create_data = _post_run(client)
@@ -2716,6 +2804,7 @@ def run_demo(
     daacs_runtime_adapter_admission_read_data = None
     daacs_runtime_output_manifest_data = None
     daacs_runtime_output_manifest_read_data = None
+    daacs_runtime_generated_artifact_bundle_data = None
     if include_provider_precheck:
         provider_envelope_data = _post_provider_envelope_precheck(
             client,
@@ -2736,6 +2825,7 @@ def run_demo(
         include_daacs_runtime_preflight
         or include_daacs_runtime_adapter_admission
         or include_daacs_runtime_output_manifest
+        or include_daacs_runtime_generated_artifact_bundle
     ):
         runner_plan_hashes = verification_data.get("runner_plan_hashes", [])
         runner_plan_hash = str(runner_plan_hashes[0] if runner_plan_hashes else "")
@@ -2744,7 +2834,11 @@ def run_demo(
             run_id=run_id,
             runner_plan_hash=runner_plan_hash,
         )
-        if include_daacs_runtime_adapter_admission or include_daacs_runtime_output_manifest:
+        if (
+            include_daacs_runtime_adapter_admission
+            or include_daacs_runtime_output_manifest
+            or include_daacs_runtime_generated_artifact_bundle
+        ):
             daacs_runtime_adapter_admission_data = _post_daacs_runtime_adapter_admission(
                 client,
                 run_id=run_id,
@@ -2755,7 +2849,10 @@ def run_demo(
                 client,
                 f"/api/v1/daacs/runtime/adapter/admissions/{run_id}",
             )
-            if include_daacs_runtime_output_manifest:
+            if (
+                include_daacs_runtime_output_manifest
+                or include_daacs_runtime_generated_artifact_bundle
+            ):
                 daacs_runtime_output_manifest_data = _post_daacs_runtime_output_manifest(
                     client,
                     run_id=run_id,
@@ -2773,6 +2870,22 @@ def run_demo(
                     client,
                     f"/api/v1/daacs/runtime/output-manifests/{run_id}",
                 )
+                if include_daacs_runtime_generated_artifact_bundle:
+                    daacs_runtime_generated_artifact_bundle_data = (
+                        _post_daacs_runtime_generated_artifact_bundle(
+                            client,
+                            run_id=run_id,
+                            runner_plan_hash=runner_plan_hash,
+                            output_manifest_hash=str(
+                                daacs_runtime_output_manifest_data.get(
+                                    "output_manifest_hash", ""
+                                )
+                            ),
+                            output_manifest_read_model=(
+                                daacs_runtime_output_manifest_read_data or {}
+                            ),
+                        )
+                    )
 
     checks = _checks(
         create_data,
@@ -2788,6 +2901,9 @@ def run_demo(
         daacs_runtime_output_manifest_data=daacs_runtime_output_manifest_data,
         daacs_runtime_output_manifest_read_data=(
             daacs_runtime_output_manifest_read_data
+        ),
+        daacs_runtime_generated_artifact_bundle_data=(
+            daacs_runtime_generated_artifact_bundle_data
         ),
     )
     artifact_kinds = sorted(_artifact_kinds(run_data.get("artifacts", [])))
@@ -2813,8 +2929,16 @@ def run_demo(
         if daacs_runtime_output_manifest_data
         else {}
     )
+    daacs_runtime_generated_artifact_bundle_execution = (
+        daacs_runtime_generated_artifact_bundle_data.get("execution_boundary", {})
+        if daacs_runtime_generated_artifact_bundle_data
+        else {}
+    )
     comparison_variant_count = 2 if solar_planner_preflight_data else 1
     runtime_comparison_variant_count = (
+        5
+        if daacs_runtime_generated_artifact_bundle_data
+        else
         4
         if daacs_runtime_output_manifest_data
         else 3
@@ -3084,6 +3208,56 @@ def run_demo(
             "output_manifest_network_calls": _as_int(
                 daacs_runtime_output_manifest_execution.get("network_calls")
             ),
+            "generated_artifact_bundle_status": (
+                daacs_runtime_generated_artifact_bundle_data.get("status")
+                if daacs_runtime_generated_artifact_bundle_data
+                else "skipped"
+            ),
+            "generated_artifact_bundle_reason": (
+                daacs_runtime_generated_artifact_bundle_data.get("reason")
+                if daacs_runtime_generated_artifact_bundle_data
+                else "skipped"
+            ),
+            "generated_artifact_bundle_hash_count": (
+                1
+                if (daacs_runtime_generated_artifact_bundle_data or {}).get(
+                    "generated_artifact_bundle_hash"
+                )
+                else 0
+            ),
+            "generated_artifact_bundle_unit_count": _as_int(
+                (daacs_runtime_generated_artifact_bundle_data or {})
+                .get("counts", {})
+                .get("artifact_unit_count")
+            ),
+            "generated_artifact_bundle_prerequisite_count": _as_int(
+                (daacs_runtime_generated_artifact_bundle_data or {})
+                .get("counts", {})
+                .get("output_manifest_read_model_count")
+            ),
+            "generated_artifact_bundle_body_writes": _as_int(
+                daacs_runtime_generated_artifact_bundle_execution.get(
+                    "generated_artifact_body_write_count"
+                )
+            ),
+            "generated_artifact_bundle_target_runtime_calls": _as_int(
+                daacs_runtime_generated_artifact_bundle_execution.get(
+                    "target_runtime_calls"
+                )
+            ),
+            "generated_artifact_bundle_filesystem_writes": _as_int(
+                daacs_runtime_generated_artifact_bundle_execution.get(
+                    "filesystem_writes"
+                )
+            ),
+            "generated_artifact_bundle_subprocess_calls": _as_int(
+                daacs_runtime_generated_artifact_bundle_execution.get(
+                    "subprocess_calls"
+                )
+            ),
+            "generated_artifact_bundle_network_calls": _as_int(
+                daacs_runtime_generated_artifact_bundle_execution.get("network_calls")
+            ),
             "adapter_target_runtime_calls": _as_int(
                 daacs_runtime_adapter_execution.get("target_runtime_calls")
             ),
@@ -3199,6 +3373,53 @@ def run_demo(
             else {
                 "status": "skipped",
                 "reason": "optional target runtime output manifest not requested",
+                "target_runtime_outcome": False,
+            }
+        ),
+        "daacs_runtime_generated_artifact_bundle": (
+            {
+                "projection_version": (
+                    daacs_runtime_generated_artifact_bundle_data.get(
+                        "projection_version"
+                    )
+                ),
+                "status": daacs_runtime_generated_artifact_bundle_data.get("status"),
+                "reason": daacs_runtime_generated_artifact_bundle_data.get("reason"),
+                "mode": daacs_runtime_generated_artifact_bundle_data.get("mode"),
+                "output_manifest_hash": (
+                    daacs_runtime_generated_artifact_bundle_data.get(
+                        "output_manifest_hash"
+                    )
+                ),
+                "output_manifest_read_model_hash": (
+                    daacs_runtime_generated_artifact_bundle_data.get(
+                        "output_manifest_read_model_hash"
+                    )
+                ),
+                "generated_artifact_bundle_hash": (
+                    daacs_runtime_generated_artifact_bundle_data.get(
+                        "generated_artifact_bundle_hash"
+                    )
+                ),
+                "artifact_units": daacs_runtime_generated_artifact_bundle_data.get(
+                    "artifact_units", []
+                ),
+                "counts": daacs_runtime_generated_artifact_bundle_data.get(
+                    "counts", {}
+                ),
+                "execution_boundary": (
+                    daacs_runtime_generated_artifact_bundle_data.get(
+                        "execution_boundary", {}
+                    )
+                ),
+                "claim_boundary": daacs_runtime_generated_artifact_bundle_data.get(
+                    "claim_boundary", {}
+                ),
+            }
+            if daacs_runtime_generated_artifact_bundle_data is not None
+            else {
+                "status": "skipped",
+                "reason": "optional target runtime generated artifact bundle not requested",
                 "target_runtime_outcome": False,
             }
         ),
@@ -6542,6 +6763,11 @@ def main() -> None:
         action="store_true",
         help="Also run the no-call DAACS target runtime output manifest contract comparison.",
     )
+    parser.add_argument(
+        "--include-daacs-runtime-generated-artifact-bundle",
+        action="store_true",
+        help="Also run the no-call DAACS generated artifact bundle contract comparison.",
+    )
     args = parser.parse_args()
 
     summary = run_demo(
@@ -6551,6 +6777,9 @@ def main() -> None:
         include_daacs_runtime_preflight=args.include_daacs_runtime_preflight,
         include_daacs_runtime_adapter_admission=args.include_daacs_runtime_adapter_admission,
         include_daacs_runtime_output_manifest=args.include_daacs_runtime_output_manifest,
+        include_daacs_runtime_generated_artifact_bundle=(
+            args.include_daacs_runtime_generated_artifact_bundle
+        ),
     )
     rendered = json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True)
     print(rendered)

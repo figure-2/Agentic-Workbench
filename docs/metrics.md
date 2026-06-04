@@ -33,22 +33,22 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-DAACS-RUNTIME-04` disabled output manifest
-persistence/read-model boundary.
+Current snapshot after `AW-DAACS-RUNTIME-05` disabled generated artifact bundle
+contract boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and local artifacts | 405 |
-| Counted code/doc files, excluding cache and local artifacts | 402 |
-| Project lines, excluding cache and local artifacts | 102,682 |
-| Python files | 95 |
-| Markdown files | 303 |
-| Test files | 40 |
-| Unit test files | 30 |
+| Project files, excluding cache and local artifacts | 410 |
+| Counted code/doc files, excluding cache and local artifacts | 407 |
+| Project lines, excluding cache and local artifacts | 104,165 |
+| Python files | 98 |
+| Markdown files | 305 |
+| Test files | 41 |
+| Unit test files | 31 |
 | Smoke test files | 9 |
 | Integration test files | 1 |
-| Pytest collected cases | 625 |
-| Pytest passed cases | 625 |
+| Pytest collected cases | 633 |
+| Pytest passed cases | 633 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -5437,20 +5437,77 @@ runtime result. It does not add generated app files, provider calls, network
 calls, subprocess calls, package installation, server start, raw file storage,
 or hosted behavior.
 
+## AW-DAACS-RUNTIME-05 Disabled Generated Artifact Bundle Contract Metrics
+
+`AW-DAACS-RUNTIME-05` defines a disabled generated artifact bundle contract over
+the persisted output manifest read model. It exposes artifact unit labels,
+hashes, status, reasons, counts, and zero-call counters only. It does not write
+generated file bodies or open DAACS target runtime execution.
+
+| Metric | Value |
+|---|---:|
+| Comparison variants | 5 |
+| Dry-run fixture stage coverage | 7/7 |
+| Dry-run fixture stage coverage percent | 100.0% |
+| Target runtime preflight status | blocked |
+| Disabled adapter admission status | blocked |
+| Adapter admission read-model status | available |
+| Output manifest status | blocked |
+| Output manifest read-model status | available |
+| Generated artifact bundle status | blocked |
+| Generated artifact bundle reason | target_runtime_generated_artifact_bundle_execution_closed |
+| Output manifest read-model prerequisite count | 1 |
+| Output manifest hash match count | 1 |
+| Generated artifact bundle hash coverage | 1/1 |
+| Artifact unit count | 3 |
+| Artifact unit hash count | 3 |
+| Generated artifact body writes | 0 |
+| Execution permission count | 0 |
+| Filesystem writes outside local SQLite evidence stores | 0 |
+| Subprocess calls | 0 |
+| Network calls | 0 |
+| DAACS target runtime calls | 0 |
+| Raw exposure findings | 0 |
+| Public claim drift findings | 0 |
+| New unit tests | 7 |
+| Updated smoke tests | 6 |
+
+| Comparison Variant | Status | Stage Coverage | Hash Evidence | Filesystem Writes | Subprocess Calls | Network Calls | Runtime Calls |
+|---|---|---:|---:|---:|---:|---:|---:|
+| `dry_run_runner` | passed | 7/7 | n/a | 0 | 0 | 0 | 0 |
+| `target_runtime_preflight` | blocked | preflight-only | n/a | 0 | 0 | 0 | 0 |
+| `persisted_disabled_adapter_admission` | blocked/read-model available | adapter-disabled | 1 | 0 | 0 | 0 | 0 |
+| `persisted_disabled_output_manifest` | blocked/read-model available | manifest-only | 1 | 0 | 0 | 0 | 0 |
+| `disabled_generated_artifact_bundle` | blocked | bundle-only | 1 | 0 | 0 | 0 | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m compileall apps examples packages tests` | passed |
+| `python -m pytest tests\unit\test_target_runtime_generated_artifact_bundle.py tests\smoke\test_daacs_runtime_preflight.py -q --color=no` | 13 passed |
+| `python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-daacs-runtime-05-demo --include-daacs-runtime-generated-artifact-bundle` | passed |
+| `python -m pytest tests\unit\test_public_claim_projection_docs.py tests\unit\test_target_runtime_generated_artifact_bundle.py tests\unit\test_target_runtime_output_manifest_store.py tests\unit\test_target_runtime_output_manifest.py tests\smoke\test_daacs_runtime_preflight.py -q --color=no` | 28 passed |
+| `python -m pytest tests -q --color=no` | 633 passed |
+
+Interpretation: AW-DAACS-RUNTIME-05 makes the next generated artifact bundle
+stage visible in the service-shaped demo without claiming generated source
+files or runtime execution. It does not add generated app files, provider calls,
+network calls, subprocess calls, package installation, server start, raw file
+storage, or hosted behavior.
+
 ## Next Implementation Measurement Plan
 
-The next implementation work should define a disabled generated artifact bundle
-contract over the persisted output manifest read model. These are target
-metrics, not observed implementation results.
+The next implementation work should stop adding no-call gates and start a
+fixture-backed local artifact materialization scaffold in a run-scoped
+workspace. These are target metrics, not observed implementation results.
 
 | Work Order | Comparison variants | Primary target | Required zero-call counters |
 |---|---:|---|---|
-| `AW-DAACS-RUNTIME-05` | 5 | disabled generated artifact bundle contract | filesystem writes outside local evidence store, subprocess calls, network calls, DAACS target runtime calls |
+| `AW-DAACS-RUNTIME-06` | 6 | fixture-backed local artifact materialization scaffold | DAACS live runtime calls, provider calls, subprocess calls, network calls |
 
 | Planned Metric | Target |
 |---|---:|
-| `AW-DAACS-RUNTIME-05` output manifest read-model prerequisite coverage | 100% |
-| `AW-DAACS-RUNTIME-05` generated artifact bundle hash coverage | 100% |
-| `AW-DAACS-RUNTIME-05` generated artifact body writes | 0 |
-| `AW-DAACS-RUNTIME-05` DAACS target runtime calls | 0 |
+| `AW-DAACS-RUNTIME-06` run-scoped workspace path coverage | 100% |
+| `AW-DAACS-RUNTIME-06` sanitized artifact record count | >= 3 |
+| `AW-DAACS-RUNTIME-06` generated artifact public body exposure | 0 |
+| `AW-DAACS-RUNTIME-06` DAACS live target runtime calls | 0 |
 | Public claim drift findings | 0 |

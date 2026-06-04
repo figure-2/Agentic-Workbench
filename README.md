@@ -80,6 +80,7 @@ Current implementation:
 - AW-MVP-01 service-shaped vertical slice with 7/7 stage coverage and a verification read-model endpoint
 - Disabled Solar planner provider preflight boundary for fixture-vs-preflight comparison, still no provider call
 - DAACS target runtime sandbox preflight boundary for dry-run-vs-preflight comparison, still no runtime call
+- Disabled generated artifact bundle contract over the persisted output manifest read model, still no runtime call or generated file body
 - Disabled-by-default Solar Pro 3 provider adapter skeleton with fake/live path separation
 - No-call Solar Pro 3 request/response contract fixtures with cost/timeout policy checks
 - Provider envelope persistence/read-model projection for no-call Solar contract evidence
@@ -154,7 +155,7 @@ Not included in the current scope:
 
 - Real external provider calls
 - Direct original runtime execution
-- Generated application artifact production
+- Generated application artifact production, except hash-only disabled bundle contracts
 - CLI agent execution
 - Package install, server start, unrestricted file write
 - Hosted deployment success claim
@@ -385,4 +386,6 @@ Current status addendum: AW-DAACS-RUNTIME-03 adds a disabled target runtime outp
 
 Current status addendum: AW-DAACS-RUNTIME-04 persists the disabled output manifest as a hash/status/count-only SQLite evidence row and exposes a public read model by run_id. The read model returns manifest hashes, status, reason, counts, repository flags, and zero-call counters only.
 
-Next implementation track: AW-DAACS-RUNTIME-05 should define a disabled generated artifact bundle contract over the persisted output manifest read model. The goal is to describe future generated artifact bundles without storing generated file bodies or opening target runtime execution.
+Current status addendum: AW-DAACS-RUNTIME-05 defines a disabled generated artifact bundle contract over the persisted output manifest read model. The bundle projection returns artifact unit labels, hashes, counts, status, reason, and zero-call boundaries only. It does not write generated file bodies or run DAACS target runtime code.
+
+Next implementation track: AW-DAACS-RUNTIME-06 should move from more no-call gates to a fixture-backed local artifact materialization scaffold in a run-scoped workspace. The goal is portfolio-visible generated artifact records while keeping DAACS live runtime calls at 0 and public file bodies hidden.

@@ -58,6 +58,13 @@ persistence, and read-model comparison:
 python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-daacs-runtime-04-demo --include-daacs-runtime-output-manifest
 ```
 
+To include the AW-DAACS-RUNTIME-05 no-call generated artifact bundle contract
+over the persisted output manifest read model:
+
+```powershell
+python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-daacs-runtime-05-demo --include-daacs-runtime-generated-artifact-bundle
+```
+
 The printed JSON is a sanitized summary. It includes run status, artifact
 kinds, evidence counts, linkage markers, repository boundary flags, and
 zero-call execution metrics. It does not include raw prompts, provider payloads,
@@ -142,6 +149,13 @@ rows.
   generated file bodies, generated source bodies, raw paths, filesystem writes
   outside local SQLite evidence stores, subprocess calls, network calls, or
   target runtime calls.
+- When `--include-daacs-runtime-generated-artifact-bundle` is used, the demo
+  compares five variants: dry-run runner, target runtime preflight, persisted
+  disabled adapter admission, persisted disabled output manifest evidence, and
+  disabled generated artifact bundle evidence. The bundle shows artifact unit
+  labels and hashes only. It does not include generated file bodies, generated
+  source bodies, raw paths, filesystem writes outside local SQLite evidence
+  stores, subprocess calls, network calls, or target runtime calls.
 - When `--include-provider-precheck` is used, manual proposal, disabled
   executor, one-shot permission, preflight audit, readiness decision, review
   packet, review packet export/read-model, handoff packet, and operator opt-in
