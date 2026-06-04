@@ -377,4 +377,4 @@ Current status addendum: AW-MVP-01 adds a service-shaped local vertical slice ov
 
 Current status addendum: AW-LIVE-CHAIN-04 extends the no-call boundary helper to AW-LIVE-46 through AW-LIVE-52. The consolidated helper now covers AW-LIVE-46 through AW-LIVE-69 while preserving public field names and execution permission `0`.
 
-Next implementation track: AW-LIVE-70 can resume the disabled no-call chain after the consolidated helper rollout remains green. If maintainability remains the priority, inspect older duplicated no-call blocks before adding another helper backfill.
+Next implementation track: AW-SOLAR-01 should prepare the disabled planner-provider boundary for Solar Pro 3, then AW-DAACS-RUNTIME-00 should define the target runtime sandbox and preflight contract. The disabled no-call chain can resume later if live-opening controls need more evidence, but it is no longer the primary product path.

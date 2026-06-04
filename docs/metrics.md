@@ -5120,3 +5120,26 @@ connecting run creation, composed read model, artifact read model, and
 verification read model in one local dry-run path. It does not add provider
 execution, provider SDK import, env value access, network access, target
 workspace execution, hosted behavior, or generated application delivery.
+
+## Next Implementation Measurement Plan
+
+The next implementation work should move from service-shaped local demo toward
+controlled provider/runtime preparation. These are target metrics, not observed
+implementation results.
+
+| Work Order | Comparison variants | Primary target | Required zero-call counters |
+|---|---:|---|---|
+| `AW-SOLAR-01` | 2 | fixture planner vs disabled Solar planner preflight | provider calls, SDK imports, env value reads, network calls |
+| `AW-DAACS-RUNTIME-00` | 2 | dry-run runner vs target runtime preflight | filesystem writes, subprocess calls, network calls, DAACS target runtime calls |
+
+| Planned Metric | Target |
+|---|---:|
+| `AW-SOLAR-01` fixture stage coverage | 7/7 |
+| `AW-SOLAR-01` disabled Solar preflight provider calls | 0 |
+| `AW-SOLAR-01` raw provider/request exposure findings | 0 |
+| `AW-DAACS-RUNTIME-00` path traversal fixtures blocked | 100% |
+| `AW-DAACS-RUNTIME-00` disallowed write fixtures blocked | 100% |
+| `AW-DAACS-RUNTIME-00` package install fixtures blocked | 100% |
+| `AW-DAACS-RUNTIME-00` server start fixtures blocked | 100% |
+| `AW-DAACS-RUNTIME-00` DAACS target runtime calls | 0 |
+| Public claim drift findings | 0 |
