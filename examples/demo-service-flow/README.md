@@ -65,6 +65,13 @@ over the persisted output manifest read model:
 python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-daacs-runtime-05-demo --include-daacs-runtime-generated-artifact-bundle
 ```
 
+To include the AW-DAACS-RUNTIME-06 sanitized fixture artifact materialization
+inside a run-scoped local workspace:
+
+```powershell
+python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-daacs-runtime-06-demo --include-daacs-runtime-fixture-materialization
+```
+
 The printed JSON is a sanitized summary. It includes run status, artifact
 kinds, evidence counts, linkage markers, repository boundary flags, and
 zero-call execution metrics. It does not include raw prompts, provider payloads,
@@ -156,6 +163,12 @@ rows.
   labels and hashes only. It does not include generated file bodies, generated
   source bodies, raw paths, filesystem writes outside local SQLite evidence
   stores, subprocess calls, network calls, or target runtime calls.
+- When `--include-daacs-runtime-fixture-materialization` is used, the demo
+  compares six variants and writes three sanitized fixture artifacts under a
+  run-scoped local workspace. The public summary returns relative paths,
+  content hashes, status, reasons, and counts only. It does not return local
+  root paths, raw file bodies, provider payloads, subprocess output, network
+  output, or target runtime calls.
 - When `--include-provider-precheck` is used, manual proposal, disabled
   executor, one-shot permission, preflight audit, readiness decision, review
   packet, review packet export/read-model, handoff packet, and operator opt-in

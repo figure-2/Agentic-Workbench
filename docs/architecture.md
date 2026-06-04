@@ -29,7 +29,8 @@ Runner Boundary
 Target Runtime Boundary
   RunnerPlan hash, sandbox preflight, disabled adapter admission, path allowlist,
   command policy, rollback policy, disabled output manifest contract,
-  disabled generated artifact bundle contract
+  disabled generated artifact bundle contract, sanitized fixture artifact
+  materialization
 
 Verification Boundary
   VerificationReport with sanitized checks, counts, hashes, and metrics
@@ -38,7 +39,8 @@ Persistence Boundary
   sanitized in-memory repositories, file-backed replay fixture,
   SQLite skeletons for runner/report/audit, approval/replay, and canonical
   run/artifact projection rows, plus provider envelope evidence rows and
-  target runtime adapter admission/output manifest evidence rows
+  target runtime adapter admission/output manifest evidence rows, plus
+  configured run-scoped fixture workspace writes
 ```
 
 ## Current Flow
@@ -98,6 +100,9 @@ sequenceDiagram
 | `TargetRuntimeGeneratedArtifactBundleRequest` | hash-only request that binds future artifact bundle evidence to a persisted output manifest read model |
 | `TargetRuntimeGeneratedArtifactBundleService` | fail-closed evaluator that produces disabled artifact unit labels, hashes, counts, and zero-call counters without file writes |
 | `TargetRuntimeGeneratedArtifactBundleResult` | public projection with generated bundle hash, artifact unit hashes, prerequisite counts, claim boundary, and zero-call counters |
+| `TargetRuntimeFixtureMaterializationRequest` | request that binds sanitized fixture workspace writes to a generated artifact bundle hash |
+| `TargetRuntimeFixtureMaterializationService` | writes sanitized fixture artifacts under a configured run-scoped workspace and blocks missing or mismatched bundle evidence |
+| `TargetRuntimeFixtureMaterializationResult` | public projection with relative paths, content hashes, counts, claim boundary, and zero-call target runtime counters |
 | `VerificationReport` | sanitized check/error/file/metric projection |
 | repository records | hash/count/linkage rows that exclude raw prompt, raw body, logs, and provider payloads |
 | `ProviderEnvelopeRecord` | no-call provider envelope evidence with contract hashes, counts, and status |

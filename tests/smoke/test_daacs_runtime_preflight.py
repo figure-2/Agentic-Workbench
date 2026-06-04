@@ -11,6 +11,9 @@ from apps.api.agentic_workbench_api.services.target_runtime_admission import (
 from apps.api.agentic_workbench_api.services.target_runtime_output_manifest import (
     TargetRuntimeOutputManifestRepositoryConfig,
 )
+from apps.api.agentic_workbench_api.services.target_runtime_fixture_materialization import (
+    TargetRuntimeFixtureMaterializationConfig,
+)
 from packages.core.live_open_policy import LIVE_OPEN_REQUIRED_CONTROLS
 from packages.core.public_projection import assert_public_projection_safe
 from packages.core.schemas import stable_contract_hash
@@ -23,6 +26,10 @@ from packages.daacs_builder.target_runtime_output_manifest import (
 from packages.daacs_builder.target_runtime_generated_artifact_bundle import (
     TARGET_RUNTIME_GENERATED_ARTIFACT_BUNDLE_MODE_DISABLED,
     TARGET_RUNTIME_GENERATED_ARTIFACT_BUNDLE_VERSION,
+)
+from packages.daacs_builder.target_runtime_fixture_materialization import (
+    TARGET_RUNTIME_FIXTURE_MATERIALIZATION_MODE,
+    TARGET_RUNTIME_FIXTURE_MATERIALIZATION_VERSION,
 )
 from packages.daacs_builder.target_runtime_sandbox import (
     TARGET_RUNTIME_MODE_DISABLED_PREFLIGHT,
@@ -483,12 +490,140 @@ def test_daacs_runtime_generated_artifact_bundle_api_requires_output_manifest_re
     assert_public_projection_safe(data)
 
 
+def test_daacs_runtime_fixture_materialization_api_writes_sanitized_workspace_records(
+    tmp_path,
+):
+    workspace_root = tmp_path / "target-runtime-fixture-workspace"
+    client = TestClient(
+        create_app(
+            target_runtime_admission_repository_config=(
+                TargetRuntimeAdmissionRepositoryConfig(
+                    root=tmp_path / "target-runtime-admission-evidence"
+                )
+            ),
+            target_runtime_output_manifest_repository_config=(
+                TargetRuntimeOutputManifestRepositoryConfig(
+                    root=tmp_path / "target-runtime-output-manifest-evidence"
+                )
+            ),
+            target_runtime_fixture_materialization_config=(
+                TargetRuntimeFixtureMaterializationConfig(root=workspace_root)
+            ),
+        )
+    )
+    preflight_response = client.post(
+        "/api/v1/daacs/runtime/preflight",
+        json=_payload("run-daacs-runtime-fixture-materialization-api"),
+    )
+    preflight_response.raise_for_status()
+    preflight = preflight_response.json()["data"]
+    admission_response = client.post(
+        "/api/v1/daacs/runtime/adapter/admission",
+        json={
+            "run_id": preflight["run_id"],
+            "runner_plan_hash": preflight["runner_plan_hash"],
+            "expected_preflight_hash": preflight["preflight_hash"],
+            "mode": TARGET_RUNTIME_MODE_DISABLED_ADAPTER_ADMISSION,
+            "preflight_projection": preflight,
+        },
+    )
+    adapter_read_response = client.get(
+        f"/api/v1/daacs/runtime/adapter/admissions/{preflight['run_id']}"
+    )
+    admission = admission_response.json()["data"]
+    adapter_read_model = adapter_read_response.json()["data"]
+    manifest_response = client.post(
+        "/api/v1/daacs/runtime/output-manifest",
+        json={
+            "run_id": preflight["run_id"],
+            "runner_plan_hash": preflight["runner_plan_hash"],
+            "adapter_admission_hash": admission["adapter_admission_hash"],
+            "adapter_admission_read_model": adapter_read_model,
+            "mode": TARGET_RUNTIME_OUTPUT_MANIFEST_MODE_DISABLED,
+        },
+    )
+    output_manifest = manifest_response.json()["data"]
+    output_manifest_read_response = client.get(
+        f"/api/v1/daacs/runtime/output-manifests/{preflight['run_id']}"
+    )
+    output_manifest_read_model = output_manifest_read_response.json()["data"]
+    bundle_response = client.post(
+        "/api/v1/daacs/runtime/generated-artifact-bundle",
+        json={
+            "run_id": preflight["run_id"],
+            "runner_plan_hash": preflight["runner_plan_hash"],
+            "output_manifest_hash": output_manifest["output_manifest_hash"],
+            "output_manifest_read_model": output_manifest_read_model,
+            "mode": TARGET_RUNTIME_GENERATED_ARTIFACT_BUNDLE_MODE_DISABLED,
+        },
+    )
+    bundle = bundle_response.json()["data"]
+
+    response = client.post(
+        "/api/v1/daacs/runtime/fixture-materialization",
+        json={
+            "run_id": preflight["run_id"],
+            "runner_plan_hash": preflight["runner_plan_hash"],
+            "generated_artifact_bundle_hash": bundle[
+                "generated_artifact_bundle_hash"
+            ],
+            "generated_artifact_bundle_projection": bundle,
+            "mode": TARGET_RUNTIME_FIXTURE_MATERIALIZATION_MODE,
+            "raw_file_body": "DAACS_RUNTIME_FIXTURE_MATERIALIZATION_RAW_SENTINEL",
+        },
+    )
+    mismatch_response = client.post(
+        "/api/v1/daacs/runtime/fixture-materialization",
+        json={
+            "run_id": preflight["run_id"],
+            "runner_plan_hash": preflight["runner_plan_hash"],
+            "generated_artifact_bundle_hash": "a" * 64,
+            "generated_artifact_bundle_projection": bundle,
+            "mode": TARGET_RUNTIME_FIXTURE_MATERIALIZATION_MODE,
+        },
+    )
+
+    assert response.status_code == 200
+    assert mismatch_response.status_code == 200
+    data = response.json()["data"]
+    mismatch = mismatch_response.json()["data"]
+    serialized = _serialized(data)
+
+    assert data["projection_version"] == TARGET_RUNTIME_FIXTURE_MATERIALIZATION_VERSION
+    assert data["status"] == "passed"
+    assert data["reason"] == "target_runtime_fixture_artifacts_materialized"
+    assert data["mode"] == TARGET_RUNTIME_FIXTURE_MATERIALIZATION_MODE
+    assert data["counts"]["generated_artifact_bundle_hash_match_count"] == 1
+    assert data["counts"]["fixture_artifact_record_count"] == 3
+    assert data["counts"]["fixture_artifact_content_hash_count"] == 3
+    assert data["execution_boundary"]["fixture_workspace_file_write_count"] == 3
+    assert data["execution_boundary"]["filesystem_writes_outside_workspace"] == 0
+    assert data["execution_boundary"]["target_runtime_calls"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["subprocess_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["repository_boundary"]["root_path_returned"] is False
+    assert data["repository_boundary"]["artifact_content_returned"] is False
+    assert mismatch["status"] == "blocked"
+    assert mismatch["reason"] == "generated_artifact_bundle_hash_mismatch"
+    assert mismatch["counts"]["fixture_workspace_file_write_count"] == 0
+
+    for record in data["artifact_records"]:
+        assert record["body_included"] is False
+        assert record["root_path_returned"] is False
+        assert (workspace_root / record["workspace_relative_path"]).exists()
+    assert "DAACS_RUNTIME_FIXTURE_MATERIALIZATION_RAW_SENTINEL" not in serialized
+    assert "raw_file_body" not in serialized
+    assert str(tmp_path) not in serialized
+    assert_public_projection_safe(data)
+
+
 def test_local_service_demo_compares_dry_run_and_target_runtime_preflight(tmp_path):
     module = _load_demo_module()
 
     summary = module.run_demo(
         tmp_path / "daacs-runtime-store",
-        include_daacs_runtime_generated_artifact_bundle=True,
+        include_daacs_runtime_fixture_materialization=True,
     )
     serialized = _serialized(summary)
     comparison = summary["daacs_runtime_comparison"]
@@ -496,10 +631,11 @@ def test_local_service_demo_compares_dry_run_and_target_runtime_preflight(tmp_pa
     adapter_admission = summary["daacs_runtime_adapter_admission"]
     output_manifest = summary["daacs_runtime_output_manifest"]
     generated_bundle = summary["daacs_runtime_generated_artifact_bundle"]
+    fixture_materialization = summary["daacs_runtime_fixture_materialization"]
     checks = summary["checks"]
 
     assert summary["status"] == "passed"
-    assert comparison["comparison_variant_count"] == 5
+    assert comparison["comparison_variant_count"] == 6
     assert comparison["dry_run_stage_coverage"] == "7/7"
     assert comparison["target_runtime_preflight_status"] == "blocked"
     assert comparison["target_runtime_calls"] == 0
@@ -540,6 +676,19 @@ def test_local_service_demo_compares_dry_run_and_target_runtime_preflight(tmp_pa
     assert comparison["generated_artifact_bundle_filesystem_writes"] == 0
     assert comparison["generated_artifact_bundle_subprocess_calls"] == 0
     assert comparison["generated_artifact_bundle_network_calls"] == 0
+    assert comparison["fixture_materialization_status"] == "passed"
+    assert comparison["fixture_materialization_reason"] == (
+        "target_runtime_fixture_artifacts_materialized"
+    )
+    assert comparison["fixture_materialization_record_count"] == 3
+    assert comparison["fixture_materialization_content_hash_count"] == 3
+    assert comparison["fixture_materialization_workspace_writes"] == 3
+    assert comparison["fixture_materialization_outside_workspace_writes"] == 0
+    assert comparison["fixture_materialization_body_public_returns"] == 0
+    assert comparison["fixture_materialization_target_runtime_calls"] == 0
+    assert comparison["fixture_materialization_provider_calls"] == 0
+    assert comparison["fixture_materialization_subprocess_calls"] == 0
+    assert comparison["fixture_materialization_network_calls"] == 0
     assert comparison["adapter_target_runtime_calls"] == 0
     assert comparison["adapter_filesystem_writes"] == 0
     assert comparison["adapter_subprocess_calls"] == 0
@@ -578,6 +727,27 @@ def test_local_service_demo_compares_dry_run_and_target_runtime_preflight(tmp_pa
     assert generated_bundle["counts"]["output_manifest_hash_match_count"] == 1
     assert generated_bundle["counts"]["artifact_unit_count"] == 3
     assert generated_bundle["counts"]["generated_artifact_body_write_count"] == 0
+    assert fixture_materialization["projection_version"] == (
+        TARGET_RUNTIME_FIXTURE_MATERIALIZATION_VERSION
+    )
+    assert fixture_materialization["status"] == "passed"
+    assert fixture_materialization["reason"] == (
+        "target_runtime_fixture_artifacts_materialized"
+    )
+    assert fixture_materialization["counts"]["generated_artifact_bundle_hash_match_count"] == 1
+    assert fixture_materialization["counts"]["fixture_artifact_record_count"] == 3
+    assert fixture_materialization["counts"]["fixture_artifact_content_hash_count"] == 3
+    assert fixture_materialization["execution_boundary"][
+        "fixture_workspace_file_write_count"
+    ] == 3
+    assert fixture_materialization["execution_boundary"][
+        "filesystem_writes_outside_workspace"
+    ] == 0
+    assert fixture_materialization["execution_boundary"]["target_runtime_calls"] == 0
+    assert fixture_materialization["repository_boundary"]["root_path_returned"] is False
+    assert fixture_materialization["repository_boundary"][
+        "artifact_content_returned"
+    ] is False
     assert checks["daacs_runtime_preflight_projection"] is True
     assert checks["daacs_runtime_preflight_blocked"] is True
     assert checks["daacs_runtime_preflight_execution_zero"] is True
@@ -603,6 +773,12 @@ def test_local_service_demo_compares_dry_run_and_target_runtime_preflight(tmp_pa
     assert checks["daacs_runtime_generated_artifact_bundle_prerequisite"] is True
     assert checks["daacs_runtime_generated_artifact_bundle_units"] is True
     assert checks["daacs_runtime_generated_artifact_bundle_execution_zero"] is True
+    assert checks["daacs_runtime_fixture_materialization_projection"] is True
+    assert checks["daacs_runtime_fixture_materialization_passed"] is True
+    assert checks["daacs_runtime_fixture_materialization_prerequisite"] is True
+    assert checks["daacs_runtime_fixture_materialization_records"] is True
+    assert checks["daacs_runtime_fixture_materialization_workspace_writes"] is True
+    assert checks["daacs_runtime_fixture_materialization_live_zero"] is True
 
     for forbidden in (
         "raw_prompt",
@@ -612,6 +788,7 @@ def test_local_service_demo_compares_dry_run_and_target_runtime_preflight(tmp_pa
         "runtime_payload",
         "provider_payload",
         str(tmp_path),
+        "target-runtime-fixture-workspace",
     ):
         assert forbidden not in serialized
     assert_public_projection_safe(summary)

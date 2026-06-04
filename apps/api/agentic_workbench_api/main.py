@@ -42,6 +42,11 @@ from .services.target_runtime_output_manifest import (
 from .services.target_runtime_generated_artifact_bundle import (
     run_target_runtime_generated_artifact_bundle,
 )
+from .services.target_runtime_fixture_materialization import (
+    TargetRuntimeFixtureMaterializationConfig,
+    TargetRuntimeFixtureMaterializationProvider,
+    run_target_runtime_fixture_materialization,
+)
 from .services.target_runtime_preflight import run_target_runtime_preflight
 from .services.canonical_run_store import (
     RunArtifactRepositoryConfig,
@@ -86,6 +91,12 @@ def create_app(
     target_runtime_output_manifest_repository_provider: (
         TargetRuntimeOutputManifestRepositoryProvider | None
     ) = None,
+    target_runtime_fixture_materialization_config: (
+        TargetRuntimeFixtureMaterializationConfig | None
+    ) = None,
+    target_runtime_fixture_materialization_provider: (
+        TargetRuntimeFixtureMaterializationProvider | None
+    ) = None,
 ):
     if FastAPI is None:
         raise RuntimeError("fastapi is not installed. Install API dependencies before serving.")
@@ -114,6 +125,12 @@ def create_app(
         target_runtime_output_manifest_repository_provider
         or TargetRuntimeOutputManifestRepositoryProvider(
             target_runtime_output_manifest_repository_config
+        )
+    )
+    target_runtime_fixture_materialization = (
+        target_runtime_fixture_materialization_provider
+        or TargetRuntimeFixtureMaterializationProvider(
+            target_runtime_fixture_materialization_config
         )
     )
 
@@ -247,6 +264,18 @@ def create_app(
     def create_daacs_runtime_generated_artifact_bundle(payload: dict):
         try:
             return {"data": run_target_runtime_generated_artifact_bundle(payload)}
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/daacs/runtime/fixture-materialization")
+    def create_daacs_runtime_fixture_materialization(payload: dict):
+        try:
+            return {
+                "data": run_target_runtime_fixture_materialization(
+                    payload,
+                    workspace_provider=target_runtime_fixture_materialization,
+                )
+            }
         except (KeyError, TypeError, ValueError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 

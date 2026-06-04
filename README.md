@@ -81,6 +81,7 @@ Current implementation:
 - Disabled Solar planner provider preflight boundary for fixture-vs-preflight comparison, still no provider call
 - DAACS target runtime sandbox preflight boundary for dry-run-vs-preflight comparison, still no runtime call
 - Disabled generated artifact bundle contract over the persisted output manifest read model, still no runtime call or generated file body
+- Fixture-backed target runtime artifact materialization in a configured run-scoped workspace, returning relative paths, hashes, status, and counts only
 - Disabled-by-default Solar Pro 3 provider adapter skeleton with fake/live path separation
 - No-call Solar Pro 3 request/response contract fixtures with cost/timeout policy checks
 - Provider envelope persistence/read-model projection for no-call Solar contract evidence
@@ -155,7 +156,7 @@ Not included in the current scope:
 
 - Real external provider calls
 - Direct original runtime execution
-- Generated application artifact production, except hash-only disabled bundle contracts
+- Generated application artifact production, except disabled bundle contracts and sanitized local fixture artifacts
 - CLI agent execution
 - Package install, server start, unrestricted file write
 - Hosted deployment success claim
@@ -388,4 +389,6 @@ Current status addendum: AW-DAACS-RUNTIME-04 persists the disabled output manife
 
 Current status addendum: AW-DAACS-RUNTIME-05 defines a disabled generated artifact bundle contract over the persisted output manifest read model. The bundle projection returns artifact unit labels, hashes, counts, status, reason, and zero-call boundaries only. It does not write generated file bodies or run DAACS target runtime code.
 
-Next implementation track: AW-DAACS-RUNTIME-06 should move from more no-call gates to a fixture-backed local artifact materialization scaffold in a run-scoped workspace. The goal is portfolio-visible generated artifact records while keeping DAACS live runtime calls at 0 and public file bodies hidden.
+Current status addendum: AW-DAACS-RUNTIME-06 materializes sanitized fixture artifacts under a configured run-scoped local workspace. The public projection returns relative paths, hashes, status, reason, counts, repository flags, and claim boundary only. It does not expose file bodies or local root paths, and target runtime calls remain `0`.
+
+Next implementation track: AW-APP-01 should add a portfolio-facing artifact preview/read surface over the public fixture materialization projection. The goal is reviewer-visible output shape without exposing raw file bodies or claiming target-runtime execution.

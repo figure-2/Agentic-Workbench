@@ -33,22 +33,22 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-DAACS-RUNTIME-05` disabled generated artifact bundle
-contract boundary.
+Current snapshot after `AW-DAACS-RUNTIME-06` fixture artifact materialization
+boundary.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and local artifacts | 410 |
-| Counted code/doc files, excluding cache and local artifacts | 407 |
-| Project lines, excluding cache and local artifacts | 104,165 |
-| Python files | 98 |
-| Markdown files | 305 |
-| Test files | 41 |
-| Unit test files | 31 |
+| Project files, excluding cache and local artifacts | 415 |
+| Counted code/doc files, excluding cache and local artifacts | 412 |
+| Project lines, excluding cache and local artifacts | 105,749 |
+| Python files | 101 |
+| Markdown files | 307 |
+| Test files | 42 |
+| Unit test files | 32 |
 | Smoke test files | 9 |
 | Integration test files | 1 |
-| Pytest collected cases | 633 |
-| Pytest passed cases | 633 |
+| Pytest collected cases | 640 |
+| Pytest passed cases | 640 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -5494,20 +5494,77 @@ files or runtime execution. It does not add generated app files, provider calls,
 network calls, subprocess calls, package installation, server start, raw file
 storage, or hosted behavior.
 
+## AW-DAACS-RUNTIME-06 Fixture Artifact Materialization Metrics
+
+`AW-DAACS-RUNTIME-06` materializes sanitized fixture artifacts in a configured
+run-scoped local workspace. Public projections return relative paths, hashes,
+status, reason, counts, repository flags, and claim boundaries only.
+
+| Metric | Value |
+|---|---:|
+| Comparison variants | 6 |
+| Dry-run fixture stage coverage | 7/7 |
+| Dry-run fixture stage coverage percent | 100.0% |
+| Target runtime preflight status | blocked |
+| Disabled adapter admission status | blocked |
+| Adapter admission read-model status | available |
+| Output manifest status | blocked |
+| Output manifest read-model status | available |
+| Generated artifact bundle status | blocked |
+| Fixture materialization status | passed |
+| Fixture materialization reason | target_runtime_fixture_artifacts_materialized |
+| Generated artifact bundle hash match count | 1 |
+| Fixture artifact record count | 3 |
+| Fixture artifact content hash count | 3 |
+| Fixture workspace file write count | 3 |
+| Filesystem writes outside workspace | 0 |
+| Public artifact body return count | 0 |
+| Public root path return count | 0 |
+| Execution permission count | 0 |
+| Provider calls | 0 |
+| Subprocess calls | 0 |
+| Network calls | 0 |
+| DAACS target runtime calls | 0 |
+| Raw exposure findings | 0 |
+| Public claim drift findings | 0 |
+| New unit tests | 6 |
+| Updated smoke tests | 7 |
+
+| Comparison Variant | Status | Stage Coverage | Hash Evidence | Workspace Writes | Subprocess Calls | Network Calls | Runtime Calls |
+|---|---|---:|---:|---:|---:|---:|---:|
+| `dry_run_runner` | passed | 7/7 | n/a | 0 | 0 | 0 | 0 |
+| `target_runtime_preflight` | blocked | preflight-only | n/a | 0 | 0 | 0 | 0 |
+| `persisted_disabled_adapter_admission` | blocked/read-model available | adapter-disabled | 1 | 0 | 0 | 0 | 0 |
+| `persisted_disabled_output_manifest` | blocked/read-model available | manifest-only | 1 | 0 | 0 | 0 | 0 |
+| `disabled_generated_artifact_bundle` | blocked | bundle-only | 1 | 0 | 0 | 0 | 0 |
+| `fixture_artifact_materialization` | passed | fixture-only | 3 | 3 | 0 | 0 | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m pytest tests\unit\test_target_runtime_fixture_materialization.py -q --color=no` | 6 passed |
+| `python -m pytest tests\smoke\test_daacs_runtime_preflight.py -q --color=no` | 7 passed |
+| `python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-daacs-runtime-06-demo --include-daacs-runtime-fixture-materialization` | passed |
+| `python -m compileall apps examples packages tests` | passed |
+| `python -m pytest tests -q --color=no` | 640 passed |
+
+Interpretation: AW-DAACS-RUNTIME-06 makes the service-shaped demo more visible
+by writing local sanitized fixture artifacts. It does not add provider calls,
+subprocess execution, package installation, server start, network access,
+target runtime execution, raw file storage, build success, or hosted behavior.
+
 ## Next Implementation Measurement Plan
 
-The next implementation work should stop adding no-call gates and start a
-fixture-backed local artifact materialization scaffold in a run-scoped
-workspace. These are target metrics, not observed implementation results.
+The next implementation work should prioritize a reviewer-facing artifact
+preview/read surface over the public materialization projection.
 
-| Work Order | Comparison variants | Primary target | Required zero-call counters |
-|---|---:|---|---|
-| `AW-DAACS-RUNTIME-06` | 6 | fixture-backed local artifact materialization scaffold | DAACS live runtime calls, provider calls, subprocess calls, network calls |
+| Work Order | Primary target | Required boundary |
+|---|---|---|
+| `AW-APP-01` | portfolio-facing artifact preview/read surface | public projection only; no raw file bodies or local roots |
 
 | Planned Metric | Target |
 |---|---:|
-| `AW-DAACS-RUNTIME-06` run-scoped workspace path coverage | 100% |
-| `AW-DAACS-RUNTIME-06` sanitized artifact record count | >= 3 |
-| `AW-DAACS-RUNTIME-06` generated artifact public body exposure | 0 |
-| `AW-DAACS-RUNTIME-06` DAACS live target runtime calls | 0 |
+| Materialized fixture artifact preview coverage | 3/3 |
+| Public raw file body exposure | 0 |
+| Local root path exposure | 0 |
+| Provider/subprocess/network calls | 0 |
 | Public claim drift findings | 0 |

@@ -92,6 +92,9 @@ from apps.api.agentic_workbench_api.services.target_runtime_admission import (
 from apps.api.agentic_workbench_api.services.target_runtime_output_manifest import (
     TargetRuntimeOutputManifestRepositoryConfig,
 )
+from apps.api.agentic_workbench_api.services.target_runtime_fixture_materialization import (
+    TargetRuntimeFixtureMaterializationConfig,
+)
 from packages.core.live_open_policy import LIVE_OPEN_REQUIRED_CONTROLS
 from packages.core.public_projection import assert_public_projection_safe
 from packages.core.schemas import stable_contract_hash
@@ -108,6 +111,10 @@ from packages.daacs_builder.target_runtime_output_manifest import (
 from packages.daacs_builder.target_runtime_generated_artifact_bundle import (
     TARGET_RUNTIME_GENERATED_ARTIFACT_BUNDLE_MODE_DISABLED,
     TARGET_RUNTIME_GENERATED_ARTIFACT_BUNDLE_VERSION,
+)
+from packages.daacs_builder.target_runtime_fixture_materialization import (
+    TARGET_RUNTIME_FIXTURE_MATERIALIZATION_MODE,
+    TARGET_RUNTIME_FIXTURE_MATERIALIZATION_VERSION,
 )
 from packages.div_planner.provider_boundary import PLANNER_PROVIDER_MODE_SOLAR_DISABLED
 
@@ -151,6 +158,7 @@ def _client(
     include_provider_precheck: bool = False,
     include_target_runtime_admission: bool = False,
     include_target_runtime_output_manifest: bool = False,
+    include_target_runtime_fixture_materialization: bool = False,
 ) -> TestClient:
     provider_envelope_config = (
         ProviderEnvelopeRepositoryConfig(root=store_root / "provider-envelope-evidence")
@@ -171,6 +179,13 @@ def _client(
         if include_target_runtime_output_manifest
         else None
     )
+    target_runtime_fixture_materialization_config = (
+        TargetRuntimeFixtureMaterializationConfig(
+            root=store_root / "target-runtime-fixture-workspace"
+        )
+        if include_target_runtime_fixture_materialization
+        else None
+    )
     return TestClient(
         create_app(
             run_repository_config=RunArtifactRepositoryConfig(
@@ -183,6 +198,9 @@ def _client(
             target_runtime_admission_repository_config=target_runtime_admission_config,
             target_runtime_output_manifest_repository_config=(
                 target_runtime_output_manifest_config
+            ),
+            target_runtime_fixture_materialization_config=(
+                target_runtime_fixture_materialization_config
             ),
         )
     )
@@ -1482,6 +1500,43 @@ def _post_daacs_runtime_generated_artifact_bundle(
     return response.json()["data"]
 
 
+def _daacs_runtime_fixture_materialization_payload(
+    *,
+    run_id: str,
+    runner_plan_hash: str,
+    generated_artifact_bundle_hash: str,
+    generated_artifact_bundle_projection: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "run_id": run_id,
+        "runner_plan_hash": runner_plan_hash,
+        "generated_artifact_bundle_hash": generated_artifact_bundle_hash,
+        "generated_artifact_bundle_projection": generated_artifact_bundle_projection,
+        "mode": TARGET_RUNTIME_FIXTURE_MATERIALIZATION_MODE,
+    }
+
+
+def _post_daacs_runtime_fixture_materialization(
+    client: TestClient,
+    *,
+    run_id: str,
+    runner_plan_hash: str,
+    generated_artifact_bundle_hash: str,
+    generated_artifact_bundle_projection: dict[str, Any],
+) -> dict[str, Any]:
+    response = client.post(
+        "/api/v1/daacs/runtime/fixture-materialization",
+        json=_daacs_runtime_fixture_materialization_payload(
+            run_id=run_id,
+            runner_plan_hash=runner_plan_hash,
+            generated_artifact_bundle_hash=generated_artifact_bundle_hash,
+            generated_artifact_bundle_projection=generated_artifact_bundle_projection,
+        ),
+    )
+    response.raise_for_status()
+    return response.json()["data"]
+
+
 def _artifact_kinds(artifacts: list[dict[str, Any]]) -> set[str]:
     return {str(artifact.get("kind") or "") for artifact in artifacts}
 
@@ -1564,6 +1619,7 @@ def _checks(
     daacs_runtime_output_manifest_data: dict[str, Any] | None = None,
     daacs_runtime_output_manifest_read_data: dict[str, Any] | None = None,
     daacs_runtime_generated_artifact_bundle_data: dict[str, Any] | None = None,
+    daacs_runtime_fixture_materialization_data: dict[str, Any] | None = None,
 ) -> dict[str, bool]:
     artifact_kinds = _artifact_kinds(run_data.get("artifacts", []))
     evidence_summary = run_data.get("evidence_summary", {})
@@ -2762,6 +2818,45 @@ def _checks(
             and int(execution.get("execution_permission_count", -1)) == 0
             and int(execution.get("generated_artifact_body_write_count", -1)) == 0
         )
+    if daacs_runtime_fixture_materialization_data is None:
+        checks["daacs_runtime_fixture_materialization_optional"] = True
+    else:
+        execution = daacs_runtime_fixture_materialization_data.get(
+            "execution_boundary", {}
+        )
+        counts = daacs_runtime_fixture_materialization_data.get("counts", {})
+        checks["daacs_runtime_fixture_materialization_projection"] = (
+            daacs_runtime_fixture_materialization_data.get("projection_version")
+            == TARGET_RUNTIME_FIXTURE_MATERIALIZATION_VERSION
+        )
+        checks["daacs_runtime_fixture_materialization_passed"] = (
+            daacs_runtime_fixture_materialization_data.get("status") == "passed"
+            and daacs_runtime_fixture_materialization_data.get("reason")
+            == "target_runtime_fixture_artifacts_materialized"
+        )
+        checks["daacs_runtime_fixture_materialization_prerequisite"] = (
+            int(counts.get("generated_artifact_bundle_projection_count", -1)) == 1
+            and int(counts.get("generated_artifact_bundle_hash_match_count", -1))
+            == 1
+        )
+        checks["daacs_runtime_fixture_materialization_records"] = (
+            int(counts.get("fixture_artifact_record_count", -1)) >= 3
+            and int(counts.get("fixture_artifact_content_hash_count", -1)) >= 3
+        )
+        checks["daacs_runtime_fixture_materialization_workspace_writes"] = (
+            int(counts.get("fixture_workspace_file_write_count", -1)) >= 3
+            and int(execution.get("fixture_workspace_file_write_count", -1)) >= 3
+            and int(execution.get("filesystem_writes_outside_workspace", -1)) == 0
+            and int(execution.get("generated_artifact_body_public_return_count", -1))
+            == 0
+        )
+        checks["daacs_runtime_fixture_materialization_live_zero"] = (
+            int(execution.get("target_runtime_calls", -1)) == 0
+            and int(execution.get("provider_calls", -1)) == 0
+            and int(execution.get("subprocess_calls", -1)) == 0
+            and int(execution.get("network_calls", -1)) == 0
+            and int(execution.get("execution_permission_count", -1)) == 0
+        )
     return checks
 
 
@@ -2774,6 +2869,7 @@ def run_demo(
     include_daacs_runtime_adapter_admission: bool = False,
     include_daacs_runtime_output_manifest: bool = False,
     include_daacs_runtime_generated_artifact_bundle: bool = False,
+    include_daacs_runtime_fixture_materialization: bool = False,
 ) -> dict[str, Any]:
     selected_root = Path(store_root) if store_root else Path(__file__).resolve().parent / ".local"
     selected_root.mkdir(parents=True, exist_ok=True)
@@ -2784,10 +2880,15 @@ def run_demo(
             include_daacs_runtime_adapter_admission
             or include_daacs_runtime_output_manifest
             or include_daacs_runtime_generated_artifact_bundle
+            or include_daacs_runtime_fixture_materialization
         ),
         include_target_runtime_output_manifest=(
             include_daacs_runtime_output_manifest
             or include_daacs_runtime_generated_artifact_bundle
+            or include_daacs_runtime_fixture_materialization
+        ),
+        include_target_runtime_fixture_materialization=(
+            include_daacs_runtime_fixture_materialization
         ),
     )
 
@@ -2805,6 +2906,7 @@ def run_demo(
     daacs_runtime_output_manifest_data = None
     daacs_runtime_output_manifest_read_data = None
     daacs_runtime_generated_artifact_bundle_data = None
+    daacs_runtime_fixture_materialization_data = None
     if include_provider_precheck:
         provider_envelope_data = _post_provider_envelope_precheck(
             client,
@@ -2826,6 +2928,7 @@ def run_demo(
         or include_daacs_runtime_adapter_admission
         or include_daacs_runtime_output_manifest
         or include_daacs_runtime_generated_artifact_bundle
+        or include_daacs_runtime_fixture_materialization
     ):
         runner_plan_hashes = verification_data.get("runner_plan_hashes", [])
         runner_plan_hash = str(runner_plan_hashes[0] if runner_plan_hashes else "")
@@ -2838,6 +2941,7 @@ def run_demo(
             include_daacs_runtime_adapter_admission
             or include_daacs_runtime_output_manifest
             or include_daacs_runtime_generated_artifact_bundle
+            or include_daacs_runtime_fixture_materialization
         ):
             daacs_runtime_adapter_admission_data = _post_daacs_runtime_adapter_admission(
                 client,
@@ -2852,6 +2956,7 @@ def run_demo(
             if (
                 include_daacs_runtime_output_manifest
                 or include_daacs_runtime_generated_artifact_bundle
+                or include_daacs_runtime_fixture_materialization
             ):
                 daacs_runtime_output_manifest_data = _post_daacs_runtime_output_manifest(
                     client,
@@ -2870,7 +2975,10 @@ def run_demo(
                     client,
                     f"/api/v1/daacs/runtime/output-manifests/{run_id}",
                 )
-                if include_daacs_runtime_generated_artifact_bundle:
+                if (
+                    include_daacs_runtime_generated_artifact_bundle
+                    or include_daacs_runtime_fixture_materialization
+                ):
                     daacs_runtime_generated_artifact_bundle_data = (
                         _post_daacs_runtime_generated_artifact_bundle(
                             client,
@@ -2886,6 +2994,23 @@ def run_demo(
                             ),
                         )
                     )
+                    if include_daacs_runtime_fixture_materialization:
+                        daacs_runtime_fixture_materialization_data = (
+                            _post_daacs_runtime_fixture_materialization(
+                                client,
+                                run_id=run_id,
+                                runner_plan_hash=runner_plan_hash,
+                                generated_artifact_bundle_hash=str(
+                                    daacs_runtime_generated_artifact_bundle_data.get(
+                                        "generated_artifact_bundle_hash", ""
+                                    )
+                                ),
+                                generated_artifact_bundle_projection=(
+                                    daacs_runtime_generated_artifact_bundle_data
+                                    or {}
+                                ),
+                            )
+                        )
 
     checks = _checks(
         create_data,
@@ -2904,6 +3029,9 @@ def run_demo(
         ),
         daacs_runtime_generated_artifact_bundle_data=(
             daacs_runtime_generated_artifact_bundle_data
+        ),
+        daacs_runtime_fixture_materialization_data=(
+            daacs_runtime_fixture_materialization_data
         ),
     )
     artifact_kinds = sorted(_artifact_kinds(run_data.get("artifacts", [])))
@@ -2934,8 +3062,16 @@ def run_demo(
         if daacs_runtime_generated_artifact_bundle_data
         else {}
     )
+    daacs_runtime_fixture_materialization_execution = (
+        daacs_runtime_fixture_materialization_data.get("execution_boundary", {})
+        if daacs_runtime_fixture_materialization_data
+        else {}
+    )
     comparison_variant_count = 2 if solar_planner_preflight_data else 1
     runtime_comparison_variant_count = (
+        6
+        if daacs_runtime_fixture_materialization_data
+        else
         5
         if daacs_runtime_generated_artifact_bundle_data
         else
@@ -3258,6 +3394,57 @@ def run_demo(
             "generated_artifact_bundle_network_calls": _as_int(
                 daacs_runtime_generated_artifact_bundle_execution.get("network_calls")
             ),
+            "fixture_materialization_status": (
+                daacs_runtime_fixture_materialization_data.get("status")
+                if daacs_runtime_fixture_materialization_data
+                else "skipped"
+            ),
+            "fixture_materialization_reason": (
+                daacs_runtime_fixture_materialization_data.get("reason")
+                if daacs_runtime_fixture_materialization_data
+                else "skipped"
+            ),
+            "fixture_materialization_record_count": _as_int(
+                (daacs_runtime_fixture_materialization_data or {})
+                .get("counts", {})
+                .get("fixture_artifact_record_count")
+            ),
+            "fixture_materialization_content_hash_count": _as_int(
+                (daacs_runtime_fixture_materialization_data or {})
+                .get("counts", {})
+                .get("fixture_artifact_content_hash_count")
+            ),
+            "fixture_materialization_workspace_writes": _as_int(
+                daacs_runtime_fixture_materialization_execution.get(
+                    "fixture_workspace_file_write_count"
+                )
+            ),
+            "fixture_materialization_outside_workspace_writes": _as_int(
+                daacs_runtime_fixture_materialization_execution.get(
+                    "filesystem_writes_outside_workspace"
+                )
+            ),
+            "fixture_materialization_body_public_returns": _as_int(
+                daacs_runtime_fixture_materialization_execution.get(
+                    "generated_artifact_body_public_return_count"
+                )
+            ),
+            "fixture_materialization_target_runtime_calls": _as_int(
+                daacs_runtime_fixture_materialization_execution.get(
+                    "target_runtime_calls"
+                )
+            ),
+            "fixture_materialization_provider_calls": _as_int(
+                daacs_runtime_fixture_materialization_execution.get("provider_calls")
+            ),
+            "fixture_materialization_subprocess_calls": _as_int(
+                daacs_runtime_fixture_materialization_execution.get(
+                    "subprocess_calls"
+                )
+            ),
+            "fixture_materialization_network_calls": _as_int(
+                daacs_runtime_fixture_materialization_execution.get("network_calls")
+            ),
             "adapter_target_runtime_calls": _as_int(
                 daacs_runtime_adapter_execution.get("target_runtime_calls")
             ),
@@ -3420,6 +3607,54 @@ def run_demo(
             else {
                 "status": "skipped",
                 "reason": "optional target runtime generated artifact bundle not requested",
+                "target_runtime_outcome": False,
+            }
+        ),
+        "daacs_runtime_fixture_materialization": (
+            {
+                "projection_version": daacs_runtime_fixture_materialization_data.get(
+                    "projection_version"
+                ),
+                "status": daacs_runtime_fixture_materialization_data.get("status"),
+                "reason": daacs_runtime_fixture_materialization_data.get("reason"),
+                "mode": daacs_runtime_fixture_materialization_data.get("mode"),
+                "generated_artifact_bundle_hash": (
+                    daacs_runtime_fixture_materialization_data.get(
+                        "generated_artifact_bundle_hash"
+                    )
+                ),
+                "generated_artifact_bundle_projection_hash": (
+                    daacs_runtime_fixture_materialization_data.get(
+                        "generated_artifact_bundle_projection_hash"
+                    )
+                ),
+                "materialization_hash": daacs_runtime_fixture_materialization_data.get(
+                    "materialization_hash"
+                ),
+                "artifact_records": daacs_runtime_fixture_materialization_data.get(
+                    "artifact_records", []
+                ),
+                "counts": daacs_runtime_fixture_materialization_data.get(
+                    "counts", {}
+                ),
+                "repository_boundary": (
+                    daacs_runtime_fixture_materialization_data.get(
+                        "repository_boundary", {}
+                    )
+                ),
+                "execution_boundary": (
+                    daacs_runtime_fixture_materialization_data.get(
+                        "execution_boundary", {}
+                    )
+                ),
+                "claim_boundary": daacs_runtime_fixture_materialization_data.get(
+                    "claim_boundary", {}
+                ),
+            }
+            if daacs_runtime_fixture_materialization_data is not None
+            else {
+                "status": "skipped",
+                "reason": "optional target runtime fixture materialization not requested",
                 "target_runtime_outcome": False,
             }
         ),
@@ -6768,6 +7003,11 @@ def main() -> None:
         action="store_true",
         help="Also run the no-call DAACS generated artifact bundle contract comparison.",
     )
+    parser.add_argument(
+        "--include-daacs-runtime-fixture-materialization",
+        action="store_true",
+        help="Also write sanitized fixture artifacts in a run-scoped local workspace.",
+    )
     args = parser.parse_args()
 
     summary = run_demo(
@@ -6779,6 +7019,9 @@ def main() -> None:
         include_daacs_runtime_output_manifest=args.include_daacs_runtime_output_manifest,
         include_daacs_runtime_generated_artifact_bundle=(
             args.include_daacs_runtime_generated_artifact_bundle
+        ),
+        include_daacs_runtime_fixture_materialization=(
+            args.include_daacs_runtime_fixture_materialization
         ),
     )
     rendered = json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True)
