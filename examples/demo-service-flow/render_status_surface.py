@@ -54,6 +54,9 @@ def render_status_surface(summary: dict[str, Any]) -> str:
     counts = summary.get("counts", {})
     evidence = summary.get("evidence_summary", {})
     evidence_counts = evidence.get("counts", {})
+    stage_coverage = summary.get("workflow_stage_coverage", {})
+    verification_read_model = summary.get("verification_read_model", {})
+    mvp_metrics = summary.get("mvp_metrics", {})
     execution = summary.get("execution_boundary", {})
     claim = summary.get("claim_boundary", {})
     repository = summary.get("repository_boundary", {})
@@ -70,11 +73,19 @@ def render_status_surface(summary: dict[str, Any]) -> str:
 
 - Surface: `AW-DEMO-02`
 - Source demo: `{summary.get("demo_id", "unknown")}`
+- MVP baseline: `{summary.get("mvp_id", "unknown")}`
 - Status: `{summary.get("status", "unknown")}`
 - Run ID: `{summary.get("run_id", "unknown")}`
 - Projection: `{summary.get("projection_version", "unknown")}`
 - Runtime mode: `{summary.get("runtime_mode", "unknown")}`
 - Fixture mode: `{summary.get("fixture_mode", "unknown")}`
+
+## MVP Stage Coverage
+
+- Covered stages: `{_count(stage_coverage.get("covered_stage_count"))}/{_count(stage_coverage.get("required_stage_count"))}`
+- Coverage percent: `{stage_coverage.get("coverage_percent", "unknown")}`
+- Stage order: `{", ".join(stage_coverage.get("stage_order", [])) or "unknown"}`
+- Golden path scenarios: `{_count(mvp_metrics.get("golden_path_scenario_count"))}`
 
 ## Artifact Chain
 
@@ -98,6 +109,13 @@ def render_status_surface(summary: dict[str, Any]) -> str:
 - Audit event count: `{_count(evidence_counts.get("audit_event_count"))}`
 - Approval count: `{_count(evidence_counts.get("approval_count"))}`
 - Replay nonce count: `{_count(evidence_counts.get("replay_nonce_count"))}`
+
+## Verification Read Model
+
+- Verification status: `{verification_read_model.get("status", "unknown")}`
+- Verification projection: `{verification_read_model.get("projection_version", "unknown")}`
+- Verification report count: `{_count(verification_read_model.get("counts", {}).get("verification_report_count"))}`
+- Runner plan hash count: `{_count(verification_read_model.get("runner_plan_hash_count"))}`
 
 ## Repository Boundary
 

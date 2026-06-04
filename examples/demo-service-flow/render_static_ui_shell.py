@@ -93,6 +93,9 @@ def build_static_ui_model(summary: dict[str, Any]) -> dict[str, Any]:
         "artifact_kinds": list(summary.get("artifact_kinds", [])),
         "identity_signals": summary.get("identity_signals", {}),
         "evidence_summary": summary.get("evidence_summary", {}),
+        "workflow_stage_coverage": summary.get("workflow_stage_coverage", {}),
+        "verification_read_model": summary.get("verification_read_model", {}),
+        "mvp_metrics": summary.get("mvp_metrics", {}),
         "execution_boundary": summary.get("execution_boundary", {}),
         "claim_boundary": summary.get("claim_boundary", {}),
         "checks": summary.get("checks", {}),
@@ -134,6 +137,12 @@ def _artifact_rows(artifact_kinds: list[str]) -> str:
     )
 
 
+def _stage_rows(stage_order: list[str]) -> str:
+    if not stage_order:
+        return '<li>unknown</li>'
+    return "\n".join(f"<li>{escape(stage)}</li>" for stage in stage_order)
+
+
 def _check_summary(checks: dict[str, Any]) -> tuple[int, str]:
     failed = [name for name, passed in sorted(checks.items()) if not passed]
     return len(failed), ", ".join(failed) if failed else "none"
@@ -144,6 +153,8 @@ def render_static_ui_shell(summary: dict[str, Any]) -> str:
     model = build_static_ui_model(summary)
     evidence = model["evidence_summary"]
     evidence_counts = evidence.get("counts", {})
+    stage_coverage = model["workflow_stage_coverage"]
+    verification = model["verification_read_model"]
     execution = model["execution_boundary"]
     claim = model["claim_boundary"]
     policy = model["live_open_policy"]
@@ -212,7 +223,7 @@ def render_static_ui_shell(summary: dict[str, Any]) -> str:
     }}
     .overview {{
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 12px;
       margin-bottom: 22px;
     }}
@@ -235,7 +246,7 @@ def render_static_ui_shell(summary: dict[str, Any]) -> str:
     .section h2 {{ margin: 0 0 14px; font-size: 17px; }}
     .flow {{
       display: grid;
-      grid-template-columns: repeat(6, minmax(108px, 1fr));
+      grid-template-columns: repeat(7, minmax(104px, 1fr));
       gap: 8px;
       padding: 0;
       margin: 0;
@@ -335,6 +346,7 @@ def render_static_ui_shell(summary: dict[str, Any]) -> str:
     <section class="overview" aria-label="Run overview">
       {_metric("Run ID", model["run_id"])}
       {_metric("Artifacts", model["artifact_count"])}
+      {_metric("Stage coverage", f"{_count(stage_coverage.get('covered_stage_count'))}/{_count(stage_coverage.get('required_stage_count'))}")}
       {_metric("Failed checks", failed_count)}
       {_metric("Execution permission", "closed")}
     </section>
@@ -342,12 +354,7 @@ def render_static_ui_shell(summary: dict[str, Any]) -> str:
     <section class="section">
       <h2>Workflow</h2>
       <ol class="flow">
-        <li>Idea</li>
-        <li>Planning</li>
-        <li>PRD / BuildSpec</li>
-        <li>ImplementationBrief</li>
-        <li>Dry-run Plan</li>
-        <li>Verification</li>
+        {_stage_rows(list(stage_coverage.get("stage_order", [])))}
       </ol>
     </section>
 
@@ -373,6 +380,9 @@ def render_static_ui_shell(summary: dict[str, Any]) -> str:
           <div><span>Status</span><strong>{escape(_text(evidence.get("status")))}</strong></div>
           <div><span>Runner plans</span><strong>{_count(evidence_counts.get("runner_plan_count"))}</strong></div>
           <div><span>Reports</span><strong>{_count(evidence_counts.get("verification_report_count"))}</strong></div>
+          <div><span>Verification read status</span><strong>{escape(_text(verification.get("status")))}</strong></div>
+          <div><span>Report hashes</span><strong>{_count(verification.get("runner_plan_hash_count"))}</strong></div>
+          <div><span>Coverage percent</span><strong>{escape(_text(stage_coverage.get("coverage_percent")))}</strong></div>
         </div>
       </div>
     </section>

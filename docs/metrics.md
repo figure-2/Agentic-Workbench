@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-LIVE-CHAIN-04` no-call boundary helper rollout.
+Current snapshot after `AW-MVP-01` service-shaped vertical slice.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and private SoT | 349 |
-| Counted code/doc files, excluding cache and private SoT | 349 |
-| Project lines, excluding cache and private SoT | 89,663 |
-| Python files | 76 |
-| Markdown files | 268 |
-| Test files | 32 |
+| Project files, excluding cache and local artifacts | 375 |
+| Counted code/doc files, excluding cache and local artifacts | 375 |
+| Project lines, excluding cache and local artifacts | 94,079 |
+| Python files | 77 |
+| Markdown files | 291 |
+| Test files | 33 |
 | Unit test files | 24 |
-| Smoke test files | 6 |
+| Smoke test files | 7 |
 | Integration test files | 1 |
-| Pytest collected cases | 576 |
-| Pytest passed cases | 576 |
+| Pytest collected cases | 578 |
+| Pytest passed cases | 578 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -5081,3 +5081,42 @@ provider readiness.
 Next recommended task: `AW-LIVE-70` if the priority is continuing the disabled
 no-call chain. If maintainability remains the priority, inspect older duplicated
 no-call blocks before adding another helper backfill.
+
+## AW-MVP-01 Service-Shaped Vertical Slice Metrics
+
+Measured after adding the local service-shaped path from idea intake to
+verification read-model summary.
+
+| Metric | Value |
+|---|---:|
+| Golden path scenario count | 1 |
+| Required stage count | 7 |
+| Covered stage count | 7 |
+| Stage coverage | 100.0% |
+| Artifact count in current fixture | 6 |
+| Runner plan count | 1 |
+| Verification report count | 1 |
+| Runner plan hash count in verification read model | 1 |
+| Failed report count | 0 |
+| Artifact linkage by `run_id` | 100% |
+| Forbidden public exposure findings | 0 |
+| Solar Pro 3 calls | 0 |
+| DAACS target runtime calls | 0 |
+| Public claim drift findings | 0 |
+| Verification read API smoke tests | 2 |
+| Verification read unavailable-store result | blocked |
+| Pytest collected cases | 578 |
+| Pytest passed cases | 578 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m compileall apps examples tests` | passed |
+| `python -m pytest tests\smoke\test_mvp_service_flow.py -q --color=no` | 2 passed |
+| `python -m pytest tests -q --color=no` | 578 passed |
+| `.\scripts\verify.ps1` | 578 passed |
+
+Interpretation: AW-MVP-01 makes the current service flow easier to review by
+connecting run creation, composed read model, artifact read model, and
+verification read model in one local dry-run path. It does not add provider
+execution, provider SDK import, env value access, network access, target
+workspace execution, hosted behavior, or generated application delivery.

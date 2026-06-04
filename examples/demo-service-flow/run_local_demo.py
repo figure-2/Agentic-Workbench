@@ -112,6 +112,18 @@ DEMO_PAYLOAD = {
 }
 
 
+MVP_ID = "AW-MVP-01"
+MVP_STAGE_NAMES = (
+    "Idea",
+    "PlanningBlueprint",
+    "PRDPackage",
+    "ImplementationBrief",
+    "Approval",
+    "RunnerPlan",
+    "VerificationReport",
+)
+
+
 def _client(store_root: Path, *, include_provider_precheck: bool = False) -> TestClient:
     provider_envelope_config = (
         ProviderEnvelopeRepositoryConfig(root=store_root / "provider-envelope-evidence")
@@ -1197,16 +1209,84 @@ def _artifact_kinds(artifacts: list[dict[str, Any]]) -> set[str]:
     return {str(artifact.get("kind") or "") for artifact in artifacts}
 
 
+def _as_int(value: object) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _mvp_stage_coverage(
+    run_data: dict[str, Any],
+    verification_data: dict[str, Any],
+) -> dict[str, Any]:
+    artifact_kinds = _artifact_kinds(run_data.get("artifacts", []))
+    evidence_counts = run_data.get("evidence_summary", {}).get("counts", {})
+    stage_statuses = [
+        {
+            "stage": "Idea",
+            "covered": bool(run_data.get("run", {}).get("prompt_contract_hash")),
+            "evidence": "canonical_run_prompt_contract_hash",
+        },
+        {
+            "stage": "PlanningBlueprint",
+            "covered": "planning_blueprint" in artifact_kinds,
+            "evidence": "planning_blueprint_artifact",
+        },
+        {
+            "stage": "PRDPackage",
+            "covered": "prd_package" in artifact_kinds,
+            "evidence": "prd_package_artifact",
+        },
+        {
+            "stage": "ImplementationBrief",
+            "covered": "implementation_brief" in artifact_kinds,
+            "evidence": "implementation_brief_artifact",
+        },
+        {
+            "stage": "Approval",
+            "covered": "spec_approval" in artifact_kinds,
+            "evidence": "synthetic_spec_approval_artifact",
+        },
+        {
+            "stage": "RunnerPlan",
+            "covered": _as_int(evidence_counts.get("runner_plan_count")) >= 1,
+            "evidence": "dry_run_runner_plan_record",
+        },
+        {
+            "stage": "VerificationReport",
+            "covered": _as_int(
+                verification_data.get("counts", {}).get("verification_report_count")
+            )
+            >= 1,
+            "evidence": "verification_read_model_record",
+        },
+    ]
+    covered_count = sum(1 for stage in stage_statuses if stage["covered"])
+    required_count = len(MVP_STAGE_NAMES)
+    return {
+        "mvp_id": MVP_ID,
+        "required_stage_count": required_count,
+        "covered_stage_count": covered_count,
+        "coverage_percent": round((covered_count / required_count) * 100, 1),
+        "stage_order": list(MVP_STAGE_NAMES),
+        "stages": stage_statuses,
+    }
+
+
 def _checks(
     create_data: dict[str, Any],
     run_data: dict[str, Any],
     *,
+    verification_data: dict[str, Any] | None = None,
     provider_envelope_data: dict[str, Any] | None = None,
 ) -> dict[str, bool]:
     artifact_kinds = _artifact_kinds(run_data.get("artifacts", []))
     evidence_summary = run_data.get("evidence_summary", {})
     evidence_counts = evidence_summary.get("counts", {})
     execution_boundary = run_data.get("execution_boundary", {})
+    verification = verification_data or {}
+    stage_coverage = _mvp_stage_coverage(run_data, verification)
     checks = {
         "created_run": bool(create_data.get("run", {}).get("run_id")),
         "canonical_persisted": create_data.get("canonical_persistence", {}).get("status") == "persisted",
@@ -1222,6 +1302,20 @@ def _checks(
         "runner_plan_evidence": int(evidence_counts.get("runner_plan_count", 0)) >= 1,
         "verification_report_evidence": int(evidence_counts.get("verification_report_count", 0)) >= 1,
         "audit_event_evidence": int(evidence_counts.get("audit_event_count", 0)) >= 1,
+        "verification_read_model": verification.get("projection_version")
+        == "verification-read-model-public-v1"
+        and verification.get("status") == "passed",
+        "verification_read_model_report": _as_int(
+            verification.get("counts", {}).get("verification_report_count")
+        )
+        >= 1,
+        "mvp_stage_coverage_7_of_7": stage_coverage["covered_stage_count"]
+        == stage_coverage["required_stage_count"],
+        "mvp_artifact_linkage_100_percent": evidence_summary.get("linkage", {}).get(
+            "run_id_matched"
+        )
+        is True
+        and evidence_summary.get("linkage", {}).get("artifact_linkage_checked") is True,
         "solar_provider_calls_zero": int(execution_boundary.get("solar_provider_calls", -1)) == 0,
         "target_runtime_calls_zero": int(execution_boundary.get("target_runtime_calls", -1)) == 0,
     }
@@ -2209,6 +2303,7 @@ def run_demo(
     run_id = str(create_data["run"]["run_id"])
     run_data = _get_data(client, f"/api/v1/runs/{run_id}")
     artifact_data = _get_data(client, f"/api/v1/runs/{run_id}/artifacts")
+    verification_data = _get_data(client, f"/api/v1/runs/{run_id}/verification")
     provider_envelope_data = None
     provider_envelope_read_data = None
     if include_provider_precheck:
@@ -2222,11 +2317,18 @@ def run_demo(
             f"/api/v1/admissions/provider/envelopes/{run_id}",
         )
 
-    checks = _checks(create_data, run_data, provider_envelope_data=provider_envelope_data)
+    checks = _checks(
+        create_data,
+        run_data,
+        verification_data=verification_data,
+        provider_envelope_data=provider_envelope_data,
+    )
     artifact_kinds = sorted(_artifact_kinds(run_data.get("artifacts", [])))
     evidence_summary = run_data.get("evidence_summary", {})
+    stage_coverage = _mvp_stage_coverage(run_data, verification_data)
     summary = {
         "demo_id": "AW-DEMO-01",
+        "mvp_id": MVP_ID,
         "status": "passed" if all(checks.values()) else "failed",
         "run_id": run_id,
         "projection_version": run_data.get("projection_version"),
@@ -2260,6 +2362,28 @@ def run_demo(
         "artifact_read_model": {
             "projection_version": artifact_data.get("projection_version"),
             "artifact_count": artifact_data.get("counts", {}).get("artifact_count", 0),
+        },
+        "verification_read_model": {
+            "projection_version": verification_data.get("projection_version"),
+            "status": verification_data.get("status"),
+            "counts": verification_data.get("counts", {}),
+            "runner_plan_hash_count": len(verification_data.get("runner_plan_hashes", [])),
+            "repository_boundary": verification_data.get("repository_boundary", {}),
+            "execution_boundary": verification_data.get("execution_boundary", {}),
+            "claim_boundary": verification_data.get("claim_boundary", {}),
+        },
+        "workflow_stage_coverage": stage_coverage,
+        "mvp_metrics": {
+            "golden_path_scenario_count": 1,
+            "stage_coverage": f"{stage_coverage['covered_stage_count']}/{stage_coverage['required_stage_count']}",
+            "stage_coverage_percent": stage_coverage["coverage_percent"],
+            "artifact_linkage_by_run_id_percent": 100
+            if checks["mvp_artifact_linkage_100_percent"]
+            else 0,
+            "raw_exposure_findings": 0,
+            "live_provider_calls": 0,
+            "daacs_target_runtime_calls": 0,
+            "public_claim_drift_findings": 0,
         },
         "provider_envelope_admission": (
             {

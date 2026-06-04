@@ -77,6 +77,7 @@ Current implementation:
 - Minimal Markdown/CLI run status surface over the local demo summary
 - Fail-closed live-open policy gate for future Solar Pro 3 / DAACS target runtime work
 - Static HTML UI shell over the same sanitized public demo summary
+- AW-MVP-01 service-shaped vertical slice with 7/7 stage coverage and a verification read-model endpoint
 - Disabled-by-default Solar Pro 3 provider adapter skeleton with fake/live path separation
 - No-call Solar Pro 3 request/response contract fixtures with cost/timeout policy checks
 - Provider envelope persistence/read-model projection for no-call Solar contract evidence
@@ -371,6 +372,8 @@ Current status addendum: AW-LIVE-CHAIN-01 consolidates repeated local no-call bo
 Current status addendum: AW-LIVE-CHAIN-02 extends the no-call boundary helper to AW-LIVE-60 through AW-LIVE-66. The consolidated helper now covers AW-LIVE-60 through AW-LIVE-68 while preserving public field names and execution permission `0`.
 
 Current status addendum: AW-LIVE-CHAIN-03 extends the no-call boundary helper to AW-LIVE-53 through AW-LIVE-59. The consolidated helper now covers AW-LIVE-53 through AW-LIVE-68 while preserving public field names and execution permission `0`.
+
+Current status addendum: AW-MVP-01 adds a service-shaped local vertical slice over the same public API and read models. The representative path covers Idea, PlanningBlueprint, PRDPackage, ImplementationBrief, Approval, RunnerPlan, and VerificationReport, adds `GET /api/v1/runs/{run_id}/verification`, and keeps provider and target runtime call counts at `0`.
 
 Current status addendum: AW-LIVE-CHAIN-04 extends the no-call boundary helper to AW-LIVE-46 through AW-LIVE-52. The consolidated helper now covers AW-LIVE-46 through AW-LIVE-69 while preserving public field names and execution permission `0`.
 

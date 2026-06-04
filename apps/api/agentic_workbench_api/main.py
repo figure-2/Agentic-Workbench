@@ -22,6 +22,7 @@ from .services.evidence_read_model import (
     EvidenceRepositoryConfig,
     EvidenceRepositoryProvider,
     read_run_evidence,
+    read_run_verification,
 )
 from .services.evidence_write_model import persist_fixture_run_evidence
 from .services.fixture_harness import create_fixture_harness
@@ -185,6 +186,18 @@ def create_app(
                 "data": read_canonical_artifacts(
                     run_id,
                     run_repository_provider=run_repositories,
+                )
+            }
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.get("/api/v1/runs/{run_id}/verification")
+    def get_run_verification(run_id: str):
+        try:
+            return {
+                "data": read_run_verification(
+                    run_id,
+                    evidence_provider=evidence_repositories,
                 )
             }
         except (KeyError, TypeError, ValueError) as exc:

@@ -64,11 +64,32 @@ evidence counts, execution boundary counters, and the live-open policy state.
 It consumes the public demo summary only. It does not read repository tables,
 load `.env` values, call Solar Pro 3, or run the DAACS target runtime.
 
+## AW-MVP-01 Vertical Slice
+
+The same demo now also exposes the service-shaped MVP baseline:
+
+```text
+Idea
+-> PlanningBlueprint
+-> PRDPackage
+-> ImplementationBrief
+-> SpecApproval
+-> RunnerPlan
+-> VerificationReport
+```
+
+`GET /api/v1/runs/{run_id}/verification` returns the verification read model
+for the run. The demo summary records `workflow_stage_coverage` and
+`mvp_metrics` so reviewers can see the covered stage count, linkage percent,
+zero-call counters, and public exposure findings without inspecting repository
+rows.
+
 ## Expected Signals
 
 - DIV identity is represented by planning and PRD artifacts.
 - DAACS identity is represented by BuildSpec, ImplementationBrief, dry-run
   RunnerPlan evidence, and VerificationReport evidence.
+- AW-MVP-01 stage coverage is `7/7` for the representative local scenario.
 - The composed read model remains local and fixture-based.
 - Provider and target runtime call counts remain `0`.
 - The static UI marks live policy as `closed / eligible only`.

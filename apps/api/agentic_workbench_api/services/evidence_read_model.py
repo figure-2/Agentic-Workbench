@@ -21,6 +21,7 @@ from .admission_demo import AdmissionRepositoryProvider
 EVIDENCE_PROJECTION_VERSION = "evidence-read-model-public-v1"
 RUN_READ_PROJECTION_VERSION = "run-read-model-public-v1"
 ARTIFACT_READ_PROJECTION_VERSION = "artifact-read-model-public-v1"
+VERIFICATION_READ_PROJECTION_VERSION = "verification-read-model-public-v1"
 SAFE_RUN_ID_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-")
 
 
@@ -346,6 +347,103 @@ def read_run_artifacts(
         errors=errors,
         counts=counts,
         artifacts=artifacts,
+    )
+
+
+def read_run_verification(
+    run_id: str,
+    *,
+    evidence_provider: EvidenceRepositoryProvider | None = None,
+) -> dict[str, Any]:
+    """Return sanitized verification evidence for one run."""
+    safe_run_id = _safe_run_id(run_id)
+    selected_evidence_provider = evidence_provider or EvidenceRepositoryProvider()
+    checks: list[dict[str, object]] = []
+    errors: list[str] = []
+    runner_plans: list[dict[str, object]] = []
+    verification_reports: list[dict[str, object]] = []
+    status = "passed"
+
+    try:
+        store = selected_evidence_provider.store()
+        runner_plan_records = store.runner_plans().list_for_run(safe_run_id)
+        verification_report_records = store.verification_reports().list_for_run(safe_run_id)
+        runner_plans = _record_dicts(runner_plan_records)
+        verification_reports = _record_dicts(verification_report_records)
+        checks.append({"name": "runner_report_audit_repository_available", "passed": True})
+        checks.append(
+            {
+                "name": "verification_report_present",
+                "passed": bool(verification_reports),
+            }
+        )
+        checks.append(
+            {
+                "name": "runner_plan_linkage_present",
+                "passed": bool(runner_plans)
+                and all(report.get("runner_plan_hash") for report in verification_reports),
+            }
+        )
+        checks.append({"name": "approval_replay_repository_not_queried", "passed": True})
+        if not verification_reports:
+            status = "not_found"
+    except Exception:
+        status = "blocked"
+        errors.append("runner/report/audit repository is unavailable")
+        checks.append({"name": "runner_report_audit_repository_available", "passed": False})
+        checks.append({"name": "approval_replay_repository_not_queried", "passed": True})
+
+    counts = {
+        "runner_plan_count": len(runner_plans),
+        "verification_report_count": len(verification_reports),
+        "passed_report_count": sum(1 for report in verification_reports if report.get("passed")),
+        "failed_report_count": sum(
+            1 for report in verification_reports if not report.get("passed")
+        ),
+        "check_count": sum(int(report.get("check_count", 0)) for report in verification_reports),
+        "failed_check_count": sum(
+            int(report.get("failed_check_count", 0)) for report in verification_reports
+        ),
+        "error_count": sum(int(report.get("error_count", 0)) for report in verification_reports),
+        "generated_file_count": sum(
+            int(report.get("generated_file_count", 0)) for report in verification_reports
+        ),
+        "metric_count": sum(int(report.get("metric_count", 0)) for report in verification_reports),
+    }
+    return _safe_public_payload(
+        {
+            "projection_version": VERIFICATION_READ_PROJECTION_VERSION,
+            "run_id": safe_run_id,
+            "status": status,
+            "runtime_mode": "read_model",
+            "fixture_mode": False,
+            "checks": checks,
+            "errors": errors,
+            "repository_boundary": {
+                "runner_report_audit_backend": selected_evidence_provider.backend,
+                "approval_replay_backend": "not_queried",
+                "approval_replay_included": False,
+                "root_path_returned": False,
+                "raw_row_returned": False,
+            },
+            "counts": counts,
+            "runner_plan_hashes": sorted(
+                {
+                    str(report.get("runner_plan_hash"))
+                    for report in verification_reports
+                    if report.get("runner_plan_hash")
+                }
+            ),
+            "verification_reports": verification_reports,
+            "execution_boundary": _zero_execution_boundary(),
+            "claim_boundary": {
+                "local_read_model_only": True,
+                "verification_projection_only": True,
+                "external_provider_outcome": False,
+                "target_runtime_outcome": False,
+                "production_trust_claim": False,
+            },
+        }
     )
 
 
