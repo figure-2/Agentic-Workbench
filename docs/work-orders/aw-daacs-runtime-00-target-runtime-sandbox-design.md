@@ -167,3 +167,23 @@ Record these metrics in `docs/metrics.md` after implementation:
 - Quantitative comparison data is recorded.
 - The follow-up implementation can add a disabled runtime adapter skeleton
   without changing the AW-MVP-01 dry-run behavior.
+
+## Implementation Evidence
+
+Implemented files:
+
+- `packages/daacs_builder/target_runtime_sandbox.py`
+- `apps/api/agentic_workbench_api/services/target_runtime_preflight.py`
+- `apps/api/agentic_workbench_api/main.py`
+- `examples/demo-service-flow/run_local_demo.py`
+- `tests/unit/test_target_runtime_sandbox.py`
+- `tests/smoke/test_daacs_runtime_preflight.py`
+- `docs/evals/aw-daacs-runtime-00-target-runtime-sandbox-design.md`
+- `docs/metrics.md`
+
+Observed comparison result:
+
+| Variant | Status | Stage coverage | Filesystem writes | Subprocess calls | Network calls | Runtime calls |
+|---|---|---:|---:|---:|---:|---:|
+| `dry_run_runner` | passed | 7/7 | 0 | 0 | 0 | 0 |
+| `target_runtime_preflight` | blocked | preflight-only | 0 | 0 | 0 | 0 |

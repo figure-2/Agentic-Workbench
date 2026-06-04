@@ -26,6 +26,14 @@ from .services.evidence_read_model import (
 )
 from .services.evidence_write_model import persist_fixture_run_evidence
 from .services.fixture_harness import create_fixture_harness
+from .services.planner_provider_preflight import run_planner_provider_preflight
+from .services.target_runtime_admission import (
+    TargetRuntimeAdmissionRepositoryConfig,
+    TargetRuntimeAdmissionRepositoryProvider,
+    read_target_runtime_adapter_admissions,
+    run_target_runtime_adapter_admission,
+)
+from .services.target_runtime_preflight import run_target_runtime_preflight
 from .services.canonical_run_store import (
     RunArtifactRepositoryConfig,
     RunArtifactRepositoryProvider,
@@ -57,6 +65,12 @@ def create_app(
     run_repository_provider: RunArtifactRepositoryProvider | None = None,
     provider_envelope_repository_config: ProviderEnvelopeRepositoryConfig | None = None,
     provider_envelope_repository_provider: ProviderEnvelopeRepositoryProvider | None = None,
+    target_runtime_admission_repository_config: (
+        TargetRuntimeAdmissionRepositoryConfig | None
+    ) = None,
+    target_runtime_admission_repository_provider: (
+        TargetRuntimeAdmissionRepositoryProvider | None
+    ) = None,
 ):
     if FastAPI is None:
         raise RuntimeError("fastapi is not installed. Install API dependencies before serving.")
@@ -74,6 +88,12 @@ def create_app(
     provider_envelope_repositories = (
         provider_envelope_repository_provider
         or ProviderEnvelopeRepositoryProvider(provider_envelope_repository_config)
+    )
+    target_runtime_admission_repositories = (
+        target_runtime_admission_repository_provider
+        or TargetRuntimeAdmissionRepositoryProvider(
+            target_runtime_admission_repository_config
+        )
     )
 
     @app.post("/api/v1/runs")
@@ -135,6 +155,44 @@ def create_app(
                 "data": run_provider_envelope_precheck(
                     payload,
                     repository_provider=provider_envelope_repositories,
+                )
+            }
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/planner/provider/preflight")
+    def create_planner_provider_preflight(payload: dict):
+        try:
+            return {"data": run_planner_provider_preflight(payload)}
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/daacs/runtime/preflight")
+    def create_daacs_runtime_preflight(payload: dict):
+        try:
+            return {"data": run_target_runtime_preflight(payload)}
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/daacs/runtime/adapter/admission")
+    def create_daacs_runtime_adapter_admission(payload: dict):
+        try:
+            return {
+                "data": run_target_runtime_adapter_admission(
+                    payload,
+                    repository_provider=target_runtime_admission_repositories,
+                )
+            }
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.get("/api/v1/daacs/runtime/adapter/admissions/{run_id}")
+    def get_daacs_runtime_adapter_admissions(run_id: str):
+        try:
+            return {
+                "data": read_target_runtime_adapter_admissions(
+                    run_id,
+                    repository_provider=target_runtime_admission_repositories,
                 )
             }
         except (KeyError, TypeError, ValueError) as exc:

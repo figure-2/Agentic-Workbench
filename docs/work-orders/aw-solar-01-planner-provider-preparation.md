@@ -164,3 +164,23 @@ Record these metrics in `docs/metrics.md` after implementation:
 - The next work item can decide whether to implement a first manual provider
   call proposal for planner generation or continue improving the fixture
   planner quality.
+
+## Implementation Evidence
+
+Implemented files:
+
+- `packages/div_planner/provider_boundary.py`
+- `apps/api/agentic_workbench_api/services/planner_provider_preflight.py`
+- `apps/api/agentic_workbench_api/main.py`
+- `examples/demo-service-flow/run_local_demo.py`
+- `tests/unit/test_planner_provider_preflight.py`
+- `tests/smoke/test_solar_planner_preflight.py`
+- `docs/evals/aw-solar-01-planner-provider-preparation.md`
+- `docs/metrics.md`
+
+Observed comparison result:
+
+| Variant | Status | Stage coverage | Provider calls | SDK imports | Env value reads | Network calls |
+|---|---|---:|---:|---:|---:|---:|
+| `fixture_planner` | passed | 7/7 | 0 | 0 | 0 | 0 |
+| `solar_pro_3_disabled_preflight` | preflight_only | preflight-only | 0 | 0 | 0 | 0 |

@@ -33,21 +33,22 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-MVP-01` service-shaped vertical slice.
+Current snapshot after `AW-DAACS-RUNTIME-02` persisted disabled target runtime
+adapter admission evidence/read-model.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and local artifacts | 375 |
-| Counted code/doc files, excluding cache and local artifacts | 375 |
-| Project lines, excluding cache and local artifacts | 94,079 |
-| Python files | 77 |
-| Markdown files | 291 |
-| Test files | 33 |
-| Unit test files | 24 |
-| Smoke test files | 7 |
+| Project files, excluding cache and local artifacts | 373 |
+| Counted code/doc files, excluding cache and local artifacts | 372 |
+| Project lines, excluding cache and local artifacts | 95,851 |
+| Python files | 90 |
+| Markdown files | 278 |
+| Test files | 38 |
+| Unit test files | 28 |
+| Smoke test files | 9 |
 | Integration test files | 1 |
-| Pytest collected cases | 578 |
-| Pytest passed cases | 578 |
+| Pytest collected cases | 612 |
+| Pytest passed cases | 612 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -5121,25 +5122,224 @@ verification read model in one local dry-run path. It does not add provider
 execution, provider SDK import, env value access, network access, target
 workspace execution, hosted behavior, or generated application delivery.
 
+## AW-SOLAR-01 Planner Provider Preparation Metrics
+
+Measured after adding the disabled Solar planner preflight boundary and the
+fixture-vs-preflight comparison path.
+
+| Metric | Value |
+|---|---:|
+| Comparison variants | 2 |
+| Fixture stage coverage | 7/7 |
+| Fixture stage coverage percent | 100.0% |
+| Fixture artifact count | 6 |
+| Solar preflight status | preflight_only |
+| Solar preflight check count | 12 |
+| Solar preflight failed check count | 0 |
+| Solar preflight policy hash count | 1 |
+| Solar preflight cost/timeout/quota hash count | 1 |
+| Solar preflight request contract hash count | 1 |
+| Solar planner provider success count | 0 |
+| Provider-generated blueprint count | 0 |
+| Solar disabled preflight provider calls | 0 |
+| Solar provider calls | 0 |
+| SDK imports | 0 |
+| Env value reads | 0 |
+| Network calls | 0 |
+| Raw exposure findings | 0 |
+| Public claim drift findings | 0 |
+| New unit tests | 7 |
+| New smoke tests | 2 |
+
+| Comparison Variant | Status | Stage Coverage | Provider Calls | SDK Imports | Env Value Reads | Network Calls |
+|---|---|---:|---:|---:|---:|---:|
+| `fixture_planner` | passed | 7/7 | 0 | 0 | 0 | 0 |
+| `solar_pro_3_disabled_preflight` | preflight_only | preflight-only | 0 | 0 | 0 | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m pytest tests\unit\test_planner_provider_preflight.py -q --color=no` | 7 passed |
+| `python -m pytest tests\smoke\test_solar_planner_preflight.py -q --color=no` | 2 passed |
+| `python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-solar-01-demo --include-solar-planner-preflight` | passed |
+| `python -m compileall apps examples packages tests` | passed |
+| `python -m pytest tests -q --color=no` | 587 passed |
+
+Interpretation: AW-SOLAR-01 prepares the planner provider boundary while
+keeping the existing fixture planner as the only artifact-producing path.
+It does not add provider execution, provider SDK import, env value access,
+network access, provider-generated planning output, target runtime execution,
+hosted behavior, or generated application delivery.
+
+## AW-DAACS-RUNTIME-00 Target Runtime Sandbox Metrics
+
+Measured after adding the no-call DAACS target runtime sandbox preflight
+contract and dry-run-vs-preflight comparison path.
+
+| Metric | Value |
+|---|---:|
+| Comparison variants | 2 |
+| Dry-run fixture stage coverage | 7/7 |
+| Dry-run fixture stage coverage percent | 100.0% |
+| Target runtime preflight status | blocked |
+| Target runtime preflight check count | 19 |
+| Target runtime preflight failed check count | 1 |
+| Intentional execution-closed check count | 1 |
+| Allowed write path count | 3 |
+| Requested write path count | 3 |
+| Expected output path count | 3 |
+| Denied path count in clean comparison | 0 |
+| Blocked operation count in clean comparison | 0 |
+| Rollback plan count | 1 |
+| Abort criteria count | 2 |
+| Cleanup step count | 2 |
+| Path traversal fixtures blocked | 1/1 |
+| Absolute path fixtures blocked | 1/1 |
+| Disallowed write fixtures blocked | 1/1 |
+| Package install fixtures blocked | 1/1 |
+| Server start fixtures blocked | 1/1 |
+| Network command fixtures blocked | 1/1 |
+| Filesystem writes | 0 |
+| Subprocess calls | 0 |
+| Network calls | 0 |
+| DAACS target runtime calls | 0 |
+| Raw exposure findings | 0 |
+| Public claim drift findings | 0 |
+| New unit tests | 9 |
+| New smoke tests | 2 |
+
+| Comparison Variant | Status | Stage Coverage | Filesystem Writes | Subprocess Calls | Network Calls | Runtime Calls |
+|---|---|---:|---:|---:|---:|---:|
+| `dry_run_runner` | passed | 7/7 | 0 | 0 | 0 | 0 |
+| `target_runtime_preflight` | blocked | preflight-only | 0 | 0 | 0 | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m pytest tests\unit\test_target_runtime_sandbox.py -q --color=no` | 9 passed |
+| `python -m pytest tests\smoke\test_daacs_runtime_preflight.py -q --color=no` | 2 passed |
+| `python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-daacs-runtime-00-demo --include-daacs-runtime-preflight` | passed |
+| `python -m compileall apps examples packages tests` | passed |
+| `python -m pytest tests -q --color=no` | 598 passed |
+
+Interpretation: AW-DAACS-RUNTIME-00 defines the target runtime sandbox
+preflight contract over a RunnerPlan hash. It does not add target runtime
+execution, subprocess execution, package installation, server start, filesystem
+write, network access, raw log storage, generated file body storage, hosted
+behavior, or generated application delivery.
+
+## AW-DAACS-RUNTIME-01 Disabled Adapter Admission Metrics
+
+Measured after adding the no-call DAACS target runtime disabled adapter
+admission skeleton and dry-run-vs-preflight-vs-adapter comparison path.
+
+| Metric | Value |
+|---|---:|
+| Comparison variants | 3 |
+| Dry-run fixture stage coverage | 7/7 |
+| Dry-run fixture stage coverage percent | 100.0% |
+| Target runtime preflight status | blocked |
+| Disabled adapter admission status | blocked |
+| Target runtime adapter admission reason | target_runtime_adapter_disabled |
+| Adapter admission check count | 14 |
+| Adapter admission failed check count | 1 |
+| Preflight hash required block fixtures | 1/1 |
+| Preflight hash mismatch block fixtures | 1/1 |
+| Dirty preflight block fixtures | 1/1 |
+| Valid preflight adapter reach count | 1 |
+| Disabled adapter block count | 1 |
+| Adapter preflight hash match count | 1 |
+| Adapter execution permission count | 0 |
+| Adapter filesystem writes | 0 |
+| Adapter subprocess calls | 0 |
+| Adapter network calls | 0 |
+| Adapter DAACS target runtime calls | 0 |
+| Raw exposure findings | 0 |
+| Public claim drift findings | 0 |
+| New unit tests | 7 |
+| Updated smoke tests | 3 |
+
+| Comparison Variant | Status | Stage Coverage | Filesystem Writes | Subprocess Calls | Network Calls | Runtime Calls |
+|---|---|---:|---:|---:|---:|---:|
+| `dry_run_runner` | passed | 7/7 | 0 | 0 | 0 | 0 |
+| `target_runtime_preflight` | blocked | preflight-only | 0 | 0 | 0 | 0 |
+| `disabled_adapter_admission` | blocked | adapter-disabled | 0 | 0 | 0 | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m pytest tests\unit\test_target_runtime_adapter_admission.py tests\smoke\test_daacs_runtime_preflight.py -q --color=no` | 10 passed |
+| `python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-daacs-runtime-01-demo --include-daacs-runtime-adapter-admission` | passed |
+| `python -m compileall apps examples packages tests` | passed |
+| `python -m pytest tests -q --color=no` | 606 passed |
+
+Interpretation: AW-DAACS-RUNTIME-01 requires target runtime preflight hash
+evidence before the disabled adapter skeleton can be reached. It still does
+not add target runtime execution, subprocess execution, package installation,
+server start, filesystem write, network access, raw log storage, generated file
+body storage, hosted behavior, or generated application delivery.
+
+## AW-DAACS-RUNTIME-02 Persisted Adapter Admission Evidence Metrics
+
+`AW-DAACS-RUNTIME-02` stores disabled target runtime adapter admission evidence
+in SQLite and exposes a public read model. The measured result is still no-call:
+the adapter remains disabled, execution permission remains `0`, and the
+read-model is hash/status/count-only.
+
+| Metric | Value |
+|---|---:|
+| Comparison variants | 3 |
+| Dry-run fixture stage coverage | 7/7 |
+| Dry-run fixture stage coverage percent | 100.0% |
+| Target runtime preflight status | blocked |
+| Disabled adapter admission status | blocked |
+| Adapter admission persistence status | persisted |
+| Adapter admission persisted count | 1 |
+| Adapter admission read-model status | available |
+| Adapter admission read-model record count | 1 |
+| Adapter admission hash count | 1 |
+| Store block fixtures, corrupted/unavailable/wrong-schema | 3/3 |
+| Duplicate rollback partial row count | 0 |
+| Execution permission count | 0 |
+| Filesystem writes outside local SQLite evidence store | 0 |
+| Subprocess calls | 0 |
+| Network calls | 0 |
+| DAACS target runtime calls | 0 |
+| Raw exposure findings | 0 |
+| Public claim drift findings | 0 |
+| New unit tests | 5 |
+| Updated smoke tests | 4 |
+
+| Comparison Variant | Status | Stage Coverage | Persisted Rows | Filesystem Writes | Subprocess Calls | Network Calls | Runtime Calls |
+|---|---|---:|---:|---:|---:|---:|---:|
+| `dry_run_runner` | passed | 7/7 | n/a | 0 | 0 | 0 | 0 |
+| `target_runtime_preflight` | blocked | preflight-only | n/a | 0 | 0 | 0 | 0 |
+| `persisted_disabled_adapter_admission` | blocked/read-model available | adapter-disabled | 1 | 0 | 0 | 0 | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m pytest tests\unit\test_target_runtime_admission_store.py tests\unit\test_target_runtime_adapter_admission.py tests\smoke\test_daacs_runtime_preflight.py -q --color=no` | 16 passed |
+| `python -m pytest tests\unit\test_public_claim_projection_docs.py tests\unit\test_target_runtime_admission_store.py tests\unit\test_target_runtime_adapter_admission.py tests\smoke\test_daacs_runtime_preflight.py -q --color=no` | 19 passed |
+| `python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-daacs-runtime-02-demo --include-daacs-runtime-adapter-admission` | passed |
+| `python -m compileall apps examples packages tests` | passed |
+| `python -m pytest tests -q --color=no` | 612 passed |
+
+Interpretation: AW-DAACS-RUNTIME-02 makes disabled adapter admission evidence
+durable and queryable without opening DAACS runtime execution. It does not add
+generated application output, provider calls, network calls, subprocess calls,
+package installation, server start, raw file storage, or hosted behavior.
+
 ## Next Implementation Measurement Plan
 
-The next implementation work should move from service-shaped local demo toward
-controlled provider/runtime preparation. These are target metrics, not observed
-implementation results.
+The next implementation work should define a disabled target runtime output
+manifest contract over the persisted adapter admission read model. These are
+target metrics, not observed implementation results.
 
 | Work Order | Comparison variants | Primary target | Required zero-call counters |
 |---|---:|---|---|
-| `AW-SOLAR-01` | 2 | fixture planner vs disabled Solar planner preflight | provider calls, SDK imports, env value reads, network calls |
-| `AW-DAACS-RUNTIME-00` | 2 | dry-run runner vs target runtime preflight | filesystem writes, subprocess calls, network calls, DAACS target runtime calls |
+| `AW-DAACS-RUNTIME-03` | 4 | disabled target runtime output manifest contract | filesystem writes, subprocess calls, network calls, DAACS target runtime calls |
 
 | Planned Metric | Target |
 |---|---:|
-| `AW-SOLAR-01` fixture stage coverage | 7/7 |
-| `AW-SOLAR-01` disabled Solar preflight provider calls | 0 |
-| `AW-SOLAR-01` raw provider/request exposure findings | 0 |
-| `AW-DAACS-RUNTIME-00` path traversal fixtures blocked | 100% |
-| `AW-DAACS-RUNTIME-00` disallowed write fixtures blocked | 100% |
-| `AW-DAACS-RUNTIME-00` package install fixtures blocked | 100% |
-| `AW-DAACS-RUNTIME-00` server start fixtures blocked | 100% |
-| `AW-DAACS-RUNTIME-00` DAACS target runtime calls | 0 |
+| `AW-DAACS-RUNTIME-03` manifest contract hash coverage | 100% |
+| `AW-DAACS-RUNTIME-03` persisted admission read-model prerequisite coverage | 100% |
+| `AW-DAACS-RUNTIME-03` generated artifact body writes | 0 |
+| `AW-DAACS-RUNTIME-03` DAACS target runtime calls | 0 |
 | Public claim drift findings | 0 |

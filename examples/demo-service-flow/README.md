@@ -32,6 +32,25 @@ To keep the local SQLite projection stores outside the example folder:
 python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-demo-01
 ```
 
+To include the AW-SOLAR-01 no-call planner provider comparison:
+
+```powershell
+python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-solar-01-demo --include-solar-planner-preflight
+```
+
+To include the AW-DAACS-RUNTIME-00 no-call target runtime sandbox comparison:
+
+```powershell
+python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-daacs-runtime-00-demo --include-daacs-runtime-preflight
+```
+
+To include the AW-DAACS-RUNTIME-01/02 no-call disabled target runtime adapter
+admission comparison plus persisted adapter admission read-model evidence:
+
+```powershell
+python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-daacs-runtime-01-demo --include-daacs-runtime-adapter-admission
+```
+
 The printed JSON is a sanitized summary. It includes run status, artifact
 kinds, evidence counts, linkage markers, repository boundary flags, and
 zero-call execution metrics. It does not include raw prompts, provider payloads,
@@ -93,6 +112,21 @@ rows.
 - The composed read model remains local and fixture-based.
 - Provider and target runtime call counts remain `0`.
 - The static UI marks live policy as `closed / eligible only`.
+- When `--include-solar-planner-preflight` is used, the fixture planner remains
+  the artifact-producing path with `7/7` stage coverage, while the disabled
+  Solar planner preflight returns `preflight_only` with provider calls, SDK
+  imports, env value reads, and network calls all `0`.
+- When `--include-daacs-runtime-preflight` is used, the dry-run RunnerPlan
+  remains the only execution evidence path, while the target runtime sandbox
+  preflight returns `blocked` with filesystem writes, subprocess calls, network
+  calls, and target runtime calls all `0`.
+- When `--include-daacs-runtime-adapter-admission` is used, the demo compares
+  three variants: dry-run runner, target runtime preflight, and disabled
+  adapter admission. The preflight hash must match before adapter reachability,
+  but the disabled adapter still returns `blocked`. The adapter admission
+  evidence is persisted as a hash/status/count-only SQLite row and read back
+  through the public read model. Execution permission, filesystem writes,
+  subprocess calls, network calls, and target runtime calls all remain `0`.
 - When `--include-provider-precheck` is used, manual proposal, disabled
   executor, one-shot permission, preflight audit, readiness decision, review
   packet, review packet export/read-model, handoff packet, and operator opt-in

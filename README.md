@@ -78,6 +78,8 @@ Current implementation:
 - Fail-closed live-open policy gate for future Solar Pro 3 / DAACS target runtime work
 - Static HTML UI shell over the same sanitized public demo summary
 - AW-MVP-01 service-shaped vertical slice with 7/7 stage coverage and a verification read-model endpoint
+- Disabled Solar planner provider preflight boundary for fixture-vs-preflight comparison, still no provider call
+- DAACS target runtime sandbox preflight boundary for dry-run-vs-preflight comparison, still no runtime call
 - Disabled-by-default Solar Pro 3 provider adapter skeleton with fake/live path separation
 - No-call Solar Pro 3 request/response contract fixtures with cost/timeout policy checks
 - Provider envelope persistence/read-model projection for no-call Solar contract evidence
@@ -373,8 +375,10 @@ Current status addendum: AW-LIVE-CHAIN-02 extends the no-call boundary helper to
 
 Current status addendum: AW-LIVE-CHAIN-03 extends the no-call boundary helper to AW-LIVE-53 through AW-LIVE-59. The consolidated helper now covers AW-LIVE-53 through AW-LIVE-68 while preserving public field names and execution permission `0`.
 
-Current status addendum: AW-MVP-01 adds a service-shaped local vertical slice over the same public API and read models. The representative path covers Idea, PlanningBlueprint, PRDPackage, ImplementationBrief, Approval, RunnerPlan, and VerificationReport, adds `GET /api/v1/runs/{run_id}/verification`, and keeps provider and target runtime call counts at `0`.
+Current status addendum: AW-MVP-01 adds a service-shaped local vertical slice over the same public API and read models. The representative path covers Idea, PlanningBlueprint, PRDPackage, ImplementationBrief, Approval, RunnerPlan, and VerificationReport, adds `GET /api/v1/runs/{run_id}/verification`, and keeps provider and target runtime call counts at `0`. AW-SOLAR-01 adds a disabled Solar planner provider preflight comparison path; the artifact-producing planner remains fixture-based. AW-DAACS-RUNTIME-00 adds a DAACS target runtime sandbox preflight comparison path over the RunnerPlan hash; target runtime execution remains closed. AW-DAACS-RUNTIME-01 adds a disabled DAACS target runtime adapter admission skeleton bound to the preflight hash; valid preflight evidence can reach the disabled adapter, but execution permission remains `0`.
 
 Current status addendum: AW-LIVE-CHAIN-04 extends the no-call boundary helper to AW-LIVE-46 through AW-LIVE-52. The consolidated helper now covers AW-LIVE-46 through AW-LIVE-69 while preserving public field names and execution permission `0`.
 
-Next implementation track: AW-SOLAR-01 should prepare the disabled planner-provider boundary for Solar Pro 3, then AW-DAACS-RUNTIME-00 should define the target runtime sandbox and preflight contract. The disabled no-call chain can resume later if live-opening controls need more evidence, but it is no longer the primary product path.
+Current status addendum: AW-DAACS-RUNTIME-02 adds persisted disabled DAACS target runtime adapter admission evidence and a public read model. The SQLite row stores only hash/status/count fields, the read-model returns hash/status/count and repository boundary flags only, and execution permission remains `0`.
+
+Next implementation track: AW-DAACS-RUNTIME-03 should define a disabled target runtime output manifest contract over the persisted adapter admission read model. The goal is to prepare artifact-output evidence without writing generated application files or running DAACS target runtime code.

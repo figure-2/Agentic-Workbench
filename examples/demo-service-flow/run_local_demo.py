@@ -86,9 +86,19 @@ from apps.api.agentic_workbench_api.services.provider_envelope_api import (
     provider_manual_test_sealed_pre_execution_packet_summary,
     provider_precheck_operator_policy_summary,
 )
+from apps.api.agentic_workbench_api.services.target_runtime_admission import (
+    TargetRuntimeAdmissionRepositoryConfig,
+)
 from packages.core.live_open_policy import LIVE_OPEN_REQUIRED_CONTROLS
 from packages.core.public_projection import assert_public_projection_safe
 from packages.core.schemas import stable_contract_hash
+from packages.daacs_builder.target_runtime_sandbox import (
+    TARGET_RUNTIME_MODE_DISABLED_PREFLIGHT,
+)
+from packages.daacs_builder.target_runtime_admission import (
+    TARGET_RUNTIME_MODE_DISABLED_ADAPTER_ADMISSION,
+)
+from packages.div_planner.provider_boundary import PLANNER_PROVIDER_MODE_SOLAR_DISABLED
 
 
 DEMO_PAYLOAD = {
@@ -124,10 +134,22 @@ MVP_STAGE_NAMES = (
 )
 
 
-def _client(store_root: Path, *, include_provider_precheck: bool = False) -> TestClient:
+def _client(
+    store_root: Path,
+    *,
+    include_provider_precheck: bool = False,
+    include_target_runtime_admission: bool = False,
+) -> TestClient:
     provider_envelope_config = (
         ProviderEnvelopeRepositoryConfig(root=store_root / "provider-envelope-evidence")
         if include_provider_precheck
+        else None
+    )
+    target_runtime_admission_config = (
+        TargetRuntimeAdmissionRepositoryConfig(
+            root=store_root / "target-runtime-admission-evidence"
+        )
+        if include_target_runtime_admission
         else None
     )
     return TestClient(
@@ -139,6 +161,7 @@ def _client(store_root: Path, *, include_provider_precheck: bool = False) -> Tes
                 root=store_root / "runner-report-audit-evidence",
             ),
             provider_envelope_repository_config=provider_envelope_config,
+            target_runtime_admission_repository_config=target_runtime_admission_config,
         )
     )
 
@@ -1205,6 +1228,148 @@ def _post_provider_envelope_precheck(
     return response.json()["data"]
 
 
+def _solar_planner_preflight_payload(run_id: str, prompt_contract_hash: str) -> dict[str, Any]:
+    readiness = {field_name: True for field_name in LIVE_OPEN_REQUIRED_CONTROLS}
+    return {
+        "run_id": run_id,
+        "prompt_contract_hash": prompt_contract_hash,
+        "planner_provider_mode": PLANNER_PROVIDER_MODE_SOLAR_DISABLED,
+        "stage_target": "PlanningBlueprint",
+        "env_key_name": "UPSTAGE_API_KEY",
+        "policy": {
+            **readiness,
+            "request_timeout_seconds": 30,
+            "max_cost_units": 1,
+            "max_output_tokens": 512,
+            "max_live_api_calls": 1,
+            "retry_count": 0,
+        },
+    }
+
+
+def _post_solar_planner_preflight(
+    client: TestClient,
+    *,
+    run_id: str,
+    prompt_contract_hash: str,
+) -> dict[str, Any]:
+    response = client.post(
+        "/api/v1/planner/provider/preflight",
+        json=_solar_planner_preflight_payload(run_id, prompt_contract_hash),
+    )
+    response.raise_for_status()
+    return response.json()["data"]
+
+
+def _daacs_runtime_preflight_payload(run_id: str, runner_plan_hash: str) -> dict[str, Any]:
+    readiness = {field_name: True for field_name in LIVE_OPEN_REQUIRED_CONTROLS}
+    workspace_root = f"runs/{run_id}/workspace"
+    return {
+        "run_id": run_id,
+        "runner_plan_hash": runner_plan_hash,
+        "mode": TARGET_RUNTIME_MODE_DISABLED_PREFLIGHT,
+        "sandbox_policy": {
+            **readiness,
+            "timeout_seconds": 60,
+            "max_planned_files": 20,
+            "max_subprocess_calls": 0,
+            "max_package_installs": 0,
+            "max_server_starts": 0,
+            "max_network_calls": 0,
+            "max_target_runtime_calls": 0,
+        },
+        "workspace_intent": {
+            "workspace_root": workspace_root,
+            "allowed_write_paths": [
+                f"{workspace_root}/backend",
+                f"{workspace_root}/frontend",
+                f"{workspace_root}/reports",
+            ],
+            "requested_write_paths": [
+                f"{workspace_root}/backend/main.py",
+                f"{workspace_root}/frontend/App.tsx",
+                f"{workspace_root}/reports/verification.json",
+            ],
+            "expected_output_paths": [
+                f"{workspace_root}/backend",
+                f"{workspace_root}/frontend",
+                f"{workspace_root}/reports",
+            ],
+        },
+        "command_policy": {
+            "requested_operations": [
+                "render backend files",
+                "render frontend files",
+                "render report",
+            ],
+            "allowed_operation_labels": [
+                "render_backend",
+                "render_frontend",
+                "render_report",
+            ],
+        },
+        "rollback_policy": {
+            "rollback_plan_id": "rollback-local-target-runtime-preflight",
+            "abort_criteria": [
+                "any path boundary finding",
+                "any non-zero side-effect counter",
+            ],
+            "cleanup_steps": [
+                "discard run-scoped workspace",
+                "keep sanitized audit projection only",
+            ],
+        },
+    }
+
+
+def _post_daacs_runtime_preflight(
+    client: TestClient,
+    *,
+    run_id: str,
+    runner_plan_hash: str,
+) -> dict[str, Any]:
+    response = client.post(
+        "/api/v1/daacs/runtime/preflight",
+        json=_daacs_runtime_preflight_payload(run_id, runner_plan_hash),
+    )
+    response.raise_for_status()
+    return response.json()["data"]
+
+
+def _daacs_runtime_adapter_admission_payload(
+    *,
+    run_id: str,
+    runner_plan_hash: str,
+    preflight_projection: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "run_id": run_id,
+        "runner_plan_hash": runner_plan_hash,
+        "expected_preflight_hash": preflight_projection.get("preflight_hash", ""),
+        "mode": TARGET_RUNTIME_MODE_DISABLED_ADAPTER_ADMISSION,
+        "preflight_projection": preflight_projection,
+    }
+
+
+def _post_daacs_runtime_adapter_admission(
+    client: TestClient,
+    *,
+    run_id: str,
+    runner_plan_hash: str,
+    preflight_projection: dict[str, Any],
+) -> dict[str, Any]:
+    response = client.post(
+        "/api/v1/daacs/runtime/adapter/admission",
+        json=_daacs_runtime_adapter_admission_payload(
+            run_id=run_id,
+            runner_plan_hash=runner_plan_hash,
+            preflight_projection=preflight_projection,
+        ),
+    )
+    response.raise_for_status()
+    return response.json()["data"]
+
+
 def _artifact_kinds(artifacts: list[dict[str, Any]]) -> set[str]:
     return {str(artifact.get("kind") or "") for artifact in artifacts}
 
@@ -1280,6 +1445,10 @@ def _checks(
     *,
     verification_data: dict[str, Any] | None = None,
     provider_envelope_data: dict[str, Any] | None = None,
+    solar_planner_preflight_data: dict[str, Any] | None = None,
+    daacs_runtime_preflight_data: dict[str, Any] | None = None,
+    daacs_runtime_adapter_admission_data: dict[str, Any] | None = None,
+    daacs_runtime_adapter_admission_read_data: dict[str, Any] | None = None,
 ) -> dict[str, bool]:
     artifact_kinds = _artifact_kinds(run_data.get("artifacts", []))
     evidence_summary = run_data.get("evidence_summary", {})
@@ -2287,6 +2456,107 @@ def _checks(
             )
             == 0
         )
+    if solar_planner_preflight_data is None:
+        checks["solar_planner_preflight_optional"] = True
+    else:
+        execution = solar_planner_preflight_data.get("execution_boundary", {})
+        counts = solar_planner_preflight_data.get("counts", {})
+        checks["solar_planner_preflight_projection"] = (
+            solar_planner_preflight_data.get("projection_version")
+            == "planner-provider-preflight-public-v1"
+        )
+        checks["solar_planner_preflight_only"] = (
+            solar_planner_preflight_data.get("status") == "preflight_only"
+        )
+        checks["solar_planner_preflight_provider_calls_zero"] = (
+            int(execution.get("solar_provider_calls", -1)) == 0
+            and int(execution.get("provider_calls", -1)) == 0
+            and int(execution.get("network_calls", -1)) == 0
+        )
+        checks["solar_planner_preflight_env_and_sdk_zero"] = (
+            int(execution.get("env_key_value_reads", -1)) == 0
+            and int(execution.get("sdk_imports", -1)) == 0
+        )
+        checks["solar_planner_preflight_no_provider_success"] = (
+            int(counts.get("planner_provider_success_count", -1)) == 0
+            and int(counts.get("provider_generated_blueprint_count", -1)) == 0
+        )
+    if daacs_runtime_preflight_data is None:
+        checks["daacs_runtime_preflight_optional"] = True
+    else:
+        execution = daacs_runtime_preflight_data.get("execution_boundary", {})
+        counts = daacs_runtime_preflight_data.get("counts", {})
+        checks["daacs_runtime_preflight_projection"] = (
+            daacs_runtime_preflight_data.get("projection_version")
+            == "target-runtime-preflight-public-v1"
+        )
+        checks["daacs_runtime_preflight_blocked"] = (
+            daacs_runtime_preflight_data.get("status") == "blocked"
+        )
+        checks["daacs_runtime_preflight_execution_zero"] = (
+            int(execution.get("target_runtime_calls", -1)) == 0
+            and int(execution.get("filesystem_writes", -1)) == 0
+            and int(execution.get("subprocess_calls", -1)) == 0
+            and int(execution.get("network_calls", -1)) == 0
+        )
+        checks["daacs_runtime_preflight_boundary_clean"] = (
+            int(counts.get("denied_path_count", -1)) == 0
+            and int(counts.get("blocked_operation_count", -1)) == 0
+            and int(counts.get("target_runtime_call_count", -1)) == 0
+        )
+    if daacs_runtime_adapter_admission_data is None:
+        checks["daacs_runtime_adapter_admission_optional"] = True
+    else:
+        execution = daacs_runtime_adapter_admission_data.get("execution_boundary", {})
+        counts = daacs_runtime_adapter_admission_data.get("counts", {})
+        checks["daacs_runtime_adapter_admission_projection"] = (
+            daacs_runtime_adapter_admission_data.get("projection_version")
+            == "target-runtime-adapter-admission-public-v1"
+        )
+        checks["daacs_runtime_adapter_admission_blocked"] = (
+            daacs_runtime_adapter_admission_data.get("status") == "blocked"
+            and daacs_runtime_adapter_admission_data.get("reason")
+            == "target_runtime_adapter_disabled"
+        )
+        checks["daacs_runtime_adapter_admission_hash_match"] = (
+            int(counts.get("preflight_hash_match_count", -1)) == 1
+        )
+        checks["daacs_runtime_adapter_disabled_reached"] = (
+            int(counts.get("adapter_reach_count", -1)) == 1
+            and int(counts.get("adapter_disabled_block_count", -1)) == 1
+        )
+        checks["daacs_runtime_adapter_execution_zero"] = (
+            int(execution.get("target_runtime_calls", -1)) == 0
+            and int(execution.get("filesystem_writes", -1)) == 0
+            and int(execution.get("subprocess_calls", -1)) == 0
+            and int(execution.get("network_calls", -1)) == 0
+            and int(execution.get("execution_permission_count", -1)) == 0
+        )
+        persistence = daacs_runtime_adapter_admission_data.get(
+            "adapter_admission_persistence", {}
+        )
+        persistence_counts = persistence.get("counts", {})
+        checks["daacs_runtime_adapter_admission_persisted"] = (
+            persistence.get("status") in {"persisted", "duplicate"}
+            and int(persistence_counts.get("local_evidence_repository_write_count", -1))
+            >= 0
+        )
+        read_model = daacs_runtime_adapter_admission_read_data or {}
+        read_counts = read_model.get("counts", {})
+        read_execution = read_model.get("execution_boundary", {})
+        checks["daacs_runtime_adapter_admission_read_model"] = (
+            read_model.get("projection_version")
+            == "target-runtime-adapter-admission-read-model-public-v1"
+            and read_model.get("status") == "available"
+            and int(read_counts.get("adapter_admission_record_count", -1)) >= 1
+            and int(read_counts.get("adapter_admission_hash_count", -1)) >= 1
+        )
+        checks["daacs_runtime_adapter_read_model_execution_zero"] = (
+            int(read_execution.get("target_runtime_calls", -1)) == 0
+            and int(read_execution.get("filesystem_writes", -1)) == 0
+            and int(read_execution.get("subprocess_calls", -1)) == 0
+            and int(read_execution.get("network_calls", -1)) == 0
+        )
     return checks
 
 
@@ -2294,10 +2564,17 @@ def run_demo(
     store_root: str | Path | None = None,
     *,
     include_provider_precheck: bool = False,
+    include_solar_planner_preflight: bool = False,
+    include_daacs_runtime_preflight: bool = False,
+    include_daacs_runtime_adapter_admission: bool = False,
 ) -> dict[str, Any]:
     selected_root = Path(store_root) if store_root else Path(__file__).resolve().parent / ".local"
     selected_root.mkdir(parents=True, exist_ok=True)
-    client = _client(selected_root, include_provider_precheck=include_provider_precheck)
+    client = _client(
+        selected_root,
+        include_provider_precheck=include_provider_precheck,
+        include_target_runtime_admission=include_daacs_runtime_adapter_admission,
+    )
 
     create_data = _post_run(client)
     run_id = str(create_data["run"]["run_id"])
@@ -2306,6 +2583,10 @@ def run_demo(
     verification_data = _get_data(client, f"/api/v1/runs/{run_id}/verification")
     provider_envelope_data = None
     provider_envelope_read_data = None
+    solar_planner_preflight_data = None
+    daacs_runtime_preflight_data = None
+    daacs_runtime_adapter_admission_data = None
+    daacs_runtime_adapter_admission_read_data = None
     if include_provider_precheck:
         provider_envelope_data = _post_provider_envelope_precheck(
             client,
@@ -2316,16 +2597,70 @@ def run_demo(
             client,
             f"/api/v1/admissions/provider/envelopes/{run_id}",
         )
+    if include_solar_planner_preflight:
+        solar_planner_preflight_data = _post_solar_planner_preflight(
+            client,
+            run_id=run_id,
+            prompt_contract_hash=str(create_data["run"]["prompt_contract_hash"]),
+        )
+    if include_daacs_runtime_preflight or include_daacs_runtime_adapter_admission:
+        runner_plan_hashes = verification_data.get("runner_plan_hashes", [])
+        runner_plan_hash = str(runner_plan_hashes[0] if runner_plan_hashes else "")
+        daacs_runtime_preflight_data = _post_daacs_runtime_preflight(
+            client,
+            run_id=run_id,
+            runner_plan_hash=runner_plan_hash,
+        )
+        if include_daacs_runtime_adapter_admission:
+            daacs_runtime_adapter_admission_data = _post_daacs_runtime_adapter_admission(
+                client,
+                run_id=run_id,
+                runner_plan_hash=runner_plan_hash,
+                preflight_projection=daacs_runtime_preflight_data,
+            )
+            daacs_runtime_adapter_admission_read_data = _get_data(
+                client,
+                f"/api/v1/daacs/runtime/adapter/admissions/{run_id}",
+            )
 
     checks = _checks(
         create_data,
         run_data,
         verification_data=verification_data,
         provider_envelope_data=provider_envelope_data,
+        solar_planner_preflight_data=solar_planner_preflight_data,
+        daacs_runtime_preflight_data=daacs_runtime_preflight_data,
+        daacs_runtime_adapter_admission_data=daacs_runtime_adapter_admission_data,
+        daacs_runtime_adapter_admission_read_data=(
+            daacs_runtime_adapter_admission_read_data
+        ),
     )
     artifact_kinds = sorted(_artifact_kinds(run_data.get("artifacts", [])))
     evidence_summary = run_data.get("evidence_summary", {})
     stage_coverage = _mvp_stage_coverage(run_data, verification_data)
+    solar_planner_execution = (
+        solar_planner_preflight_data.get("execution_boundary", {})
+        if solar_planner_preflight_data
+        else {}
+    )
+    daacs_runtime_execution = (
+        daacs_runtime_preflight_data.get("execution_boundary", {})
+        if daacs_runtime_preflight_data
+        else {}
+    )
+    daacs_runtime_adapter_execution = (
+        daacs_runtime_adapter_admission_data.get("execution_boundary", {})
+        if daacs_runtime_adapter_admission_data
+        else {}
+    )
+    comparison_variant_count = 2 if solar_planner_preflight_data else 1
+    runtime_comparison_variant_count = (
+        3
+        if daacs_runtime_adapter_admission_data
+        else 2
+        if daacs_runtime_preflight_data
+        else 1
+    )
     summary = {
         "demo_id": "AW-DEMO-01",
         "mvp_id": MVP_ID,
@@ -2385,6 +2720,212 @@ def run_demo(
             "daacs_target_runtime_calls": 0,
             "public_claim_drift_findings": 0,
         },
+        "solar_planner_preflight": (
+            {
+                "projection_version": solar_planner_preflight_data.get("projection_version"),
+                "status": solar_planner_preflight_data.get("status"),
+                "reason": solar_planner_preflight_data.get("reason"),
+                "planner_provider_mode": solar_planner_preflight_data.get(
+                    "planner_provider_mode"
+                ),
+                "stage_target": solar_planner_preflight_data.get("stage_target"),
+                "request_contract_hash": solar_planner_preflight_data.get(
+                    "request_contract_hash"
+                ),
+                "policy_hash": solar_planner_preflight_data.get("policy_hash"),
+                "cost_timeout_quota_hash": solar_planner_preflight_data.get(
+                    "cost_timeout_quota_hash"
+                ),
+                "counts": solar_planner_preflight_data.get("counts", {}),
+                "execution_boundary": solar_planner_preflight_data.get(
+                    "execution_boundary", {}
+                ),
+                "claim_boundary": solar_planner_preflight_data.get("claim_boundary", {}),
+            }
+            if solar_planner_preflight_data is not None
+            else {
+                "status": "skipped",
+                "reason": "optional solar planner preflight not requested",
+                "external_provider_outcome": False,
+                "target_runtime_outcome": False,
+            }
+        ),
+        "solar_planner_comparison": {
+            "comparison_variant_count": comparison_variant_count,
+            "fixture_stage_coverage": f"{stage_coverage['covered_stage_count']}/{stage_coverage['required_stage_count']}",
+            "solar_preflight_status": (
+                solar_planner_preflight_data.get("status")
+                if solar_planner_preflight_data
+                else "skipped"
+            ),
+            "solar_preflight_provider_calls": _as_int(
+                solar_planner_execution.get("provider_calls")
+            ),
+            "solar_preflight_sdk_imports": _as_int(
+                solar_planner_execution.get("sdk_imports")
+            ),
+            "solar_preflight_env_value_reads": _as_int(
+                solar_planner_execution.get("env_key_value_reads")
+            ),
+            "solar_preflight_network_calls": _as_int(
+                solar_planner_execution.get("network_calls")
+            ),
+            "raw_exposure_findings": 0,
+            "public_claim_drift_findings": 0,
+        },
+        "daacs_runtime_preflight": (
+            {
+                "projection_version": daacs_runtime_preflight_data.get(
+                    "projection_version"
+                ),
+                "status": daacs_runtime_preflight_data.get("status"),
+                "reason": daacs_runtime_preflight_data.get("reason"),
+                "mode": daacs_runtime_preflight_data.get("mode"),
+                "preflight_hash": daacs_runtime_preflight_data.get("preflight_hash"),
+                "runner_plan_hash": daacs_runtime_preflight_data.get("runner_plan_hash"),
+                "sandbox_policy_hash": daacs_runtime_preflight_data.get(
+                    "sandbox_policy_hash"
+                ),
+                "workspace_intent_hash": daacs_runtime_preflight_data.get(
+                    "workspace_intent_hash"
+                ),
+                "command_policy_hash": daacs_runtime_preflight_data.get(
+                    "command_policy_hash"
+                ),
+                "rollback_policy_hash": daacs_runtime_preflight_data.get(
+                    "rollback_policy_hash"
+                ),
+                "counts": daacs_runtime_preflight_data.get("counts", {}),
+                "execution_boundary": daacs_runtime_preflight_data.get(
+                    "execution_boundary", {}
+                ),
+                "claim_boundary": daacs_runtime_preflight_data.get("claim_boundary", {}),
+            }
+            if daacs_runtime_preflight_data is not None
+            else {
+                "status": "skipped",
+                "reason": "optional target runtime preflight not requested",
+                "target_runtime_outcome": False,
+            }
+        ),
+        "daacs_runtime_comparison": {
+            "comparison_variant_count": runtime_comparison_variant_count,
+            "dry_run_stage_coverage": f"{stage_coverage['covered_stage_count']}/{stage_coverage['required_stage_count']}",
+            "target_runtime_preflight_status": (
+                daacs_runtime_preflight_data.get("status")
+                if daacs_runtime_preflight_data
+                else "skipped"
+            ),
+            "target_runtime_calls": _as_int(
+                daacs_runtime_execution.get("target_runtime_calls")
+            ),
+            "filesystem_writes": _as_int(
+                daacs_runtime_execution.get("filesystem_writes")
+            ),
+            "subprocess_calls": _as_int(
+                daacs_runtime_execution.get("subprocess_calls")
+            ),
+            "network_calls": _as_int(daacs_runtime_execution.get("network_calls")),
+            "adapter_admission_status": (
+                daacs_runtime_adapter_admission_data.get("status")
+                if daacs_runtime_adapter_admission_data
+                else "skipped"
+            ),
+            "adapter_admission_reason": (
+                daacs_runtime_adapter_admission_data.get("reason")
+                if daacs_runtime_adapter_admission_data
+                else "skipped"
+            ),
+            "adapter_preflight_hash_match_count": _as_int(
+                (
+                    daacs_runtime_adapter_admission_data or {}
+                ).get("counts", {}).get("preflight_hash_match_count")
+            ),
+            "adapter_reach_count": _as_int(
+                (daacs_runtime_adapter_admission_data or {})
+                .get("counts", {})
+                .get("adapter_reach_count")
+            ),
+            "adapter_disabled_block_count": _as_int(
+                (daacs_runtime_adapter_admission_data or {})
+                .get("counts", {})
+                .get("adapter_disabled_block_count")
+            ),
+            "adapter_persisted_count": _as_int(
+                (daacs_runtime_adapter_admission_data or {})
+                .get("adapter_admission_persistence", {})
+                .get("counts", {})
+                .get("adapter_admission_persisted_count")
+            ),
+            "adapter_read_model_record_count": _as_int(
+                (daacs_runtime_adapter_admission_read_data or {})
+                .get("counts", {})
+                .get("adapter_admission_record_count")
+            ),
+            "adapter_target_runtime_calls": _as_int(
+                daacs_runtime_adapter_execution.get("target_runtime_calls")
+            ),
+            "adapter_filesystem_writes": _as_int(
+                daacs_runtime_adapter_execution.get("filesystem_writes")
+            ),
+            "adapter_subprocess_calls": _as_int(
+                daacs_runtime_adapter_execution.get("subprocess_calls")
+            ),
+            "adapter_network_calls": _as_int(
+                daacs_runtime_adapter_execution.get("network_calls")
+            ),
+            "raw_exposure_findings": 0,
+            "public_claim_drift_findings": 0,
+        },
+        "daacs_runtime_adapter_admission": (
+            {
+                "projection_version": daacs_runtime_adapter_admission_data.get(
+                    "projection_version"
+                ),
+                "status": daacs_runtime_adapter_admission_data.get("status"),
+                "reason": daacs_runtime_adapter_admission_data.get("reason"),
+                "mode": daacs_runtime_adapter_admission_data.get("mode"),
+                "expected_preflight_hash": daacs_runtime_adapter_admission_data.get(
+                    "expected_preflight_hash"
+                ),
+                "preflight_hash": daacs_runtime_adapter_admission_data.get(
+                    "preflight_hash"
+                ),
+                "adapter_admission_hash": daacs_runtime_adapter_admission_data.get(
+                    "adapter_admission_hash"
+                ),
+                "counts": daacs_runtime_adapter_admission_data.get("counts", {}),
+                "persistence": daacs_runtime_adapter_admission_data.get(
+                    "adapter_admission_persistence", {}
+                ),
+                "read_model": {
+                    "status": (
+                        daacs_runtime_adapter_admission_read_data or {}
+                    ).get("status"),
+                    "counts": (
+                        daacs_runtime_adapter_admission_read_data or {}
+                    ).get("counts", {}),
+                    "repository_boundary": (
+                        daacs_runtime_adapter_admission_read_data or {}
+                    ).get("repository_boundary", {}),
+                    "execution_boundary": (
+                        daacs_runtime_adapter_admission_read_data or {}
+                    ).get("execution_boundary", {}),
+                },
+                "execution_boundary": daacs_runtime_adapter_admission_data.get(
+                    "execution_boundary", {}
+                ),
+                "claim_boundary": daacs_runtime_adapter_admission_data.get(
+                    "claim_boundary", {}
+                ),
+            }
+            if daacs_runtime_adapter_admission_data is not None
+            else {
+                "status": "skipped",
+                "reason": "optional target runtime adapter admission not requested",
+                "target_runtime_outcome": False,
+            }
+        ),
         "provider_envelope_admission": (
             {
                 "status": provider_envelope_data.get("status"),
@@ -5705,9 +6246,30 @@ def main() -> None:
         action="store_true",
         help="Also run the no-call provider envelope admission precheck.",
     )
+    parser.add_argument(
+        "--include-solar-planner-preflight",
+        action="store_true",
+        help="Also run the no-call Solar planner provider preflight comparison.",
+    )
+    parser.add_argument(
+        "--include-daacs-runtime-preflight",
+        action="store_true",
+        help="Also run the no-call DAACS target runtime sandbox preflight comparison.",
+    )
+    parser.add_argument(
+        "--include-daacs-runtime-adapter-admission",
+        action="store_true",
+        help="Also run the no-call DAACS target runtime disabled adapter admission comparison.",
+    )
     args = parser.parse_args()
 
-    summary = run_demo(args.store_root, include_provider_precheck=args.include_provider_precheck)
+    summary = run_demo(
+        args.store_root,
+        include_provider_precheck=args.include_provider_precheck,
+        include_solar_planner_preflight=args.include_solar_planner_preflight,
+        include_daacs_runtime_preflight=args.include_daacs_runtime_preflight,
+        include_daacs_runtime_adapter_admission=args.include_daacs_runtime_adapter_admission,
+    )
     rendered = json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True)
     print(rendered)
 

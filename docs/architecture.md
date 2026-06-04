@@ -17,11 +17,18 @@ API / Harness
 Planning Contracts
   IdeaBrief, PlanningBlueprint, PRDPackage, BuildSpec, ImplementationBrief
 
+Planner Provider Boundary
+  default fixture planner, disabled Solar planner preflight, no-call comparison
+
 Approval Boundary
   SpecApproval, approval/replay contracts, provider/live admission skeletons
 
 Runner Boundary
   offline runner, dry-run RunnerPlan, gated fake live/provider paths
+
+Target Runtime Boundary
+  RunnerPlan hash, sandbox preflight, disabled adapter admission, path allowlist,
+  command policy, rollback policy
 
 Verification Boundary
   VerificationReport with sanitized checks, counts, hashes, and metrics
@@ -29,7 +36,8 @@ Verification Boundary
 Persistence Boundary
   sanitized in-memory repositories, file-backed replay fixture,
   SQLite skeletons for runner/report/audit, approval/replay, and canonical
-  run/artifact projection rows, plus provider envelope evidence rows
+  run/artifact projection rows, plus provider envelope evidence rows and
+  target runtime adapter admission evidence rows
 ```
 
 ## Current Flow
@@ -66,8 +74,20 @@ sequenceDiagram
 | `PlanningBlueprint` | preserve planning, evidence, section, and visual intent |
 | `PRDPackage` | bundle PRD, feature requirements, API requirements, and acceptance criteria |
 | `ImplementationBrief` | handoff summary linked to `BuildSpec` by hash |
+| `PlannerProviderPreflightRequest` | hash-only request for disabled Solar planner provider readiness |
+| `PlannerProviderPreflightResult` | public projection with status, hashes, counts, and zero-call execution counters |
+| `PlannerProviderSelector` | fail-closed selector that keeps fixture planner default and exposes Solar preflight only when explicit |
 | `SpecApproval` | user approval or requested changes for a specific spec/brief hash |
 | `RunnerPlan` | side-effect-free dry-run execution plan projection |
+| `TargetRuntimePreflightRequest` | hash-only request for DAACS target runtime sandbox readiness |
+| `TargetRuntimePreflightResult` | blocked public projection with sandbox/workspace/command/rollback hashes and zero-call counters |
+| `TargetRuntimePreflightService` | fail-closed evaluator that validates path allowlists and operation policy before any runtime adapter |
+| `TargetRuntimeAdapterAdmissionRequest` | hash-only request that binds disabled adapter admission to an expected preflight hash |
+| `TargetRuntimeAdapterAdmissionService` | fail-closed evaluator that blocks missing, mismatched, or dirty preflight evidence before disabled adapter reachability |
+| `DisabledTargetRuntimeAdapter` | target runtime adapter skeleton that remains blocked and emits zero-call public projection |
+| `TargetRuntimeAdapterAdmissionRecord` | SQLite-safe hash/status/count row for disabled adapter admission evidence |
+| `SQLiteTargetRuntimeAdmissionStore` | local evidence store for adapter admission records, with fail-closed schema validation |
+| `target_runtime_adapter_admission_public_read_model` | public read model that returns adapter admission hashes, status, reason, counts, repository flags, and zero-call counters only |
 | `VerificationReport` | sanitized check/error/file/metric projection |
 | repository records | hash/count/linkage rows that exclude raw prompt, raw body, logs, and provider payloads |
 | `ProviderEnvelopeRecord` | no-call provider envelope evidence with contract hashes, counts, and status |
