@@ -95,6 +95,21 @@ from apps.api.agentic_workbench_api.services.target_runtime_output_manifest impo
 from apps.api.agentic_workbench_api.services.target_runtime_fixture_materialization import (
     TargetRuntimeFixtureMaterializationConfig,
 )
+from apps.api.agentic_workbench_api.services.target_runtime_restricted_workspace_generation import (
+    TargetRuntimeRestrictedWorkspaceGenerationConfig,
+)
+from apps.api.agentic_workbench_api.services.target_runtime_generated_artifact_verification import (
+    TargetRuntimeGeneratedArtifactVerificationConfig,
+)
+from apps.api.agentic_workbench_api.services.target_runtime_generated_workspace_static_validation import (
+    TargetRuntimeGeneratedWorkspaceStaticValidationConfig,
+)
+from apps.api.agentic_workbench_api.services.target_runtime_buildable_fixture_manifest import (
+    TargetRuntimeBuildableFixtureManifestConfig,
+)
+from apps.api.agentic_workbench_api.services.target_runtime_local_build_attempt import (
+    TargetRuntimeLocalBuildAttemptConfig,
+)
 from packages.core.live_open_policy import LIVE_OPEN_REQUIRED_CONTROLS
 from packages.core.public_projection import assert_public_projection_safe
 from packages.core.schemas import stable_contract_hash
@@ -116,7 +131,34 @@ from packages.daacs_builder.target_runtime_fixture_materialization import (
     TARGET_RUNTIME_FIXTURE_MATERIALIZATION_MODE,
     TARGET_RUNTIME_FIXTURE_MATERIALIZATION_VERSION,
 )
-from packages.div_planner.provider_boundary import PLANNER_PROVIDER_MODE_SOLAR_DISABLED
+from packages.daacs_builder.target_runtime_restricted_workspace_generation import (
+    TARGET_RUNTIME_RESTRICTED_WORKSPACE_GENERATION_MODE,
+    TARGET_RUNTIME_RESTRICTED_WORKSPACE_GENERATION_VERSION,
+)
+from packages.daacs_builder.target_runtime_generated_artifact_verification import (
+    TARGET_RUNTIME_GENERATED_ARTIFACT_VERIFICATION_MODE,
+    TARGET_RUNTIME_GENERATED_ARTIFACT_VERIFICATION_VERSION,
+)
+from packages.daacs_builder.target_runtime_generated_workspace_static_validation import (
+    TARGET_RUNTIME_GENERATED_WORKSPACE_STATIC_VALIDATION_MODE,
+    TARGET_RUNTIME_GENERATED_WORKSPACE_STATIC_VALIDATION_VERSION,
+)
+from packages.daacs_builder.target_runtime_buildable_fixture_manifest import (
+    TARGET_RUNTIME_BUILDABLE_FIXTURE_MANIFEST_MODE,
+    TARGET_RUNTIME_BUILDABLE_FIXTURE_MANIFEST_VERSION,
+)
+from packages.daacs_builder.target_runtime_local_build_preflight import (
+    TARGET_RUNTIME_LOCAL_BUILD_PREFLIGHT_MODE,
+    TARGET_RUNTIME_LOCAL_BUILD_PREFLIGHT_VERSION,
+)
+from packages.daacs_builder.target_runtime_local_build_attempt import (
+    TARGET_RUNTIME_LOCAL_BUILD_ATTEMPT_MODE,
+    TARGET_RUNTIME_LOCAL_BUILD_ATTEMPT_VERSION,
+)
+from packages.div_planner.provider_boundary import (
+    PLANNER_PROVIDER_MODE_SOLAR_DISABLED,
+    PLANNER_PROVIDER_MODE_SOLAR_SPIKE_PREFLIGHT,
+)
 
 
 DEMO_PAYLOAD = {
@@ -159,6 +201,12 @@ def _client(
     include_target_runtime_admission: bool = False,
     include_target_runtime_output_manifest: bool = False,
     include_target_runtime_fixture_materialization: bool = False,
+    include_target_runtime_restricted_workspace_generation: bool = False,
+    include_target_runtime_generated_artifact_verification: bool = False,
+    include_target_runtime_generated_workspace_static_validation: bool = False,
+    include_target_runtime_buildable_fixture_manifest: bool = False,
+    include_target_runtime_local_build_preflight: bool = False,
+    include_target_runtime_local_build_attempt: bool = False,
 ) -> TestClient:
     provider_envelope_config = (
         ProviderEnvelopeRepositoryConfig(root=store_root / "provider-envelope-evidence")
@@ -186,6 +234,63 @@ def _client(
         if include_target_runtime_fixture_materialization
         else None
     )
+    target_runtime_restricted_workspace_generation_config = (
+        TargetRuntimeRestrictedWorkspaceGenerationConfig(
+            root=store_root / "target-runtime-restricted-workspace"
+        )
+        if (
+            include_target_runtime_restricted_workspace_generation
+            or include_target_runtime_generated_artifact_verification
+            or include_target_runtime_generated_workspace_static_validation
+            or include_target_runtime_buildable_fixture_manifest
+            or include_target_runtime_local_build_preflight
+            or include_target_runtime_local_build_attempt
+        )
+        else None
+    )
+    target_runtime_generated_artifact_verification_config = (
+        TargetRuntimeGeneratedArtifactVerificationConfig(
+            root=store_root / "target-runtime-restricted-workspace"
+        )
+        if (
+            include_target_runtime_generated_artifact_verification
+            or include_target_runtime_generated_workspace_static_validation
+            or include_target_runtime_buildable_fixture_manifest
+            or include_target_runtime_local_build_preflight
+            or include_target_runtime_local_build_attempt
+        )
+        else None
+    )
+    target_runtime_generated_workspace_static_validation_config = (
+        TargetRuntimeGeneratedWorkspaceStaticValidationConfig(
+            root=store_root / "target-runtime-restricted-workspace"
+        )
+        if (
+            include_target_runtime_generated_workspace_static_validation
+            or include_target_runtime_buildable_fixture_manifest
+            or include_target_runtime_local_build_preflight
+            or include_target_runtime_local_build_attempt
+        )
+        else None
+    )
+    target_runtime_buildable_fixture_manifest_config = (
+        TargetRuntimeBuildableFixtureManifestConfig(
+            root=store_root / "target-runtime-restricted-workspace"
+        )
+        if (
+            include_target_runtime_buildable_fixture_manifest
+            or include_target_runtime_local_build_preflight
+            or include_target_runtime_local_build_attempt
+        )
+        else None
+    )
+    target_runtime_local_build_attempt_config = (
+        TargetRuntimeLocalBuildAttemptConfig(
+            root=store_root / "target-runtime-restricted-workspace"
+        )
+        if include_target_runtime_local_build_attempt
+        else None
+    )
     return TestClient(
         create_app(
             run_repository_config=RunArtifactRepositoryConfig(
@@ -201,6 +306,21 @@ def _client(
             ),
             target_runtime_fixture_materialization_config=(
                 target_runtime_fixture_materialization_config
+            ),
+            target_runtime_restricted_workspace_generation_config=(
+                target_runtime_restricted_workspace_generation_config
+            ),
+            target_runtime_generated_artifact_verification_config=(
+                target_runtime_generated_artifact_verification_config
+            ),
+            target_runtime_generated_workspace_static_validation_config=(
+                target_runtime_generated_workspace_static_validation_config
+            ),
+            target_runtime_buildable_fixture_manifest_config=(
+                target_runtime_buildable_fixture_manifest_config
+            ),
+            target_runtime_local_build_attempt_config=(
+                target_runtime_local_build_attempt_config
             ),
         )
     )
@@ -1287,6 +1407,16 @@ def _solar_planner_preflight_payload(run_id: str, prompt_contract_hash: str) -> 
     }
 
 
+def _solar_planner_spike_payload(run_id: str, prompt_contract_hash: str) -> dict[str, Any]:
+    payload = _solar_planner_preflight_payload(run_id, prompt_contract_hash)
+    payload["planner_provider_mode"] = PLANNER_PROVIDER_MODE_SOLAR_SPIKE_PREFLIGHT
+    payload["model_family"] = "solar-pro3"
+    payload["cost_limit_label"] = "one-shot-bounded"
+    payload["response_summary"] = "Sanitized mocked planner expansion for one-shot spike readiness."
+    payload["summary_section_count"] = 4
+    return payload
+
+
 def _post_solar_planner_preflight(
     client: TestClient,
     *,
@@ -1296,6 +1426,20 @@ def _post_solar_planner_preflight(
     response = client.post(
         "/api/v1/planner/provider/preflight",
         json=_solar_planner_preflight_payload(run_id, prompt_contract_hash),
+    )
+    response.raise_for_status()
+    return response.json()["data"]
+
+
+def _post_solar_planner_spike_mock_response(
+    client: TestClient,
+    *,
+    run_id: str,
+    prompt_contract_hash: str,
+) -> dict[str, Any]:
+    response = client.post(
+        "/api/v1/planner/provider/solar-spike/mock-response",
+        json=_solar_planner_spike_payload(run_id, prompt_contract_hash),
     )
     response.raise_for_status()
     return response.json()["data"]
@@ -1537,8 +1681,245 @@ def _post_daacs_runtime_fixture_materialization(
     return response.json()["data"]
 
 
+def _daacs_runtime_restricted_workspace_generation_payload(
+    *,
+    run_id: str,
+    runner_plan_hash: str,
+    implementation_brief_hash: str,
+    generated_artifact_bundle_hash: str,
+    generated_artifact_bundle_projection: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "run_id": run_id,
+        "runner_plan_hash": runner_plan_hash,
+        "implementation_brief_hash": implementation_brief_hash,
+        "generated_artifact_bundle_hash": generated_artifact_bundle_hash,
+        "generated_artifact_bundle_projection": generated_artifact_bundle_projection,
+        "mode": TARGET_RUNTIME_RESTRICTED_WORKSPACE_GENERATION_MODE,
+    }
+
+
+def _post_daacs_runtime_restricted_workspace_generation(
+    client: TestClient,
+    *,
+    run_id: str,
+    runner_plan_hash: str,
+    implementation_brief_hash: str,
+    generated_artifact_bundle_hash: str,
+    generated_artifact_bundle_projection: dict[str, Any],
+) -> dict[str, Any]:
+    response = client.post(
+        "/api/v1/daacs/runtime/restricted-workspace-generation",
+        json=_daacs_runtime_restricted_workspace_generation_payload(
+            run_id=run_id,
+            runner_plan_hash=runner_plan_hash,
+            implementation_brief_hash=implementation_brief_hash,
+            generated_artifact_bundle_hash=generated_artifact_bundle_hash,
+            generated_artifact_bundle_projection=generated_artifact_bundle_projection,
+        ),
+    )
+    response.raise_for_status()
+    return response.json()["data"]
+
+
+def _daacs_runtime_generated_artifact_verification_payload(
+    *,
+    run_id: str,
+    generated_workspace_hash: str,
+    generated_workspace_projection: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "run_id": run_id,
+        "generated_workspace_hash": generated_workspace_hash,
+        "generated_workspace_projection": generated_workspace_projection,
+        "mode": TARGET_RUNTIME_GENERATED_ARTIFACT_VERIFICATION_MODE,
+    }
+
+
+def _post_daacs_runtime_generated_artifact_verification(
+    client: TestClient,
+    *,
+    run_id: str,
+    generated_workspace_hash: str,
+    generated_workspace_projection: dict[str, Any],
+) -> dict[str, Any]:
+    response = client.post(
+        "/api/v1/daacs/runtime/generated-artifact-verification",
+        json=_daacs_runtime_generated_artifact_verification_payload(
+            run_id=run_id,
+            generated_workspace_hash=generated_workspace_hash,
+            generated_workspace_projection=generated_workspace_projection,
+        ),
+    )
+    response.raise_for_status()
+    return response.json()["data"]
+
+
+def _daacs_runtime_generated_workspace_static_validation_payload(
+    *,
+    run_id: str,
+    generated_artifact_verification_hash: str,
+    generated_artifact_verification_projection: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "run_id": run_id,
+        "generated_artifact_verification_hash": generated_artifact_verification_hash,
+        "generated_artifact_verification_projection": (
+            generated_artifact_verification_projection
+        ),
+        "mode": TARGET_RUNTIME_GENERATED_WORKSPACE_STATIC_VALIDATION_MODE,
+    }
+
+
+def _post_daacs_runtime_generated_workspace_static_validation(
+    client: TestClient,
+    *,
+    run_id: str,
+    generated_artifact_verification_hash: str,
+    generated_artifact_verification_projection: dict[str, Any],
+) -> dict[str, Any]:
+    response = client.post(
+        "/api/v1/daacs/runtime/generated-workspace-static-validation",
+        json=_daacs_runtime_generated_workspace_static_validation_payload(
+            run_id=run_id,
+            generated_artifact_verification_hash=generated_artifact_verification_hash,
+            generated_artifact_verification_projection=(
+                generated_artifact_verification_projection
+            ),
+        ),
+    )
+    response.raise_for_status()
+    return response.json()["data"]
+
+
+def _daacs_runtime_buildable_fixture_manifest_payload(
+    *,
+    run_id: str,
+    generated_workspace_static_validation_hash: str,
+    generated_workspace_static_validation_projection: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "run_id": run_id,
+        "generated_workspace_static_validation_hash": (
+            generated_workspace_static_validation_hash
+        ),
+        "generated_workspace_static_validation_projection": (
+            generated_workspace_static_validation_projection
+        ),
+        "mode": TARGET_RUNTIME_BUILDABLE_FIXTURE_MANIFEST_MODE,
+    }
+
+
+def _post_daacs_runtime_buildable_fixture_manifest(
+    client: TestClient,
+    *,
+    run_id: str,
+    generated_workspace_static_validation_hash: str,
+    generated_workspace_static_validation_projection: dict[str, Any],
+) -> dict[str, Any]:
+    response = client.post(
+        "/api/v1/daacs/runtime/buildable-fixture-manifest",
+        json=_daacs_runtime_buildable_fixture_manifest_payload(
+            run_id=run_id,
+            generated_workspace_static_validation_hash=(
+                generated_workspace_static_validation_hash
+            ),
+            generated_workspace_static_validation_projection=(
+                generated_workspace_static_validation_projection
+            ),
+        ),
+    )
+    response.raise_for_status()
+    return response.json()["data"]
+
+
+def _daacs_runtime_local_build_preflight_payload(
+    *,
+    run_id: str,
+    buildable_fixture_manifest_hash: str,
+    buildable_fixture_manifest_projection: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "run_id": run_id,
+        "buildable_fixture_manifest_hash": buildable_fixture_manifest_hash,
+        "buildable_fixture_manifest_projection": buildable_fixture_manifest_projection,
+        "mode": TARGET_RUNTIME_LOCAL_BUILD_PREFLIGHT_MODE,
+        "operator_opt_in": False,
+    }
+
+
+def _post_daacs_runtime_local_build_preflight(
+    client: TestClient,
+    *,
+    run_id: str,
+    buildable_fixture_manifest_hash: str,
+    buildable_fixture_manifest_projection: dict[str, Any],
+) -> dict[str, Any]:
+    response = client.post(
+        "/api/v1/daacs/runtime/local-build-preflight",
+        json=_daacs_runtime_local_build_preflight_payload(
+            run_id=run_id,
+            buildable_fixture_manifest_hash=buildable_fixture_manifest_hash,
+            buildable_fixture_manifest_projection=buildable_fixture_manifest_projection,
+        ),
+    )
+    response.raise_for_status()
+    return response.json()["data"]
+
+
+def _daacs_runtime_local_build_attempt_payload(
+    *,
+    run_id: str,
+    local_build_preflight_hash: str,
+    local_build_preflight_projection: dict[str, Any],
+    allow_local_build_attempt: bool,
+) -> dict[str, Any]:
+    return {
+        "run_id": run_id,
+        "local_build_preflight_hash": local_build_preflight_hash,
+        "local_build_preflight_projection": local_build_preflight_projection,
+        "mode": TARGET_RUNTIME_LOCAL_BUILD_ATTEMPT_MODE,
+        "operator_opt_in": allow_local_build_attempt,
+        "allow_local_command_execution": allow_local_build_attempt,
+        "install_timeout_seconds": 180,
+        "build_timeout_seconds": 180,
+    }
+
+
+def _post_daacs_runtime_local_build_attempt(
+    client: TestClient,
+    *,
+    run_id: str,
+    local_build_preflight_hash: str,
+    local_build_preflight_projection: dict[str, Any],
+    allow_local_build_attempt: bool,
+) -> dict[str, Any]:
+    response = client.post(
+        "/api/v1/daacs/runtime/local-build-attempt",
+        json=_daacs_runtime_local_build_attempt_payload(
+            run_id=run_id,
+            local_build_preflight_hash=local_build_preflight_hash,
+            local_build_preflight_projection=local_build_preflight_projection,
+            allow_local_build_attempt=allow_local_build_attempt,
+        ),
+    )
+    response.raise_for_status()
+    return response.json()["data"]
+
+
 def _artifact_kinds(artifacts: list[dict[str, Any]]) -> set[str]:
     return {str(artifact.get("kind") or "") for artifact in artifacts}
+
+
+def _artifact_content_hash(
+    artifacts: list[dict[str, Any]],
+    *,
+    artifact_kind: str,
+) -> str:
+    for artifact in artifacts:
+        if str(artifact.get("kind") or "") == artifact_kind:
+            return str(artifact.get("content_hash") or "")
+    return ""
 
 
 def _as_int(value: object) -> int:
@@ -1613,6 +1994,7 @@ def _checks(
     verification_data: dict[str, Any] | None = None,
     provider_envelope_data: dict[str, Any] | None = None,
     solar_planner_preflight_data: dict[str, Any] | None = None,
+    solar_planner_spike_data: dict[str, Any] | None = None,
     daacs_runtime_preflight_data: dict[str, Any] | None = None,
     daacs_runtime_adapter_admission_data: dict[str, Any] | None = None,
     daacs_runtime_adapter_admission_read_data: dict[str, Any] | None = None,
@@ -1620,6 +2002,14 @@ def _checks(
     daacs_runtime_output_manifest_read_data: dict[str, Any] | None = None,
     daacs_runtime_generated_artifact_bundle_data: dict[str, Any] | None = None,
     daacs_runtime_fixture_materialization_data: dict[str, Any] | None = None,
+    daacs_runtime_restricted_workspace_generation_data: dict[str, Any] | None = None,
+    daacs_runtime_generated_artifact_verification_data: dict[str, Any] | None = None,
+    daacs_runtime_generated_workspace_static_validation_data: (
+        dict[str, Any] | None
+    ) = None,
+    daacs_runtime_buildable_fixture_manifest_data: dict[str, Any] | None = None,
+    daacs_runtime_local_build_preflight_data: dict[str, Any] | None = None,
+    daacs_runtime_local_build_attempt_data: dict[str, Any] | None = None,
 ) -> dict[str, bool]:
     artifact_kinds = _artifact_kinds(run_data.get("artifacts", []))
     evidence_summary = run_data.get("evidence_summary", {})
@@ -2652,6 +3042,30 @@ def _checks(
             int(counts.get("planner_provider_success_count", -1)) == 0
             and int(counts.get("provider_generated_blueprint_count", -1)) == 0
         )
+    if solar_planner_spike_data is None:
+        checks["solar_planner_spike_optional"] = True
+    else:
+        execution = solar_planner_spike_data.get("execution_boundary", {})
+        counts = solar_planner_spike_data.get("counts", {})
+        response_projection = solar_planner_spike_data.get("response_projection", {})
+        checks["solar_planner_spike_projection"] = (
+            solar_planner_spike_data.get("projection_version")
+            == "planner-provider-spike-response-public-v1"
+        )
+        checks["solar_planner_spike_mock_projected"] = (
+            solar_planner_spike_data.get("status") == "mock_projected"
+            and len(str(response_projection.get("response_contract_hash", ""))) == 64
+        )
+        checks["solar_planner_spike_no_call"] = (
+            int(execution.get("provider_calls", -1)) == 0
+            and int(execution.get("env_key_value_reads", -1)) == 0
+            and int(execution.get("sdk_imports", -1)) == 0
+            and int(execution.get("network_calls", -1)) == 0
+        )
+        checks["solar_planner_spike_hash_only"] = (
+            int(counts.get("mock_response_projection_count", -1)) == 1
+            and int(counts.get("raw_provider_body_stored_count", -1)) == 0
+        )
     if daacs_runtime_preflight_data is None:
         checks["daacs_runtime_preflight_optional"] = True
     else:
@@ -2857,6 +3271,361 @@ def _checks(
             and int(execution.get("network_calls", -1)) == 0
             and int(execution.get("execution_permission_count", -1)) == 0
         )
+    if daacs_runtime_restricted_workspace_generation_data is None:
+        checks["daacs_runtime_restricted_workspace_generation_optional"] = True
+    else:
+        execution = daacs_runtime_restricted_workspace_generation_data.get(
+            "execution_boundary", {}
+        )
+        repository = daacs_runtime_restricted_workspace_generation_data.get(
+            "repository_boundary", {}
+        )
+        counts = daacs_runtime_restricted_workspace_generation_data.get("counts", {})
+        checks["daacs_runtime_restricted_workspace_generation_projection"] = (
+            daacs_runtime_restricted_workspace_generation_data.get(
+                "projection_version"
+            )
+            == TARGET_RUNTIME_RESTRICTED_WORKSPACE_GENERATION_VERSION
+        )
+        checks["daacs_runtime_restricted_workspace_generation_passed"] = (
+            daacs_runtime_restricted_workspace_generation_data.get("status")
+            == "passed"
+            and daacs_runtime_restricted_workspace_generation_data.get("reason")
+            == "target_runtime_restricted_workspace_generated"
+        )
+        checks["daacs_runtime_restricted_workspace_generation_prerequisite"] = (
+            int(counts.get("generated_artifact_bundle_projection_count", -1)) == 1
+            and int(counts.get("generated_artifact_bundle_hash_match_count", -1))
+            == 1
+        )
+        checks["daacs_runtime_restricted_workspace_generation_records"] = (
+            int(counts.get("generated_workspace_file_record_count", -1)) >= 5
+            and int(counts.get("generated_workspace_file_hash_count", -1)) >= 5
+            and int(counts.get("generated_workspace_file_byte_count", -1)) > 0
+        )
+        checks["daacs_runtime_restricted_workspace_generation_writes"] = (
+            int(counts.get("restricted_workspace_file_write_count", -1)) >= 5
+            and int(execution.get("restricted_workspace_file_write_count", -1)) >= 5
+            and int(execution.get("filesystem_writes_outside_workspace", -1)) == 0
+            and int(execution.get("generated_file_content_public_return_count", -1))
+            == 0
+        )
+        checks["daacs_runtime_restricted_workspace_generation_public_safe"] = (
+            repository.get("root_path_returned") is False
+            and repository.get("file_content_returned") is False
+            and int(counts.get("file_content_public_return_count", -1)) == 0
+            and int(counts.get("local_root_path_return_count", -1)) == 0
+        )
+        checks["daacs_runtime_restricted_workspace_generation_live_zero"] = (
+            int(execution.get("target_runtime_calls", -1)) == 0
+            and int(execution.get("provider_calls", -1)) == 0
+            and int(execution.get("sdk_imports", -1)) == 0
+            and int(execution.get("env_key_value_reads", -1)) == 0
+            and int(execution.get("subprocess_calls", -1)) == 0
+            and int(execution.get("network_calls", -1)) == 0
+            and int(execution.get("package_install_calls", -1)) == 0
+            and int(execution.get("build_calls", -1)) == 0
+            and int(execution.get("server_start_calls", -1)) == 0
+            and int(execution.get("execution_permission_count", -1)) == 0
+        )
+    if daacs_runtime_generated_artifact_verification_data is None:
+        checks["daacs_runtime_generated_artifact_verification_optional"] = True
+    else:
+        execution = daacs_runtime_generated_artifact_verification_data.get(
+            "execution_boundary", {}
+        )
+        repository = daacs_runtime_generated_artifact_verification_data.get(
+            "repository_boundary", {}
+        )
+        counts = daacs_runtime_generated_artifact_verification_data.get("counts", {})
+        checks["daacs_runtime_generated_artifact_verification_projection"] = (
+            daacs_runtime_generated_artifact_verification_data.get(
+                "projection_version"
+            )
+            == TARGET_RUNTIME_GENERATED_ARTIFACT_VERIFICATION_VERSION
+        )
+        checks["daacs_runtime_generated_artifact_verification_passed"] = (
+            daacs_runtime_generated_artifact_verification_data.get("status")
+            == "passed"
+            and daacs_runtime_generated_artifact_verification_data.get("reason")
+            == "generated_artifact_files_verified"
+        )
+        checks["daacs_runtime_generated_artifact_verification_prerequisite"] = (
+            int(counts.get("generated_workspace_projection_count", -1)) == 1
+            and int(counts.get("generated_workspace_hash_match_count", -1)) == 1
+        )
+        checks["daacs_runtime_generated_artifact_verification_records"] = (
+            int(counts.get("expected_file_count", -1)) == 9
+            and int(counts.get("file_check_record_count", -1)) == 9
+            and int(counts.get("content_hash_match_count", -1)) == 9
+            and int(counts.get("byte_count_match_count", -1)) == 9
+        )
+        checks["daacs_runtime_generated_artifact_verification_public_safe"] = (
+            repository.get("root_path_returned") is False
+            and repository.get("file_content_returned") is False
+            and int(counts.get("file_content_public_return_count", -1)) == 0
+            and int(counts.get("local_root_path_return_count", -1)) == 0
+        )
+        checks["daacs_runtime_generated_artifact_verification_live_zero"] = (
+            int(execution.get("target_runtime_calls", -1)) == 0
+            and int(execution.get("provider_calls", -1)) == 0
+            and int(execution.get("sdk_imports", -1)) == 0
+            and int(execution.get("env_key_value_reads", -1)) == 0
+            and int(execution.get("subprocess_calls", -1)) == 0
+            and int(execution.get("network_calls", -1)) == 0
+            and int(execution.get("package_install_calls", -1)) == 0
+            and int(execution.get("build_calls", -1)) == 0
+            and int(execution.get("server_start_calls", -1)) == 0
+            and int(execution.get("execution_permission_count", -1)) == 0
+        )
+    if daacs_runtime_generated_workspace_static_validation_data is None:
+        checks["daacs_runtime_generated_workspace_static_validation_optional"] = True
+    else:
+        execution = daacs_runtime_generated_workspace_static_validation_data.get(
+            "execution_boundary", {}
+        )
+        repository = daacs_runtime_generated_workspace_static_validation_data.get(
+            "repository_boundary", {}
+        )
+        counts = daacs_runtime_generated_workspace_static_validation_data.get(
+            "counts", {}
+        )
+        checks["daacs_runtime_generated_workspace_static_validation_projection"] = (
+            daacs_runtime_generated_workspace_static_validation_data.get(
+                "projection_version"
+            )
+            == TARGET_RUNTIME_GENERATED_WORKSPACE_STATIC_VALIDATION_VERSION
+        )
+        checks["daacs_runtime_generated_workspace_static_validation_passed"] = (
+            daacs_runtime_generated_workspace_static_validation_data.get("status")
+            == "passed"
+            and daacs_runtime_generated_workspace_static_validation_data.get("reason")
+            == "generated_workspace_static_validation_passed"
+        )
+        checks["daacs_runtime_generated_workspace_static_validation_prerequisite"] = (
+            int(counts.get("verification_hash_match_count", -1)) == 1
+            and int(counts.get("verified_file_record_count", -1)) == 9
+        )
+        checks["daacs_runtime_generated_workspace_static_validation_records"] = (
+            int(counts.get("static_file_checked_count", -1)) == 9
+            and int(counts.get("file_read_count", -1)) == 9
+            and int(counts.get("package_json_parse_pass_count", -1)) == 1
+            and int(counts.get("required_script_present_count", -1)) == 4
+            and int(counts.get("app_component_marker_present_count", -1)) == 2
+            and int(counts.get("api_marker_present_count", -1)) == 2
+            and int(counts.get("zero_call_marker_present_count", -1)) == 5
+        )
+        checks["daacs_runtime_generated_workspace_static_validation_public_safe"] = (
+            repository.get("root_path_returned") is False
+            and repository.get("file_content_returned") is False
+            and int(counts.get("file_content_public_return_count", -1)) == 0
+            and int(counts.get("local_root_path_return_count", -1)) == 0
+        )
+        checks["daacs_runtime_generated_workspace_static_validation_live_zero"] = (
+            int(execution.get("target_runtime_calls", -1)) == 0
+            and int(execution.get("provider_calls", -1)) == 0
+            and int(execution.get("sdk_imports", -1)) == 0
+            and int(execution.get("env_key_value_reads", -1)) == 0
+            and int(execution.get("subprocess_calls", -1)) == 0
+            and int(execution.get("network_calls", -1)) == 0
+            and int(execution.get("package_install_calls", -1)) == 0
+            and int(execution.get("build_calls", -1)) == 0
+            and int(execution.get("server_start_calls", -1)) == 0
+            and int(execution.get("execution_permission_count", -1)) == 0
+        )
+    if daacs_runtime_buildable_fixture_manifest_data is None:
+        checks["daacs_runtime_buildable_fixture_manifest_optional"] = True
+    else:
+        execution = daacs_runtime_buildable_fixture_manifest_data.get(
+            "execution_boundary", {}
+        )
+        repository = daacs_runtime_buildable_fixture_manifest_data.get(
+            "repository_boundary", {}
+        )
+        counts = daacs_runtime_buildable_fixture_manifest_data.get("counts", {})
+        package_manifest = daacs_runtime_buildable_fixture_manifest_data.get(
+            "package_manifest", {}
+        )
+        checks["daacs_runtime_buildable_fixture_manifest_projection"] = (
+            daacs_runtime_buildable_fixture_manifest_data.get("projection_version")
+            == TARGET_RUNTIME_BUILDABLE_FIXTURE_MANIFEST_VERSION
+        )
+        checks["daacs_runtime_buildable_fixture_manifest_passed"] = (
+            daacs_runtime_buildable_fixture_manifest_data.get("status") == "passed"
+            and daacs_runtime_buildable_fixture_manifest_data.get("reason")
+            == "buildable_fixture_manifest_ready"
+            and daacs_runtime_buildable_fixture_manifest_data.get(
+                "build_ready_candidate"
+            )
+            is True
+        )
+        checks["daacs_runtime_buildable_fixture_manifest_package"] = (
+            int(counts.get("required_script_present_count", -1)) == 4
+            and int(counts.get("total_dependency_label_count", -1)) >= 4
+            and int(counts.get("placeholder_dependency_value_count", -1)) == 0
+            and package_manifest.get("dependency_value_returned") is False
+        )
+        checks["daacs_runtime_buildable_fixture_manifest_source_shape"] = (
+            int(counts.get("required_file_read_count", -1)) == 5
+            and int(counts.get("index_html_marker_present_count", -1)) == 2
+            and int(counts.get("main_entrypoint_marker_present_count", -1)) == 2
+            and int(counts.get("vite_config_marker_present_count", -1)) == 2
+            and int(counts.get("tsconfig_marker_present_count", -1)) == 2
+        )
+        checks["daacs_runtime_buildable_fixture_manifest_public_safe"] = (
+            repository.get("root_path_returned") is False
+            and repository.get("file_content_returned") is False
+            and int(counts.get("package_manifest_value_return_count", -1)) == 0
+            and int(counts.get("file_content_public_return_count", -1)) == 0
+            and int(counts.get("local_root_path_return_count", -1)) == 0
+        )
+        checks["daacs_runtime_buildable_fixture_manifest_live_zero"] = (
+            int(execution.get("target_runtime_calls", -1)) == 0
+            and int(execution.get("provider_calls", -1)) == 0
+            and int(execution.get("sdk_imports", -1)) == 0
+            and int(execution.get("env_key_value_reads", -1)) == 0
+            and int(execution.get("subprocess_calls", -1)) == 0
+            and int(execution.get("network_calls", -1)) == 0
+            and int(execution.get("package_install_calls", -1)) == 0
+            and int(execution.get("build_calls", -1)) == 0
+            and int(execution.get("server_start_calls", -1)) == 0
+            and int(execution.get("execution_permission_count", -1)) == 0
+        )
+    if daacs_runtime_local_build_preflight_data is None:
+        checks["daacs_runtime_local_build_preflight_optional"] = True
+    else:
+        execution = daacs_runtime_local_build_preflight_data.get(
+            "execution_boundary", {}
+        )
+        repository = daacs_runtime_local_build_preflight_data.get(
+            "repository_boundary", {}
+        )
+        counts = daacs_runtime_local_build_preflight_data.get("counts", {})
+        command_plan = daacs_runtime_local_build_preflight_data.get(
+            "command_plan", []
+        )
+        checks["daacs_runtime_local_build_preflight_projection"] = (
+            daacs_runtime_local_build_preflight_data.get("projection_version")
+            == TARGET_RUNTIME_LOCAL_BUILD_PREFLIGHT_VERSION
+        )
+        checks["daacs_runtime_local_build_preflight_passed"] = (
+            daacs_runtime_local_build_preflight_data.get("status") == "passed"
+            and daacs_runtime_local_build_preflight_data.get("reason")
+            == "local_build_preflight_ready"
+            and daacs_runtime_local_build_preflight_data.get(
+                "local_build_eligible"
+            )
+            is True
+        )
+        checks["daacs_runtime_local_build_preflight_policy"] = (
+            daacs_runtime_local_build_preflight_data.get(
+                "local_build_opt_in_required"
+            )
+            is True
+            and daacs_runtime_local_build_preflight_data.get(
+                "operator_opt_in_present"
+            )
+            is False
+            and int(counts.get("local_build_opt_in_required_count", -1)) == 1
+            and int(counts.get("default_execution_permission_count", -1)) == 0
+        )
+        checks["daacs_runtime_local_build_preflight_commands"] = (
+            int(counts.get("command_plan_label_count", -1)) >= 2
+            and int(counts.get("command_plan_hash_count", -1)) >= 2
+            and len(command_plan) >= 2
+        )
+        checks["daacs_runtime_local_build_preflight_public_safe"] = (
+            repository.get("root_path_returned") is False
+            and repository.get("file_content_returned") is False
+            and repository.get("dependency_value_returned") is False
+            and int(counts.get("dependency_value_return_count", -1)) == 0
+            and int(counts.get("file_content_public_return_count", -1)) == 0
+            and int(counts.get("local_root_path_return_count", -1)) == 0
+        )
+        checks["daacs_runtime_local_build_preflight_live_zero"] = (
+            int(execution.get("target_runtime_calls", -1)) == 0
+            and int(execution.get("provider_calls", -1)) == 0
+            and int(execution.get("sdk_imports", -1)) == 0
+            and int(execution.get("env_key_value_reads", -1)) == 0
+            and int(execution.get("subprocess_calls", -1)) == 0
+            and int(execution.get("network_calls", -1)) == 0
+            and int(execution.get("package_install_calls", -1)) == 0
+            and int(execution.get("build_calls", -1)) == 0
+            and int(execution.get("server_start_calls", -1)) == 0
+            and int(execution.get("execution_permission_count", -1)) == 0
+        )
+    if daacs_runtime_local_build_attempt_data is None:
+        checks["daacs_runtime_local_build_attempt_optional"] = True
+    else:
+        execution = daacs_runtime_local_build_attempt_data.get(
+            "execution_boundary", {}
+        )
+        repository = daacs_runtime_local_build_attempt_data.get(
+            "repository_boundary", {}
+        )
+        counts = daacs_runtime_local_build_attempt_data.get("counts", {})
+        command_results = daacs_runtime_local_build_attempt_data.get(
+            "command_results", []
+        )
+        attempted = (
+            daacs_runtime_local_build_attempt_data.get("local_build_attempted")
+            is True
+        )
+        checks["daacs_runtime_local_build_attempt_projection"] = (
+            daacs_runtime_local_build_attempt_data.get("projection_version")
+            == TARGET_RUNTIME_LOCAL_BUILD_ATTEMPT_VERSION
+        )
+        checks["daacs_runtime_local_build_attempt_status_recorded"] = (
+            (
+                daacs_runtime_local_build_attempt_data.get("status")
+                in {"passed", "failed", "environment_blocked"}
+                and attempted
+                and int(counts.get("package_install_attempt_count", -1)) == 1
+            )
+            or (
+                daacs_runtime_local_build_attempt_data.get("status") == "blocked"
+                and daacs_runtime_local_build_attempt_data.get("reason")
+                == "local_build_attempt_opt_in_required"
+                and not attempted
+                and int(counts.get("package_install_attempt_count", -1)) == 0
+            )
+        )
+        checks["daacs_runtime_local_build_attempt_policy"] = (
+            daacs_runtime_local_build_attempt_data.get(
+                "local_build_opt_in_present"
+            )
+            is daacs_runtime_local_build_attempt_data.get(
+                "local_command_execution_allowed"
+            )
+            and int(counts.get("server_start_attempt_count", -1)) == 0
+            and int(execution.get("server_start_calls", -1)) == 0
+        )
+        checks["daacs_runtime_local_build_attempt_results_hash_only"] = (
+            all(
+                isinstance(record, dict)
+                and "output_hash" in record
+                and record.get("raw_output_returned") is False
+                and record.get("root_path_returned") is False
+                for record in command_results
+            )
+            and int(counts.get("raw_output_public_return_count", -1)) == 0
+        )
+        checks["daacs_runtime_local_build_attempt_public_safe"] = (
+            repository.get("root_path_returned") is False
+            and repository.get("file_content_returned") is False
+            and repository.get("command_output_returned") is False
+            and repository.get("dependency_value_returned") is False
+            and int(counts.get("file_content_public_return_count", -1)) == 0
+            and int(counts.get("local_root_path_return_count", -1)) == 0
+            and int(counts.get("dependency_value_return_count", -1)) == 0
+        )
+        checks["daacs_runtime_local_build_attempt_provider_runtime_zero"] = (
+            int(execution.get("target_runtime_calls", -1)) == 0
+            and int(execution.get("provider_calls", -1)) == 0
+            and int(execution.get("sdk_imports", -1)) == 0
+            and int(execution.get("env_key_value_reads", -1)) == 0
+            and int(execution.get("server_start_calls", -1)) == 0
+        )
     return checks
 
 
@@ -2865,11 +3634,19 @@ def run_demo(
     *,
     include_provider_precheck: bool = False,
     include_solar_planner_preflight: bool = False,
+    include_solar_planner_spike: bool = False,
     include_daacs_runtime_preflight: bool = False,
     include_daacs_runtime_adapter_admission: bool = False,
     include_daacs_runtime_output_manifest: bool = False,
     include_daacs_runtime_generated_artifact_bundle: bool = False,
     include_daacs_runtime_fixture_materialization: bool = False,
+    include_daacs_runtime_restricted_workspace_generation: bool = False,
+    include_daacs_runtime_generated_artifact_verification: bool = False,
+    include_daacs_runtime_generated_workspace_static_validation: bool = False,
+    include_daacs_runtime_buildable_fixture_manifest: bool = False,
+    include_daacs_runtime_local_build_preflight: bool = False,
+    include_daacs_runtime_local_build_attempt: bool = False,
+    allow_local_build_attempt: bool = False,
 ) -> dict[str, Any]:
     selected_root = Path(store_root) if store_root else Path(__file__).resolve().parent / ".local"
     selected_root.mkdir(parents=True, exist_ok=True)
@@ -2881,14 +3658,61 @@ def run_demo(
             or include_daacs_runtime_output_manifest
             or include_daacs_runtime_generated_artifact_bundle
             or include_daacs_runtime_fixture_materialization
+            or include_daacs_runtime_restricted_workspace_generation
+            or include_daacs_runtime_generated_artifact_verification
+            or include_daacs_runtime_generated_workspace_static_validation
+            or include_daacs_runtime_buildable_fixture_manifest
+            or include_daacs_runtime_local_build_preflight
+            or include_daacs_runtime_local_build_attempt
         ),
         include_target_runtime_output_manifest=(
             include_daacs_runtime_output_manifest
             or include_daacs_runtime_generated_artifact_bundle
             or include_daacs_runtime_fixture_materialization
+            or include_daacs_runtime_restricted_workspace_generation
+            or include_daacs_runtime_generated_artifact_verification
+            or include_daacs_runtime_generated_workspace_static_validation
+            or include_daacs_runtime_buildable_fixture_manifest
+            or include_daacs_runtime_local_build_preflight
+            or include_daacs_runtime_local_build_attempt
         ),
         include_target_runtime_fixture_materialization=(
             include_daacs_runtime_fixture_materialization
+            or include_daacs_runtime_restricted_workspace_generation
+            or include_daacs_runtime_generated_artifact_verification
+            or include_daacs_runtime_generated_workspace_static_validation
+            or include_daacs_runtime_buildable_fixture_manifest
+            or include_daacs_runtime_local_build_preflight
+            or include_daacs_runtime_local_build_attempt
+        ),
+        include_target_runtime_restricted_workspace_generation=(
+            include_daacs_runtime_restricted_workspace_generation
+            or include_daacs_runtime_generated_artifact_verification
+            or include_daacs_runtime_generated_workspace_static_validation
+            or include_daacs_runtime_buildable_fixture_manifest
+            or include_daacs_runtime_local_build_preflight
+            or include_daacs_runtime_local_build_attempt
+        ),
+        include_target_runtime_generated_artifact_verification=(
+            include_daacs_runtime_generated_artifact_verification
+            or include_daacs_runtime_generated_workspace_static_validation
+            or include_daacs_runtime_buildable_fixture_manifest
+            or include_daacs_runtime_local_build_preflight
+            or include_daacs_runtime_local_build_attempt
+        ),
+        include_target_runtime_generated_workspace_static_validation=(
+            include_daacs_runtime_generated_workspace_static_validation
+            or include_daacs_runtime_buildable_fixture_manifest
+            or include_daacs_runtime_local_build_preflight
+            or include_daacs_runtime_local_build_attempt
+        ),
+        include_target_runtime_buildable_fixture_manifest=(
+            include_daacs_runtime_buildable_fixture_manifest
+            or include_daacs_runtime_local_build_preflight
+            or include_daacs_runtime_local_build_attempt
+        ),
+        include_target_runtime_local_build_attempt=(
+            include_daacs_runtime_local_build_attempt
         ),
     )
 
@@ -2900,6 +3724,7 @@ def run_demo(
     provider_envelope_data = None
     provider_envelope_read_data = None
     solar_planner_preflight_data = None
+    solar_planner_spike_data = None
     daacs_runtime_preflight_data = None
     daacs_runtime_adapter_admission_data = None
     daacs_runtime_adapter_admission_read_data = None
@@ -2907,6 +3732,12 @@ def run_demo(
     daacs_runtime_output_manifest_read_data = None
     daacs_runtime_generated_artifact_bundle_data = None
     daacs_runtime_fixture_materialization_data = None
+    daacs_runtime_restricted_workspace_generation_data = None
+    daacs_runtime_generated_artifact_verification_data = None
+    daacs_runtime_generated_workspace_static_validation_data = None
+    daacs_runtime_buildable_fixture_manifest_data = None
+    daacs_runtime_local_build_preflight_data = None
+    daacs_runtime_local_build_attempt_data = None
     if include_provider_precheck:
         provider_envelope_data = _post_provider_envelope_precheck(
             client,
@@ -2923,15 +3754,31 @@ def run_demo(
             run_id=run_id,
             prompt_contract_hash=str(create_data["run"]["prompt_contract_hash"]),
         )
+    if include_solar_planner_spike:
+        solar_planner_spike_data = _post_solar_planner_spike_mock_response(
+            client,
+            run_id=run_id,
+            prompt_contract_hash=str(create_data["run"]["prompt_contract_hash"]),
+        )
     if (
         include_daacs_runtime_preflight
         or include_daacs_runtime_adapter_admission
         or include_daacs_runtime_output_manifest
         or include_daacs_runtime_generated_artifact_bundle
         or include_daacs_runtime_fixture_materialization
+        or include_daacs_runtime_restricted_workspace_generation
+        or include_daacs_runtime_generated_artifact_verification
+        or include_daacs_runtime_generated_workspace_static_validation
+        or include_daacs_runtime_buildable_fixture_manifest
+        or include_daacs_runtime_local_build_preflight
+        or include_daacs_runtime_local_build_attempt
     ):
         runner_plan_hashes = verification_data.get("runner_plan_hashes", [])
         runner_plan_hash = str(runner_plan_hashes[0] if runner_plan_hashes else "")
+        implementation_brief_hash = _artifact_content_hash(
+            run_data.get("artifacts", []),
+            artifact_kind="implementation_brief",
+        )
         daacs_runtime_preflight_data = _post_daacs_runtime_preflight(
             client,
             run_id=run_id,
@@ -2942,6 +3789,12 @@ def run_demo(
             or include_daacs_runtime_output_manifest
             or include_daacs_runtime_generated_artifact_bundle
             or include_daacs_runtime_fixture_materialization
+            or include_daacs_runtime_restricted_workspace_generation
+            or include_daacs_runtime_generated_artifact_verification
+            or include_daacs_runtime_generated_workspace_static_validation
+            or include_daacs_runtime_buildable_fixture_manifest
+            or include_daacs_runtime_local_build_preflight
+            or include_daacs_runtime_local_build_attempt
         ):
             daacs_runtime_adapter_admission_data = _post_daacs_runtime_adapter_admission(
                 client,
@@ -2957,6 +3810,12 @@ def run_demo(
                 include_daacs_runtime_output_manifest
                 or include_daacs_runtime_generated_artifact_bundle
                 or include_daacs_runtime_fixture_materialization
+                or include_daacs_runtime_restricted_workspace_generation
+                or include_daacs_runtime_generated_artifact_verification
+                or include_daacs_runtime_generated_workspace_static_validation
+                or include_daacs_runtime_buildable_fixture_manifest
+                or include_daacs_runtime_local_build_preflight
+                or include_daacs_runtime_local_build_attempt
             ):
                 daacs_runtime_output_manifest_data = _post_daacs_runtime_output_manifest(
                     client,
@@ -2978,6 +3837,12 @@ def run_demo(
                 if (
                     include_daacs_runtime_generated_artifact_bundle
                     or include_daacs_runtime_fixture_materialization
+                    or include_daacs_runtime_restricted_workspace_generation
+                    or include_daacs_runtime_generated_artifact_verification
+                    or include_daacs_runtime_generated_workspace_static_validation
+                    or include_daacs_runtime_buildable_fixture_manifest
+                    or include_daacs_runtime_local_build_preflight
+                    or include_daacs_runtime_local_build_attempt
                 ):
                     daacs_runtime_generated_artifact_bundle_data = (
                         _post_daacs_runtime_generated_artifact_bundle(
@@ -2994,7 +3859,15 @@ def run_demo(
                             ),
                         )
                     )
-                    if include_daacs_runtime_fixture_materialization:
+                    if (
+                        include_daacs_runtime_fixture_materialization
+                        or include_daacs_runtime_restricted_workspace_generation
+                        or include_daacs_runtime_generated_artifact_verification
+                        or include_daacs_runtime_generated_workspace_static_validation
+                        or include_daacs_runtime_buildable_fixture_manifest
+                        or include_daacs_runtime_local_build_preflight
+                        or include_daacs_runtime_local_build_attempt
+                    ):
                         daacs_runtime_fixture_materialization_data = (
                             _post_daacs_runtime_fixture_materialization(
                                 client,
@@ -3011,6 +3884,132 @@ def run_demo(
                                 ),
                             )
                         )
+                    if (
+                        include_daacs_runtime_restricted_workspace_generation
+                        or include_daacs_runtime_generated_artifact_verification
+                        or include_daacs_runtime_generated_workspace_static_validation
+                        or include_daacs_runtime_buildable_fixture_manifest
+                        or include_daacs_runtime_local_build_preflight
+                        or include_daacs_runtime_local_build_attempt
+                    ):
+                        daacs_runtime_restricted_workspace_generation_data = (
+                            _post_daacs_runtime_restricted_workspace_generation(
+                                client,
+                                run_id=run_id,
+                                runner_plan_hash=runner_plan_hash,
+                                implementation_brief_hash=implementation_brief_hash,
+                                generated_artifact_bundle_hash=str(
+                                    daacs_runtime_generated_artifact_bundle_data.get(
+                                        "generated_artifact_bundle_hash", ""
+                                    )
+                                ),
+                                generated_artifact_bundle_projection=(
+                                    daacs_runtime_generated_artifact_bundle_data
+                                    or {}
+                                ),
+                            )
+                        )
+                    if (
+                        include_daacs_runtime_generated_artifact_verification
+                        or include_daacs_runtime_generated_workspace_static_validation
+                        or include_daacs_runtime_buildable_fixture_manifest
+                        or include_daacs_runtime_local_build_preflight
+                        or include_daacs_runtime_local_build_attempt
+                    ):
+                        daacs_runtime_generated_artifact_verification_data = (
+                            _post_daacs_runtime_generated_artifact_verification(
+                                client,
+                                run_id=run_id,
+                                generated_workspace_hash=str(
+                                    daacs_runtime_restricted_workspace_generation_data.get(
+                                        "generated_workspace_hash", ""
+                                    )
+                                ),
+                                generated_workspace_projection=(
+                                    daacs_runtime_restricted_workspace_generation_data
+                                    or {}
+                                ),
+                            )
+                        )
+                    if (
+                        include_daacs_runtime_generated_workspace_static_validation
+                        or include_daacs_runtime_buildable_fixture_manifest
+                        or include_daacs_runtime_local_build_preflight
+                        or include_daacs_runtime_local_build_attempt
+                    ):
+                        daacs_runtime_generated_workspace_static_validation_data = (
+                            _post_daacs_runtime_generated_workspace_static_validation(
+                                client,
+                                run_id=run_id,
+                                generated_artifact_verification_hash=str(
+                                    daacs_runtime_generated_artifact_verification_data.get(
+                                        "generated_artifact_verification_hash", ""
+                                    )
+                                ),
+                                generated_artifact_verification_projection=(
+                                    daacs_runtime_generated_artifact_verification_data
+                                    or {}
+                                ),
+                            )
+                        )
+                    if (
+                        include_daacs_runtime_buildable_fixture_manifest
+                        or include_daacs_runtime_local_build_preflight
+                        or include_daacs_runtime_local_build_attempt
+                    ):
+                        daacs_runtime_buildable_fixture_manifest_data = (
+                            _post_daacs_runtime_buildable_fixture_manifest(
+                                client,
+                                run_id=run_id,
+                                generated_workspace_static_validation_hash=str(
+                                    daacs_runtime_generated_workspace_static_validation_data.get(
+                                        "generated_workspace_static_validation_hash",
+                                        "",
+                                    )
+                                ),
+                                generated_workspace_static_validation_projection=(
+                                    daacs_runtime_generated_workspace_static_validation_data
+                                    or {}
+                                ),
+                            )
+                        )
+                    if (
+                        include_daacs_runtime_local_build_preflight
+                        or include_daacs_runtime_local_build_attempt
+                    ):
+                        daacs_runtime_local_build_preflight_data = (
+                            _post_daacs_runtime_local_build_preflight(
+                                client,
+                                run_id=run_id,
+                                buildable_fixture_manifest_hash=str(
+                                    daacs_runtime_buildable_fixture_manifest_data.get(
+                                        "buildable_fixture_manifest_hash",
+                                        "",
+                                    )
+                                ),
+                                buildable_fixture_manifest_projection=(
+                                    daacs_runtime_buildable_fixture_manifest_data
+                                    or {}
+                                ),
+                            )
+                        )
+                    if include_daacs_runtime_local_build_attempt:
+                        daacs_runtime_local_build_attempt_data = (
+                            _post_daacs_runtime_local_build_attempt(
+                                client,
+                                run_id=run_id,
+                                local_build_preflight_hash=str(
+                                    daacs_runtime_local_build_preflight_data.get(
+                                        "local_build_preflight_hash",
+                                        "",
+                                    )
+                                ),
+                                local_build_preflight_projection=(
+                                    daacs_runtime_local_build_preflight_data or {}
+                                ),
+                                allow_local_build_attempt=allow_local_build_attempt,
+                            )
+                        )
 
     checks = _checks(
         create_data,
@@ -3018,6 +4017,7 @@ def run_demo(
         verification_data=verification_data,
         provider_envelope_data=provider_envelope_data,
         solar_planner_preflight_data=solar_planner_preflight_data,
+        solar_planner_spike_data=solar_planner_spike_data,
         daacs_runtime_preflight_data=daacs_runtime_preflight_data,
         daacs_runtime_adapter_admission_data=daacs_runtime_adapter_admission_data,
         daacs_runtime_adapter_admission_read_data=(
@@ -3033,6 +4033,24 @@ def run_demo(
         daacs_runtime_fixture_materialization_data=(
             daacs_runtime_fixture_materialization_data
         ),
+        daacs_runtime_restricted_workspace_generation_data=(
+            daacs_runtime_restricted_workspace_generation_data
+        ),
+        daacs_runtime_generated_artifact_verification_data=(
+            daacs_runtime_generated_artifact_verification_data
+        ),
+        daacs_runtime_generated_workspace_static_validation_data=(
+            daacs_runtime_generated_workspace_static_validation_data
+        ),
+        daacs_runtime_buildable_fixture_manifest_data=(
+            daacs_runtime_buildable_fixture_manifest_data
+        ),
+        daacs_runtime_local_build_preflight_data=(
+            daacs_runtime_local_build_preflight_data
+        ),
+        daacs_runtime_local_build_attempt_data=(
+            daacs_runtime_local_build_attempt_data
+        ),
     )
     artifact_kinds = sorted(_artifact_kinds(run_data.get("artifacts", [])))
     evidence_summary = run_data.get("evidence_summary", {})
@@ -3040,6 +4058,11 @@ def run_demo(
     solar_planner_execution = (
         solar_planner_preflight_data.get("execution_boundary", {})
         if solar_planner_preflight_data
+        else {}
+    )
+    solar_planner_spike_execution = (
+        solar_planner_spike_data.get("execution_boundary", {})
+        if solar_planner_spike_data
         else {}
     )
     daacs_runtime_execution = (
@@ -3067,8 +4090,68 @@ def run_demo(
         if daacs_runtime_fixture_materialization_data
         else {}
     )
-    comparison_variant_count = 2 if solar_planner_preflight_data else 1
+    daacs_runtime_restricted_workspace_generation_execution = (
+        daacs_runtime_restricted_workspace_generation_data.get(
+            "execution_boundary", {}
+        )
+        if daacs_runtime_restricted_workspace_generation_data
+        else {}
+    )
+    daacs_runtime_generated_artifact_verification_execution = (
+        daacs_runtime_generated_artifact_verification_data.get(
+            "execution_boundary", {}
+        )
+        if daacs_runtime_generated_artifact_verification_data
+        else {}
+    )
+    daacs_runtime_generated_workspace_static_validation_execution = (
+        daacs_runtime_generated_workspace_static_validation_data.get(
+            "execution_boundary", {}
+        )
+        if daacs_runtime_generated_workspace_static_validation_data
+        else {}
+    )
+    daacs_runtime_buildable_fixture_manifest_execution = (
+        daacs_runtime_buildable_fixture_manifest_data.get("execution_boundary", {})
+        if daacs_runtime_buildable_fixture_manifest_data
+        else {}
+    )
+    daacs_runtime_local_build_preflight_execution = (
+        daacs_runtime_local_build_preflight_data.get("execution_boundary", {})
+        if daacs_runtime_local_build_preflight_data
+        else {}
+    )
+    daacs_runtime_local_build_attempt_execution = (
+        daacs_runtime_local_build_attempt_data.get("execution_boundary", {})
+        if daacs_runtime_local_build_attempt_data
+        else {}
+    )
+    comparison_variant_count = (
+        3
+        if solar_planner_spike_data
+        else 2
+        if solar_planner_preflight_data
+        else 1
+    )
     runtime_comparison_variant_count = (
+        12
+        if daacs_runtime_local_build_attempt_data
+        else
+        11
+        if daacs_runtime_local_build_preflight_data
+        else
+        10
+        if daacs_runtime_buildable_fixture_manifest_data
+        else
+        9
+        if daacs_runtime_generated_workspace_static_validation_data
+        else
+        8
+        if daacs_runtime_generated_artifact_verification_data
+        else
+        7
+        if daacs_runtime_restricted_workspace_generation_data
+        else
         6
         if daacs_runtime_fixture_materialization_data
         else
@@ -3191,6 +4274,69 @@ def run_demo(
             ),
             "solar_preflight_network_calls": _as_int(
                 solar_planner_execution.get("network_calls")
+            ),
+            "raw_exposure_findings": 0,
+            "public_claim_drift_findings": 0,
+        },
+        "solar_planner_spike": (
+            {
+                "projection_version": solar_planner_spike_data.get(
+                    "projection_version"
+                ),
+                "status": solar_planner_spike_data.get("status"),
+                "reason": solar_planner_spike_data.get("reason"),
+                "planner_provider_mode": solar_planner_spike_data.get(
+                    "planner_provider_mode"
+                ),
+                "request_contract_hash": solar_planner_spike_data.get(
+                    "request_contract_hash"
+                ),
+                "planning_request_hash": solar_planner_spike_data.get(
+                    "planning_request_hash"
+                ),
+                "response_projection": solar_planner_spike_data.get(
+                    "response_projection", {}
+                ),
+                "counts": solar_planner_spike_data.get("counts", {}),
+                "execution_boundary": solar_planner_spike_data.get(
+                    "execution_boundary", {}
+                ),
+                "claim_boundary": solar_planner_spike_data.get("claim_boundary", {}),
+            }
+            if solar_planner_spike_data is not None
+            else {
+                "status": "skipped",
+                "reason": "optional solar planner spike not requested",
+                "external_provider_outcome": False,
+                "target_runtime_outcome": False,
+            }
+        ),
+        "solar_planner_spike_comparison": {
+            "comparison_variant_count": comparison_variant_count,
+            "fixture_stage_coverage": f"{stage_coverage['covered_stage_count']}/{stage_coverage['required_stage_count']}",
+            "solar_spike_status": (
+                solar_planner_spike_data.get("status")
+                if solar_planner_spike_data
+                else "skipped"
+            ),
+            "solar_spike_mock_projection_count": _as_int(
+                solar_planner_spike_data.get("counts", {}).get(
+                    "mock_response_projection_count"
+                )
+                if solar_planner_spike_data
+                else None
+            ),
+            "solar_spike_provider_calls": _as_int(
+                solar_planner_spike_execution.get("provider_calls")
+            ),
+            "solar_spike_sdk_imports": _as_int(
+                solar_planner_spike_execution.get("sdk_imports")
+            ),
+            "solar_spike_env_value_reads": _as_int(
+                solar_planner_spike_execution.get("env_key_value_reads")
+            ),
+            "solar_spike_network_calls": _as_int(
+                solar_planner_spike_execution.get("network_calls")
             ),
             "raw_exposure_findings": 0,
             "public_claim_drift_findings": 0,
@@ -3445,6 +4591,556 @@ def run_demo(
             "fixture_materialization_network_calls": _as_int(
                 daacs_runtime_fixture_materialization_execution.get("network_calls")
             ),
+            "restricted_workspace_generation_status": (
+                daacs_runtime_restricted_workspace_generation_data.get("status")
+                if daacs_runtime_restricted_workspace_generation_data
+                else "skipped"
+            ),
+            "restricted_workspace_generation_reason": (
+                daacs_runtime_restricted_workspace_generation_data.get("reason")
+                if daacs_runtime_restricted_workspace_generation_data
+                else "skipped"
+            ),
+            "restricted_workspace_file_record_count": _as_int(
+                (daacs_runtime_restricted_workspace_generation_data or {})
+                .get("counts", {})
+                .get("generated_workspace_file_record_count")
+            ),
+            "restricted_workspace_file_hash_count": _as_int(
+                (daacs_runtime_restricted_workspace_generation_data or {})
+                .get("counts", {})
+                .get("generated_workspace_file_hash_count")
+            ),
+            "restricted_workspace_file_byte_count": _as_int(
+                (daacs_runtime_restricted_workspace_generation_data or {})
+                .get("counts", {})
+                .get("generated_workspace_file_byte_count")
+            ),
+            "restricted_workspace_writes": _as_int(
+                daacs_runtime_restricted_workspace_generation_execution.get(
+                    "restricted_workspace_file_write_count"
+                )
+            ),
+            "restricted_workspace_outside_writes": _as_int(
+                daacs_runtime_restricted_workspace_generation_execution.get(
+                    "filesystem_writes_outside_workspace"
+                )
+            ),
+            "restricted_workspace_file_content_public_returns": _as_int(
+                daacs_runtime_restricted_workspace_generation_execution.get(
+                    "generated_file_content_public_return_count"
+                )
+            ),
+            "restricted_workspace_target_runtime_calls": _as_int(
+                daacs_runtime_restricted_workspace_generation_execution.get(
+                    "target_runtime_calls"
+                )
+            ),
+            "restricted_workspace_provider_calls": _as_int(
+                daacs_runtime_restricted_workspace_generation_execution.get(
+                    "provider_calls"
+                )
+            ),
+            "restricted_workspace_sdk_imports": _as_int(
+                daacs_runtime_restricted_workspace_generation_execution.get(
+                    "sdk_imports"
+                )
+            ),
+            "restricted_workspace_env_value_reads": _as_int(
+                daacs_runtime_restricted_workspace_generation_execution.get(
+                    "env_key_value_reads"
+                )
+            ),
+            "restricted_workspace_subprocess_calls": _as_int(
+                daacs_runtime_restricted_workspace_generation_execution.get(
+                    "subprocess_calls"
+                )
+            ),
+            "restricted_workspace_network_calls": _as_int(
+                daacs_runtime_restricted_workspace_generation_execution.get(
+                    "network_calls"
+                )
+            ),
+            "restricted_workspace_package_install_calls": _as_int(
+                daacs_runtime_restricted_workspace_generation_execution.get(
+                    "package_install_calls"
+                )
+            ),
+            "restricted_workspace_build_calls": _as_int(
+                daacs_runtime_restricted_workspace_generation_execution.get(
+                    "build_calls"
+                )
+            ),
+            "restricted_workspace_server_start_calls": _as_int(
+                daacs_runtime_restricted_workspace_generation_execution.get(
+                    "server_start_calls"
+                )
+            ),
+            "generated_artifact_verification_status": (
+                daacs_runtime_generated_artifact_verification_data.get("status")
+                if daacs_runtime_generated_artifact_verification_data
+                else "skipped"
+            ),
+            "generated_artifact_verification_reason": (
+                daacs_runtime_generated_artifact_verification_data.get("reason")
+                if daacs_runtime_generated_artifact_verification_data
+                else "skipped"
+            ),
+            "generated_artifact_verification_expected_file_count": _as_int(
+                (daacs_runtime_generated_artifact_verification_data or {})
+                .get("counts", {})
+                .get("expected_file_count")
+            ),
+            "generated_artifact_verification_file_check_count": _as_int(
+                (daacs_runtime_generated_artifact_verification_data or {})
+                .get("counts", {})
+                .get("file_check_record_count")
+            ),
+            "generated_artifact_verification_content_hash_matches": _as_int(
+                (daacs_runtime_generated_artifact_verification_data or {})
+                .get("counts", {})
+                .get("content_hash_match_count")
+            ),
+            "generated_artifact_verification_byte_count_matches": _as_int(
+                (daacs_runtime_generated_artifact_verification_data or {})
+                .get("counts", {})
+                .get("byte_count_match_count")
+            ),
+            "generated_artifact_verification_file_reads": _as_int(
+                daacs_runtime_generated_artifact_verification_execution.get(
+                    "generated_workspace_file_read_count"
+                )
+            ),
+            "generated_artifact_verification_file_content_public_returns": _as_int(
+                daacs_runtime_generated_artifact_verification_execution.get(
+                    "generated_file_content_public_return_count"
+                )
+            ),
+            "generated_artifact_verification_local_root_public_returns": _as_int(
+                daacs_runtime_generated_artifact_verification_execution.get(
+                    "local_root_path_public_return_count"
+                )
+            ),
+            "generated_artifact_verification_target_runtime_calls": _as_int(
+                daacs_runtime_generated_artifact_verification_execution.get(
+                    "target_runtime_calls"
+                )
+            ),
+            "generated_artifact_verification_provider_calls": _as_int(
+                daacs_runtime_generated_artifact_verification_execution.get(
+                    "provider_calls"
+                )
+            ),
+            "generated_artifact_verification_sdk_imports": _as_int(
+                daacs_runtime_generated_artifact_verification_execution.get(
+                    "sdk_imports"
+                )
+            ),
+            "generated_artifact_verification_env_value_reads": _as_int(
+                daacs_runtime_generated_artifact_verification_execution.get(
+                    "env_key_value_reads"
+                )
+            ),
+            "generated_artifact_verification_subprocess_calls": _as_int(
+                daacs_runtime_generated_artifact_verification_execution.get(
+                    "subprocess_calls"
+                )
+            ),
+            "generated_artifact_verification_network_calls": _as_int(
+                daacs_runtime_generated_artifact_verification_execution.get(
+                    "network_calls"
+                )
+            ),
+            "generated_artifact_verification_package_install_calls": _as_int(
+                daacs_runtime_generated_artifact_verification_execution.get(
+                    "package_install_calls"
+                )
+            ),
+            "generated_artifact_verification_build_calls": _as_int(
+                daacs_runtime_generated_artifact_verification_execution.get(
+                    "build_calls"
+                )
+            ),
+            "generated_artifact_verification_server_start_calls": _as_int(
+                daacs_runtime_generated_artifact_verification_execution.get(
+                    "server_start_calls"
+                )
+            ),
+            "generated_workspace_static_validation_status": (
+                daacs_runtime_generated_workspace_static_validation_data.get("status")
+                if daacs_runtime_generated_workspace_static_validation_data
+                else "skipped"
+            ),
+            "generated_workspace_static_validation_reason": (
+                daacs_runtime_generated_workspace_static_validation_data.get("reason")
+                if daacs_runtime_generated_workspace_static_validation_data
+                else "skipped"
+            ),
+            "generated_workspace_static_validation_file_checked_count": _as_int(
+                (daacs_runtime_generated_workspace_static_validation_data or {})
+                .get("counts", {})
+                .get("static_file_checked_count")
+            ),
+            "generated_workspace_static_validation_file_reads": _as_int(
+                daacs_runtime_generated_workspace_static_validation_execution.get(
+                    "static_validation_file_read_count"
+                )
+            ),
+            "generated_workspace_static_validation_package_json_parse_pass": _as_int(
+                (daacs_runtime_generated_workspace_static_validation_data or {})
+                .get("counts", {})
+                .get("package_json_parse_pass_count")
+            ),
+            "generated_workspace_static_validation_required_script_present_count": _as_int(
+                (daacs_runtime_generated_workspace_static_validation_data or {})
+                .get("counts", {})
+                .get("required_script_present_count")
+            ),
+            "generated_workspace_static_validation_app_marker_count": _as_int(
+                (daacs_runtime_generated_workspace_static_validation_data or {})
+                .get("counts", {})
+                .get("app_component_marker_present_count")
+            ),
+            "generated_workspace_static_validation_api_marker_count": _as_int(
+                (daacs_runtime_generated_workspace_static_validation_data or {})
+                .get("counts", {})
+                .get("api_marker_present_count")
+            ),
+            "generated_workspace_static_validation_zero_call_marker_count": _as_int(
+                (daacs_runtime_generated_workspace_static_validation_data or {})
+                .get("counts", {})
+                .get("zero_call_marker_present_count")
+            ),
+            "generated_workspace_static_validation_file_content_public_returns": _as_int(
+                daacs_runtime_generated_workspace_static_validation_execution.get(
+                    "generated_file_content_public_return_count"
+                )
+            ),
+            "generated_workspace_static_validation_local_root_public_returns": _as_int(
+                daacs_runtime_generated_workspace_static_validation_execution.get(
+                    "local_root_path_public_return_count"
+                )
+            ),
+            "generated_workspace_static_validation_target_runtime_calls": _as_int(
+                daacs_runtime_generated_workspace_static_validation_execution.get(
+                    "target_runtime_calls"
+                )
+            ),
+            "generated_workspace_static_validation_provider_calls": _as_int(
+                daacs_runtime_generated_workspace_static_validation_execution.get(
+                    "provider_calls"
+                )
+            ),
+            "generated_workspace_static_validation_sdk_imports": _as_int(
+                daacs_runtime_generated_workspace_static_validation_execution.get(
+                    "sdk_imports"
+                )
+            ),
+            "generated_workspace_static_validation_env_value_reads": _as_int(
+                daacs_runtime_generated_workspace_static_validation_execution.get(
+                    "env_key_value_reads"
+                )
+            ),
+            "generated_workspace_static_validation_subprocess_calls": _as_int(
+                daacs_runtime_generated_workspace_static_validation_execution.get(
+                    "subprocess_calls"
+                )
+            ),
+            "generated_workspace_static_validation_network_calls": _as_int(
+                daacs_runtime_generated_workspace_static_validation_execution.get(
+                    "network_calls"
+                )
+            ),
+            "generated_workspace_static_validation_package_install_calls": _as_int(
+                daacs_runtime_generated_workspace_static_validation_execution.get(
+                    "package_install_calls"
+                )
+            ),
+            "generated_workspace_static_validation_build_calls": _as_int(
+                daacs_runtime_generated_workspace_static_validation_execution.get(
+                    "build_calls"
+                )
+            ),
+            "generated_workspace_static_validation_server_start_calls": _as_int(
+                daacs_runtime_generated_workspace_static_validation_execution.get(
+                    "server_start_calls"
+                )
+            ),
+            "buildable_fixture_manifest_status": (
+                daacs_runtime_buildable_fixture_manifest_data.get("status")
+                if daacs_runtime_buildable_fixture_manifest_data
+                else "skipped"
+            ),
+            "buildable_fixture_manifest_reason": (
+                daacs_runtime_buildable_fixture_manifest_data.get("reason")
+                if daacs_runtime_buildable_fixture_manifest_data
+                else "skipped"
+            ),
+            "buildable_fixture_manifest_candidate": (
+                daacs_runtime_buildable_fixture_manifest_data.get(
+                    "build_ready_candidate"
+                )
+                if daacs_runtime_buildable_fixture_manifest_data
+                else False
+            ),
+            "buildable_fixture_manifest_file_reads": _as_int(
+                daacs_runtime_buildable_fixture_manifest_execution.get(
+                    "buildable_manifest_file_read_count"
+                )
+            ),
+            "buildable_fixture_manifest_required_file_read_count": _as_int(
+                (daacs_runtime_buildable_fixture_manifest_data or {})
+                .get("counts", {})
+                .get("required_file_read_count")
+            ),
+            "buildable_fixture_manifest_required_script_present_count": _as_int(
+                (daacs_runtime_buildable_fixture_manifest_data or {})
+                .get("counts", {})
+                .get("required_script_present_count")
+            ),
+            "buildable_fixture_manifest_dependency_label_count": _as_int(
+                (daacs_runtime_buildable_fixture_manifest_data or {})
+                .get("counts", {})
+                .get("total_dependency_label_count")
+            ),
+            "buildable_fixture_manifest_placeholder_dependency_values": _as_int(
+                (daacs_runtime_buildable_fixture_manifest_data or {})
+                .get("counts", {})
+                .get("placeholder_dependency_value_count")
+            ),
+            "buildable_fixture_manifest_package_manifest_value_returns": _as_int(
+                daacs_runtime_buildable_fixture_manifest_execution.get(
+                    "package_manifest_values_returned"
+                )
+            ),
+            "buildable_fixture_manifest_file_content_public_returns": _as_int(
+                daacs_runtime_buildable_fixture_manifest_execution.get(
+                    "generated_file_content_public_return_count"
+                )
+            ),
+            "buildable_fixture_manifest_local_root_public_returns": _as_int(
+                daacs_runtime_buildable_fixture_manifest_execution.get(
+                    "local_root_path_public_return_count"
+                )
+            ),
+            "buildable_fixture_manifest_target_runtime_calls": _as_int(
+                daacs_runtime_buildable_fixture_manifest_execution.get(
+                    "target_runtime_calls"
+                )
+            ),
+            "buildable_fixture_manifest_provider_calls": _as_int(
+                daacs_runtime_buildable_fixture_manifest_execution.get("provider_calls")
+            ),
+            "buildable_fixture_manifest_sdk_imports": _as_int(
+                daacs_runtime_buildable_fixture_manifest_execution.get("sdk_imports")
+            ),
+            "buildable_fixture_manifest_env_value_reads": _as_int(
+                daacs_runtime_buildable_fixture_manifest_execution.get(
+                    "env_key_value_reads"
+                )
+            ),
+            "buildable_fixture_manifest_subprocess_calls": _as_int(
+                daacs_runtime_buildable_fixture_manifest_execution.get(
+                    "subprocess_calls"
+                )
+            ),
+            "buildable_fixture_manifest_network_calls": _as_int(
+                daacs_runtime_buildable_fixture_manifest_execution.get("network_calls")
+            ),
+            "buildable_fixture_manifest_package_install_calls": _as_int(
+                daacs_runtime_buildable_fixture_manifest_execution.get(
+                    "package_install_calls"
+                )
+            ),
+            "buildable_fixture_manifest_build_calls": _as_int(
+                daacs_runtime_buildable_fixture_manifest_execution.get("build_calls")
+            ),
+            "buildable_fixture_manifest_server_start_calls": _as_int(
+                daacs_runtime_buildable_fixture_manifest_execution.get(
+                    "server_start_calls"
+                )
+            ),
+            "local_build_preflight_status": (
+                daacs_runtime_local_build_preflight_data.get("status")
+                if daacs_runtime_local_build_preflight_data
+                else "skipped"
+            ),
+            "local_build_preflight_reason": (
+                daacs_runtime_local_build_preflight_data.get("reason")
+                if daacs_runtime_local_build_preflight_data
+                else "skipped"
+            ),
+            "local_build_preflight_eligible": (
+                daacs_runtime_local_build_preflight_data.get(
+                    "local_build_eligible"
+                )
+                if daacs_runtime_local_build_preflight_data
+                else False
+            ),
+            "local_build_preflight_opt_in_required": (
+                daacs_runtime_local_build_preflight_data.get(
+                    "local_build_opt_in_required"
+                )
+                if daacs_runtime_local_build_preflight_data
+                else False
+            ),
+            "local_build_preflight_operator_opt_in_present": (
+                daacs_runtime_local_build_preflight_data.get(
+                    "operator_opt_in_present"
+                )
+                if daacs_runtime_local_build_preflight_data
+                else False
+            ),
+            "local_build_preflight_command_label_count": _as_int(
+                (daacs_runtime_local_build_preflight_data or {})
+                .get("counts", {})
+                .get("command_plan_label_count")
+            ),
+            "local_build_preflight_command_hash_count": _as_int(
+                (daacs_runtime_local_build_preflight_data or {})
+                .get("counts", {})
+                .get("command_plan_hash_count")
+            ),
+            "local_build_preflight_default_execution_permission_count": _as_int(
+                (daacs_runtime_local_build_preflight_data or {})
+                .get("counts", {})
+                .get("default_execution_permission_count")
+            ),
+            "local_build_preflight_target_runtime_calls": _as_int(
+                daacs_runtime_local_build_preflight_execution.get(
+                    "target_runtime_calls"
+                )
+            ),
+            "local_build_preflight_provider_calls": _as_int(
+                daacs_runtime_local_build_preflight_execution.get("provider_calls")
+            ),
+            "local_build_preflight_sdk_imports": _as_int(
+                daacs_runtime_local_build_preflight_execution.get("sdk_imports")
+            ),
+            "local_build_preflight_env_value_reads": _as_int(
+                daacs_runtime_local_build_preflight_execution.get(
+                    "env_key_value_reads"
+                )
+            ),
+            "local_build_preflight_subprocess_calls": _as_int(
+                daacs_runtime_local_build_preflight_execution.get(
+                    "subprocess_calls"
+                )
+            ),
+            "local_build_preflight_network_calls": _as_int(
+                daacs_runtime_local_build_preflight_execution.get("network_calls")
+            ),
+            "local_build_preflight_package_install_calls": _as_int(
+                daacs_runtime_local_build_preflight_execution.get(
+                    "package_install_calls"
+                )
+            ),
+            "local_build_preflight_build_calls": _as_int(
+                daacs_runtime_local_build_preflight_execution.get("build_calls")
+            ),
+            "local_build_preflight_server_start_calls": _as_int(
+                daacs_runtime_local_build_preflight_execution.get(
+                    "server_start_calls"
+                )
+            ),
+            "local_build_attempt_status": (
+                daacs_runtime_local_build_attempt_data.get("status")
+                if daacs_runtime_local_build_attempt_data
+                else "skipped"
+            ),
+            "local_build_attempt_reason": (
+                daacs_runtime_local_build_attempt_data.get("reason")
+                if daacs_runtime_local_build_attempt_data
+                else "skipped"
+            ),
+            "local_build_attempt_attempted": (
+                daacs_runtime_local_build_attempt_data.get(
+                    "local_build_attempted"
+                )
+                if daacs_runtime_local_build_attempt_data
+                else False
+            ),
+            "local_build_attempt_opt_in_present": (
+                daacs_runtime_local_build_attempt_data.get(
+                    "local_build_opt_in_present"
+                )
+                if daacs_runtime_local_build_attempt_data
+                else False
+            ),
+            "local_build_attempt_command_allowed": (
+                daacs_runtime_local_build_attempt_data.get(
+                    "local_command_execution_allowed"
+                )
+                if daacs_runtime_local_build_attempt_data
+                else False
+            ),
+            "local_build_attempt_command_result_count": _as_int(
+                (daacs_runtime_local_build_attempt_data or {})
+                .get("counts", {})
+                .get("command_result_count")
+            ),
+            "local_build_attempt_command_output_hash_count": _as_int(
+                (daacs_runtime_local_build_attempt_data or {})
+                .get("counts", {})
+                .get("command_output_hash_count")
+            ),
+            "local_build_attempt_package_install_attempts": _as_int(
+                (daacs_runtime_local_build_attempt_data or {})
+                .get("counts", {})
+                .get("package_install_attempt_count")
+            ),
+            "local_build_attempt_build_attempts": _as_int(
+                (daacs_runtime_local_build_attempt_data or {})
+                .get("counts", {})
+                .get("build_attempt_count")
+            ),
+            "local_build_attempt_server_start_attempts": _as_int(
+                (daacs_runtime_local_build_attempt_data or {})
+                .get("counts", {})
+                .get("server_start_attempt_count")
+            ),
+            "local_build_attempt_raw_output_returns": _as_int(
+                (daacs_runtime_local_build_attempt_data or {})
+                .get("counts", {})
+                .get("raw_output_public_return_count")
+            ),
+            "local_build_attempt_target_runtime_calls": _as_int(
+                daacs_runtime_local_build_attempt_execution.get(
+                    "target_runtime_calls"
+                )
+            ),
+            "local_build_attempt_provider_calls": _as_int(
+                daacs_runtime_local_build_attempt_execution.get("provider_calls")
+            ),
+            "local_build_attempt_sdk_imports": _as_int(
+                daacs_runtime_local_build_attempt_execution.get("sdk_imports")
+            ),
+            "local_build_attempt_env_value_reads": _as_int(
+                daacs_runtime_local_build_attempt_execution.get(
+                    "env_key_value_reads"
+                )
+            ),
+            "local_build_attempt_subprocess_calls": _as_int(
+                daacs_runtime_local_build_attempt_execution.get(
+                    "subprocess_calls"
+                )
+            ),
+            "local_build_attempt_network_calls": _as_int(
+                daacs_runtime_local_build_attempt_execution.get("network_calls")
+            ),
+            "local_build_attempt_package_install_calls": _as_int(
+                daacs_runtime_local_build_attempt_execution.get(
+                    "package_install_calls"
+                )
+            ),
+            "local_build_attempt_build_calls": _as_int(
+                daacs_runtime_local_build_attempt_execution.get("build_calls")
+            ),
+            "local_build_attempt_server_start_calls": _as_int(
+                daacs_runtime_local_build_attempt_execution.get(
+                    "server_start_calls"
+                )
+            ),
             "adapter_target_runtime_calls": _as_int(
                 daacs_runtime_adapter_execution.get("target_runtime_calls")
             ),
@@ -3656,6 +5352,408 @@ def run_demo(
                 "status": "skipped",
                 "reason": "optional target runtime fixture materialization not requested",
                 "target_runtime_outcome": False,
+            }
+        ),
+        "daacs_runtime_restricted_workspace_generation": (
+            {
+                "projection_version": (
+                    daacs_runtime_restricted_workspace_generation_data.get(
+                        "projection_version"
+                    )
+                ),
+                "status": daacs_runtime_restricted_workspace_generation_data.get(
+                    "status"
+                ),
+                "reason": daacs_runtime_restricted_workspace_generation_data.get(
+                    "reason"
+                ),
+                "mode": daacs_runtime_restricted_workspace_generation_data.get(
+                    "mode"
+                ),
+                "generated_artifact_bundle_hash": (
+                    daacs_runtime_restricted_workspace_generation_data.get(
+                        "generated_artifact_bundle_hash"
+                    )
+                ),
+                "generated_artifact_bundle_projection_hash": (
+                    daacs_runtime_restricted_workspace_generation_data.get(
+                        "generated_artifact_bundle_projection_hash"
+                    )
+                ),
+                "implementation_brief_hash": (
+                    daacs_runtime_restricted_workspace_generation_data.get(
+                        "implementation_brief_hash"
+                    )
+                ),
+                "generated_workspace_hash": (
+                    daacs_runtime_restricted_workspace_generation_data.get(
+                        "generated_workspace_hash"
+                    )
+                ),
+                "file_records": daacs_runtime_restricted_workspace_generation_data.get(
+                    "file_records", []
+                ),
+                "counts": daacs_runtime_restricted_workspace_generation_data.get(
+                    "counts", {}
+                ),
+                "repository_boundary": (
+                    daacs_runtime_restricted_workspace_generation_data.get(
+                        "repository_boundary", {}
+                    )
+                ),
+                "execution_boundary": (
+                    daacs_runtime_restricted_workspace_generation_data.get(
+                        "execution_boundary", {}
+                    )
+                ),
+                "claim_boundary": daacs_runtime_restricted_workspace_generation_data.get(
+                    "claim_boundary", {}
+                ),
+            }
+            if daacs_runtime_restricted_workspace_generation_data is not None
+            else {
+                "status": "skipped",
+                "reason": "optional target runtime restricted workspace generation not requested",
+                "target_runtime_outcome": False,
+            }
+        ),
+        "daacs_runtime_generated_artifact_verification": (
+            {
+                "projection_version": (
+                    daacs_runtime_generated_artifact_verification_data.get(
+                        "projection_version"
+                    )
+                ),
+                "status": daacs_runtime_generated_artifact_verification_data.get(
+                    "status"
+                ),
+                "reason": daacs_runtime_generated_artifact_verification_data.get(
+                    "reason"
+                ),
+                "mode": daacs_runtime_generated_artifact_verification_data.get(
+                    "mode"
+                ),
+                "generated_workspace_hash": (
+                    daacs_runtime_generated_artifact_verification_data.get(
+                        "generated_workspace_hash"
+                    )
+                ),
+                "generated_workspace_projection_hash": (
+                    daacs_runtime_generated_artifact_verification_data.get(
+                        "generated_workspace_projection_hash"
+                    )
+                ),
+                "generated_artifact_verification_hash": (
+                    daacs_runtime_generated_artifact_verification_data.get(
+                        "generated_artifact_verification_hash"
+                    )
+                ),
+                "file_check_records": (
+                    daacs_runtime_generated_artifact_verification_data.get(
+                        "file_check_records", []
+                    )
+                ),
+                "counts": daacs_runtime_generated_artifact_verification_data.get(
+                    "counts", {}
+                ),
+                "repository_boundary": (
+                    daacs_runtime_generated_artifact_verification_data.get(
+                        "repository_boundary", {}
+                    )
+                ),
+                "execution_boundary": (
+                    daacs_runtime_generated_artifact_verification_data.get(
+                        "execution_boundary", {}
+                    )
+                ),
+                "claim_boundary": (
+                    daacs_runtime_generated_artifact_verification_data.get(
+                        "claim_boundary", {}
+                    )
+                ),
+            }
+            if daacs_runtime_generated_artifact_verification_data is not None
+            else {
+                "status": "skipped",
+                "reason": "optional target runtime generated artifact verification not requested",
+                "target_runtime_outcome": False,
+            }
+        ),
+        "daacs_runtime_generated_workspace_static_validation": (
+            {
+                "projection_version": (
+                    daacs_runtime_generated_workspace_static_validation_data.get(
+                        "projection_version"
+                    )
+                ),
+                "status": (
+                    daacs_runtime_generated_workspace_static_validation_data.get(
+                        "status"
+                    )
+                ),
+                "reason": (
+                    daacs_runtime_generated_workspace_static_validation_data.get(
+                        "reason"
+                    )
+                ),
+                "mode": (
+                    daacs_runtime_generated_workspace_static_validation_data.get(
+                        "mode"
+                    )
+                ),
+                "generated_artifact_verification_hash": (
+                    daacs_runtime_generated_workspace_static_validation_data.get(
+                        "generated_artifact_verification_hash"
+                    )
+                ),
+                "generated_artifact_verification_projection_hash": (
+                    daacs_runtime_generated_workspace_static_validation_data.get(
+                        "generated_artifact_verification_projection_hash"
+                    )
+                ),
+                "generated_workspace_static_validation_hash": (
+                    daacs_runtime_generated_workspace_static_validation_data.get(
+                        "generated_workspace_static_validation_hash"
+                    )
+                ),
+                "validation_records": (
+                    daacs_runtime_generated_workspace_static_validation_data.get(
+                        "validation_records", []
+                    )
+                ),
+                "counts": (
+                    daacs_runtime_generated_workspace_static_validation_data.get(
+                        "counts", {}
+                    )
+                ),
+                "repository_boundary": (
+                    daacs_runtime_generated_workspace_static_validation_data.get(
+                        "repository_boundary", {}
+                    )
+                ),
+                "execution_boundary": (
+                    daacs_runtime_generated_workspace_static_validation_data.get(
+                        "execution_boundary", {}
+                    )
+                ),
+                "claim_boundary": (
+                    daacs_runtime_generated_workspace_static_validation_data.get(
+                        "claim_boundary", {}
+                    )
+                ),
+            }
+            if daacs_runtime_generated_workspace_static_validation_data is not None
+            else {
+                "status": "skipped",
+                "reason": "optional generated workspace static validation not requested",
+                "target_runtime_outcome": False,
+            }
+        ),
+        "daacs_runtime_buildable_fixture_manifest": (
+            {
+                "projection_version": daacs_runtime_buildable_fixture_manifest_data.get(
+                    "projection_version"
+                ),
+                "run_id": daacs_runtime_buildable_fixture_manifest_data.get("run_id"),
+                "status": daacs_runtime_buildable_fixture_manifest_data.get("status"),
+                "reason": daacs_runtime_buildable_fixture_manifest_data.get("reason"),
+                "mode": daacs_runtime_buildable_fixture_manifest_data.get("mode"),
+                "build_ready_candidate": (
+                    daacs_runtime_buildable_fixture_manifest_data.get(
+                        "build_ready_candidate"
+                    )
+                ),
+                "generated_workspace_static_validation_hash": (
+                    daacs_runtime_buildable_fixture_manifest_data.get(
+                        "generated_workspace_static_validation_hash"
+                    )
+                ),
+                "generated_workspace_static_validation_projection_hash": (
+                    daacs_runtime_buildable_fixture_manifest_data.get(
+                        "generated_workspace_static_validation_projection_hash"
+                    )
+                ),
+                "buildable_fixture_manifest_hash": (
+                    daacs_runtime_buildable_fixture_manifest_data.get(
+                        "buildable_fixture_manifest_hash"
+                    )
+                ),
+                "package_manifest": (
+                    daacs_runtime_buildable_fixture_manifest_data.get(
+                        "package_manifest", {}
+                    )
+                ),
+                "build_readiness_records": (
+                    daacs_runtime_buildable_fixture_manifest_data.get(
+                        "build_readiness_records", []
+                    )
+                ),
+                "counts": daacs_runtime_buildable_fixture_manifest_data.get(
+                    "counts", {}
+                ),
+                "repository_boundary": (
+                    daacs_runtime_buildable_fixture_manifest_data.get(
+                        "repository_boundary", {}
+                    )
+                ),
+                "execution_boundary": (
+                    daacs_runtime_buildable_fixture_manifest_data.get(
+                        "execution_boundary", {}
+                    )
+                ),
+                "claim_boundary": (
+                    daacs_runtime_buildable_fixture_manifest_data.get(
+                        "claim_boundary", {}
+                    )
+                ),
+            }
+            if daacs_runtime_buildable_fixture_manifest_data is not None
+            else {
+                "status": "skipped",
+                "reason": "optional buildable fixture manifest not requested",
+                "target_runtime_outcome": False,
+                "build_ready_candidate": False,
+            }
+        ),
+        "daacs_runtime_local_build_preflight": (
+            {
+                "projection_version": daacs_runtime_local_build_preflight_data.get(
+                    "projection_version"
+                ),
+                "run_id": daacs_runtime_local_build_preflight_data.get("run_id"),
+                "status": daacs_runtime_local_build_preflight_data.get("status"),
+                "reason": daacs_runtime_local_build_preflight_data.get("reason"),
+                "mode": daacs_runtime_local_build_preflight_data.get("mode"),
+                "local_build_eligible": (
+                    daacs_runtime_local_build_preflight_data.get(
+                        "local_build_eligible"
+                    )
+                ),
+                "local_build_opt_in_required": (
+                    daacs_runtime_local_build_preflight_data.get(
+                        "local_build_opt_in_required"
+                    )
+                ),
+                "operator_opt_in_present": (
+                    daacs_runtime_local_build_preflight_data.get(
+                        "operator_opt_in_present"
+                    )
+                ),
+                "buildable_fixture_manifest_hash": (
+                    daacs_runtime_local_build_preflight_data.get(
+                        "buildable_fixture_manifest_hash"
+                    )
+                ),
+                "buildable_fixture_manifest_projection_hash": (
+                    daacs_runtime_local_build_preflight_data.get(
+                        "buildable_fixture_manifest_projection_hash"
+                    )
+                ),
+                "local_build_preflight_hash": (
+                    daacs_runtime_local_build_preflight_data.get(
+                        "local_build_preflight_hash"
+                    )
+                ),
+                "command_plan": daacs_runtime_local_build_preflight_data.get(
+                    "command_plan", []
+                ),
+                "counts": daacs_runtime_local_build_preflight_data.get(
+                    "counts", {}
+                ),
+                "repository_boundary": (
+                    daacs_runtime_local_build_preflight_data.get(
+                        "repository_boundary", {}
+                    )
+                ),
+                "execution_boundary": (
+                    daacs_runtime_local_build_preflight_data.get(
+                        "execution_boundary", {}
+                    )
+                ),
+                "claim_boundary": (
+                    daacs_runtime_local_build_preflight_data.get(
+                        "claim_boundary", {}
+                    )
+                ),
+            }
+            if daacs_runtime_local_build_preflight_data is not None
+            else {
+                "status": "skipped",
+                "reason": "optional local build preflight not requested",
+                "target_runtime_outcome": False,
+                "local_build_eligible": False,
+                "local_build_opt_in_required": True,
+            }
+        ),
+        "daacs_runtime_local_build_attempt": (
+            {
+                "projection_version": daacs_runtime_local_build_attempt_data.get(
+                    "projection_version"
+                ),
+                "run_id": daacs_runtime_local_build_attempt_data.get("run_id"),
+                "status": daacs_runtime_local_build_attempt_data.get("status"),
+                "reason": daacs_runtime_local_build_attempt_data.get("reason"),
+                "mode": daacs_runtime_local_build_attempt_data.get("mode"),
+                "local_build_attempted": (
+                    daacs_runtime_local_build_attempt_data.get(
+                        "local_build_attempted"
+                    )
+                ),
+                "local_build_opt_in_present": (
+                    daacs_runtime_local_build_attempt_data.get(
+                        "local_build_opt_in_present"
+                    )
+                ),
+                "local_command_execution_allowed": (
+                    daacs_runtime_local_build_attempt_data.get(
+                        "local_command_execution_allowed"
+                    )
+                ),
+                "local_build_preflight_hash": (
+                    daacs_runtime_local_build_attempt_data.get(
+                        "local_build_preflight_hash"
+                    )
+                ),
+                "local_build_preflight_projection_hash": (
+                    daacs_runtime_local_build_attempt_data.get(
+                        "local_build_preflight_projection_hash"
+                    )
+                ),
+                "local_build_attempt_hash": (
+                    daacs_runtime_local_build_attempt_data.get(
+                        "local_build_attempt_hash"
+                    )
+                ),
+                "command_results": daacs_runtime_local_build_attempt_data.get(
+                    "command_results", []
+                ),
+                "counts": daacs_runtime_local_build_attempt_data.get(
+                    "counts", {}
+                ),
+                "repository_boundary": (
+                    daacs_runtime_local_build_attempt_data.get(
+                        "repository_boundary", {}
+                    )
+                ),
+                "execution_boundary": (
+                    daacs_runtime_local_build_attempt_data.get(
+                        "execution_boundary", {}
+                    )
+                ),
+                "claim_boundary": (
+                    daacs_runtime_local_build_attempt_data.get(
+                        "claim_boundary", {}
+                    )
+                ),
+            }
+            if daacs_runtime_local_build_attempt_data is not None
+            else {
+                "status": "skipped",
+                "reason": "optional local build attempt not requested",
+                "target_runtime_outcome": False,
+                "local_build_attempted": False,
+                "local_build_opt_in_present": False,
+                "local_command_execution_allowed": False,
             }
         ),
         "provider_envelope_admission": (
@@ -6984,6 +9082,11 @@ def main() -> None:
         help="Also run the no-call Solar planner provider preflight comparison.",
     )
     parser.add_argument(
+        "--include-solar-planner-spike",
+        action="store_true",
+        help="Also run the no-call Solar planner one-shot spike mock projection.",
+    )
+    parser.add_argument(
         "--include-daacs-runtime-preflight",
         action="store_true",
         help="Also run the no-call DAACS target runtime sandbox preflight comparison.",
@@ -7008,12 +9111,57 @@ def main() -> None:
         action="store_true",
         help="Also write sanitized fixture artifacts in a run-scoped local workspace.",
     )
+    parser.add_argument(
+        "--include-daacs-runtime-restricted-workspace-generation",
+        action="store_true",
+        help="Also generate a sanitized fixture app skeleton in a restricted workspace.",
+    )
+    parser.add_argument(
+        "--include-daacs-runtime-generated-artifact-verification",
+        action="store_true",
+        help="Also verify generated fixture app skeleton files by hash and byte count.",
+    )
+    parser.add_argument(
+        "--include-daacs-runtime-generated-workspace-static-validation",
+        action="store_true",
+        help="Also statically validate the verified fixture app workspace.",
+    )
+    parser.add_argument(
+        "--include-daacs-runtime-buildable-fixture-manifest",
+        action="store_true",
+        help="Also project a build-ready manifest for the fixture app workspace.",
+    )
+    parser.add_argument(
+        "--include-daacs-runtime-local-build-preflight",
+        action="store_true",
+        help=(
+            "Also project local build preflight eligibility without running "
+            "package install, build, or server commands."
+        ),
+    )
+    parser.add_argument(
+        "--include-daacs-runtime-local-build-attempt",
+        action="store_true",
+        help=(
+            "Also record an explicit local fixture app build attempt boundary. "
+            "Without --allow-local-build-attempt this remains blocked."
+        ),
+    )
+    parser.add_argument(
+        "--allow-local-build-attempt",
+        action="store_true",
+        help=(
+            "Allow local npm install/build inside the run-scoped generated "
+            "fixture app workspace. This never starts a server."
+        ),
+    )
     args = parser.parse_args()
 
     summary = run_demo(
         args.store_root,
         include_provider_precheck=args.include_provider_precheck,
         include_solar_planner_preflight=args.include_solar_planner_preflight,
+        include_solar_planner_spike=args.include_solar_planner_spike,
         include_daacs_runtime_preflight=args.include_daacs_runtime_preflight,
         include_daacs_runtime_adapter_admission=args.include_daacs_runtime_adapter_admission,
         include_daacs_runtime_output_manifest=args.include_daacs_runtime_output_manifest,
@@ -7023,6 +9171,25 @@ def main() -> None:
         include_daacs_runtime_fixture_materialization=(
             args.include_daacs_runtime_fixture_materialization
         ),
+        include_daacs_runtime_restricted_workspace_generation=(
+            args.include_daacs_runtime_restricted_workspace_generation
+        ),
+        include_daacs_runtime_generated_artifact_verification=(
+            args.include_daacs_runtime_generated_artifact_verification
+        ),
+        include_daacs_runtime_generated_workspace_static_validation=(
+            args.include_daacs_runtime_generated_workspace_static_validation
+        ),
+        include_daacs_runtime_buildable_fixture_manifest=(
+            args.include_daacs_runtime_buildable_fixture_manifest
+        ),
+        include_daacs_runtime_local_build_preflight=(
+            args.include_daacs_runtime_local_build_preflight
+        ),
+        include_daacs_runtime_local_build_attempt=(
+            args.include_daacs_runtime_local_build_attempt
+        ),
+        allow_local_build_attempt=args.allow_local_build_attempt,
     )
     rendered = json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True)
     print(rendered)

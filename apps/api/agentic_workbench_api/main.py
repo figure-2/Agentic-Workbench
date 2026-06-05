@@ -26,7 +26,10 @@ from .services.evidence_read_model import (
 )
 from .services.evidence_write_model import persist_fixture_run_evidence
 from .services.fixture_harness import create_fixture_harness
-from .services.planner_provider_preflight import run_planner_provider_preflight
+from .services.planner_provider_preflight import (
+    run_planner_provider_preflight,
+    run_planner_provider_spike_mock_response,
+)
 from .services.target_runtime_admission import (
     TargetRuntimeAdmissionRepositoryConfig,
     TargetRuntimeAdmissionRepositoryProvider,
@@ -46,6 +49,34 @@ from .services.target_runtime_fixture_materialization import (
     TargetRuntimeFixtureMaterializationConfig,
     TargetRuntimeFixtureMaterializationProvider,
     run_target_runtime_fixture_materialization,
+)
+from .services.target_runtime_restricted_workspace_generation import (
+    TargetRuntimeRestrictedWorkspaceGenerationConfig,
+    TargetRuntimeRestrictedWorkspaceGenerationProvider,
+    run_target_runtime_restricted_workspace_generation,
+)
+from .services.target_runtime_generated_artifact_verification import (
+    TargetRuntimeGeneratedArtifactVerificationConfig,
+    TargetRuntimeGeneratedArtifactVerificationProvider,
+    run_target_runtime_generated_artifact_verification,
+)
+from .services.target_runtime_generated_workspace_static_validation import (
+    TargetRuntimeGeneratedWorkspaceStaticValidationConfig,
+    TargetRuntimeGeneratedWorkspaceStaticValidationProvider,
+    run_target_runtime_generated_workspace_static_validation,
+)
+from .services.target_runtime_buildable_fixture_manifest import (
+    TargetRuntimeBuildableFixtureManifestConfig,
+    TargetRuntimeBuildableFixtureManifestProvider,
+    run_target_runtime_buildable_fixture_manifest,
+)
+from .services.target_runtime_local_build_preflight import (
+    run_target_runtime_local_build_preflight,
+)
+from .services.target_runtime_local_build_attempt import (
+    TargetRuntimeLocalBuildAttemptConfig,
+    TargetRuntimeLocalBuildAttemptProvider,
+    run_target_runtime_local_build_attempt,
 )
 from .services.target_runtime_preflight import run_target_runtime_preflight
 from .services.canonical_run_store import (
@@ -97,6 +128,36 @@ def create_app(
     target_runtime_fixture_materialization_provider: (
         TargetRuntimeFixtureMaterializationProvider | None
     ) = None,
+    target_runtime_restricted_workspace_generation_config: (
+        TargetRuntimeRestrictedWorkspaceGenerationConfig | None
+    ) = None,
+    target_runtime_restricted_workspace_generation_provider: (
+        TargetRuntimeRestrictedWorkspaceGenerationProvider | None
+    ) = None,
+    target_runtime_generated_artifact_verification_config: (
+        TargetRuntimeGeneratedArtifactVerificationConfig | None
+    ) = None,
+    target_runtime_generated_artifact_verification_provider: (
+        TargetRuntimeGeneratedArtifactVerificationProvider | None
+    ) = None,
+    target_runtime_generated_workspace_static_validation_config: (
+        TargetRuntimeGeneratedWorkspaceStaticValidationConfig | None
+    ) = None,
+    target_runtime_generated_workspace_static_validation_provider: (
+        TargetRuntimeGeneratedWorkspaceStaticValidationProvider | None
+    ) = None,
+    target_runtime_buildable_fixture_manifest_config: (
+        TargetRuntimeBuildableFixtureManifestConfig | None
+    ) = None,
+    target_runtime_buildable_fixture_manifest_provider: (
+        TargetRuntimeBuildableFixtureManifestProvider | None
+    ) = None,
+    target_runtime_local_build_attempt_config: (
+        TargetRuntimeLocalBuildAttemptConfig | None
+    ) = None,
+    target_runtime_local_build_attempt_provider: (
+        TargetRuntimeLocalBuildAttemptProvider | None
+    ) = None,
 ):
     if FastAPI is None:
         raise RuntimeError("fastapi is not installed. Install API dependencies before serving.")
@@ -131,6 +192,36 @@ def create_app(
         target_runtime_fixture_materialization_provider
         or TargetRuntimeFixtureMaterializationProvider(
             target_runtime_fixture_materialization_config
+        )
+    )
+    target_runtime_restricted_workspace_generation = (
+        target_runtime_restricted_workspace_generation_provider
+        or TargetRuntimeRestrictedWorkspaceGenerationProvider(
+            target_runtime_restricted_workspace_generation_config
+        )
+    )
+    target_runtime_generated_artifact_verification = (
+        target_runtime_generated_artifact_verification_provider
+        or TargetRuntimeGeneratedArtifactVerificationProvider(
+            target_runtime_generated_artifact_verification_config
+        )
+    )
+    target_runtime_generated_workspace_static_validation = (
+        target_runtime_generated_workspace_static_validation_provider
+        or TargetRuntimeGeneratedWorkspaceStaticValidationProvider(
+            target_runtime_generated_workspace_static_validation_config
+        )
+    )
+    target_runtime_buildable_fixture_manifest = (
+        target_runtime_buildable_fixture_manifest_provider
+        or TargetRuntimeBuildableFixtureManifestProvider(
+            target_runtime_buildable_fixture_manifest_config
+        )
+    )
+    target_runtime_local_build_attempt = (
+        target_runtime_local_build_attempt_provider
+        or TargetRuntimeLocalBuildAttemptProvider(
+            target_runtime_local_build_attempt_config
         )
     )
 
@@ -205,6 +296,13 @@ def create_app(
         except (KeyError, TypeError, ValueError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
+    @app.post("/api/v1/planner/provider/solar-spike/mock-response")
+    def create_planner_provider_solar_spike_mock_response(payload: dict):
+        try:
+            return {"data": run_planner_provider_spike_mock_response(payload)}
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
     @app.post("/api/v1/daacs/runtime/preflight")
     def create_daacs_runtime_preflight(payload: dict):
         try:
@@ -274,6 +372,73 @@ def create_app(
                 "data": run_target_runtime_fixture_materialization(
                     payload,
                     workspace_provider=target_runtime_fixture_materialization,
+                )
+            }
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/daacs/runtime/restricted-workspace-generation")
+    def create_daacs_runtime_restricted_workspace_generation(payload: dict):
+        try:
+            return {
+                "data": run_target_runtime_restricted_workspace_generation(
+                    payload,
+                    workspace_provider=target_runtime_restricted_workspace_generation,
+                )
+            }
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/daacs/runtime/generated-artifact-verification")
+    def create_daacs_runtime_generated_artifact_verification(payload: dict):
+        try:
+            return {
+                "data": run_target_runtime_generated_artifact_verification(
+                    payload,
+                    workspace_provider=target_runtime_generated_artifact_verification,
+                )
+            }
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/daacs/runtime/generated-workspace-static-validation")
+    def create_daacs_runtime_generated_workspace_static_validation(payload: dict):
+        try:
+            return {
+                "data": run_target_runtime_generated_workspace_static_validation(
+                    payload,
+                    workspace_provider=target_runtime_generated_workspace_static_validation,
+                )
+            }
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/daacs/runtime/buildable-fixture-manifest")
+    def create_daacs_runtime_buildable_fixture_manifest(payload: dict):
+        try:
+            return {
+                "data": run_target_runtime_buildable_fixture_manifest(
+                    payload,
+                    workspace_provider=target_runtime_buildable_fixture_manifest,
+                )
+            }
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/daacs/runtime/local-build-preflight")
+    def create_daacs_runtime_local_build_preflight(payload: dict):
+        try:
+            return {"data": run_target_runtime_local_build_preflight(payload)}
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/daacs/runtime/local-build-attempt")
+    def create_daacs_runtime_local_build_attempt(payload: dict):
+        try:
+            return {
+                "data": run_target_runtime_local_build_attempt(
+                    payload,
+                    workspace_provider=target_runtime_local_build_attempt,
                 )
             }
         except (KeyError, TypeError, ValueError) as exc:

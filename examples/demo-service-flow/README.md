@@ -38,6 +38,16 @@ To include the AW-SOLAR-01 no-call planner provider comparison:
 python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-solar-01-demo --include-solar-planner-preflight
 ```
 
+To include the AW-SOLAR-02 one-shot planner spike mock projection:
+
+```powershell
+python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-solar-02-demo --include-solar-planner-spike
+```
+
+This keeps the fixture planner as the artifact-producing path while adding a
+Solar-shaped spike envelope and mocked response projection. Provider calls, SDK
+imports, env value reads, and network calls remain `0`.
+
 To include the AW-DAACS-RUNTIME-00 no-call target runtime sandbox comparison:
 
 ```powershell
@@ -71,6 +81,116 @@ inside a run-scoped local workspace:
 ```powershell
 python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-daacs-runtime-06-demo --include-daacs-runtime-fixture-materialization
 ```
+
+To include the AW-DAACS-RUNTIME-MVP-01 restricted fixture app skeleton
+generation:
+
+```powershell
+python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-daacs-runtime-mvp-01-demo --include-daacs-runtime-restricted-workspace-generation
+```
+
+This writes nine sanitized fixture files under a run-scoped generated-app
+folder and returns relative paths, hashes, byte counts, status, and zero-call
+counters only. It does not install packages, run builds, start servers, return
+file contents, or execute the DAACS target runtime.
+
+To include the AW-VERIFY-01 generated artifact verification over those
+restricted fixture files:
+
+```powershell
+python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-verify-01-demo --include-daacs-runtime-generated-artifact-verification
+```
+
+This verifies the nine generated fixture files by workspace-relative path,
+content hash, and byte count. It returns verification hashes, statuses, reasons,
+and counts only. It does not return file contents, expose local root paths,
+install packages, run builds, start servers, or execute the DAACS target
+runtime.
+
+To include the AW-BUILD-01 generated workspace static validation over the
+verified fixture app workspace:
+
+```powershell
+python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-build-01-demo --include-daacs-runtime-generated-workspace-static-validation
+```
+
+This validates `package.json`, required script labels, `src/App.tsx` markers,
+`src/api.ts` markers, and zero-call verification notes. It returns status,
+hashes, reasons, and counts only. It does not install packages, run builds,
+start servers, call providers, open network connections, or execute the DAACS
+target runtime.
+
+To include the AW-BUILD-02 buildable fixture app manifest over the static
+validation result:
+
+```powershell
+python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-build-02-demo --include-daacs-runtime-buildable-fixture-manifest
+```
+
+This validates build-ready candidate metadata such as script labels,
+dependency labels, `index.html`, `src/main.tsx`, `vite.config.ts`, and
+`tsconfig.json` markers. It returns hashes, labels, status, reasons, and
+counts only. It does not return dependency values, file contents, local root
+paths, install packages, run builds, start servers, call providers, open
+network connections, or execute the DAACS target runtime.
+
+To include the AW-BUILD-03 local build preflight over the buildable fixture app
+manifest:
+
+```powershell
+python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-build-03-demo --include-daacs-runtime-local-build-preflight
+```
+
+This validates that the buildable fixture app is eligible for a future explicit
+local build attempt. The public summary returns command labels, command hashes,
+manifest hashes, status, reasons, opt-in requirement, and zero-call counters
+only. It does not install packages, run builds, start servers, call providers,
+open network connections, run subprocess commands, or execute the DAACS target
+runtime.
+
+To include the AW-BUILD-04 local build attempt boundary without allowing local
+commands:
+
+```powershell
+python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-build-04-demo --include-daacs-runtime-local-build-attempt
+```
+
+This records the blocked default path. Package installs, builds, server starts,
+provider calls, network calls, subprocess calls, and target runtime calls remain
+`0`.
+
+To opt in to one local fixture app package/build attempt inside the run-scoped
+generated workspace:
+
+```powershell
+python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-build-04-demo --include-daacs-runtime-local-build-attempt --allow-local-build-attempt
+```
+
+This may run `npm install --no-audit --no-fund` and `npm run build` inside the
+generated fixture app workspace. The public summary returns command labels,
+exit-code hashes, output hashes, byte counts, durations, status, reasons, and
+counts only. It does not return command output bodies, dependency values, file
+contents, local root paths, start a server, call providers, or execute the DAACS
+target runtime.
+
+To render the AW-APP-01 portfolio-facing artifact preview over the same public
+summary:
+
+```powershell
+python examples/demo-service-flow/render_artifact_preview.py --store-root .local/aw-app-01-demo --output .local/aw-app-01-preview.html
+```
+
+The preview is a static HTML file. It shows workflow stage coverage, document
+chain status, three sanitized fixture artifact cards, verification status, and
+zero-call execution counters. When the default preview command is used, it also
+shows nine generated workspace file cards plus generated artifact
+verification status/counts, generated workspace static validation
+status/counts, the AW-BUILD-02 build-ready candidate manifest, and the
+AW-BUILD-03 local build preflight status. With `--include-local-build-attempt`
+and `--allow-local-build-attempt`, it also shows the AW-BUILD-04 local fixture
+app package/build attempt result. It does not render file contents, local root
+paths, secret values, dependency values, command outputs, build outputs, server
+state, or runtime/provider outcomes.
 
 The printed JSON is a sanitized summary. It includes run status, artifact
 kinds, evidence counts, linkage markers, repository boundary flags, and
@@ -169,6 +289,51 @@ rows.
   content hashes, status, reasons, and counts only. It does not return local
   root paths, raw file bodies, provider payloads, subprocess output, network
   output, or target runtime calls.
+- When `--include-daacs-runtime-restricted-workspace-generation` is used, the
+  demo compares seven variants and writes nine sanitized fixture app skeleton
+  files under a run-scoped generated-app folder. The public summary returns
+  relative paths, content hashes, byte counts, status, reasons, and counts
+  only. Package installs, builds, server starts, provider calls, network calls,
+  subprocess calls, and target runtime calls all remain `0`.
+- When `--include-daacs-runtime-generated-artifact-verification` is used, the
+  demo compares eight variants and verifies the nine restricted fixture app
+  files by hash and byte count. The public summary returns verification hashes,
+  status, reasons, counts, and zero-call boundaries only. File contents, local
+  root paths, provider payloads, package installs, builds, server starts,
+  network calls, subprocess calls, and target runtime calls all remain `0`.
+- When `--include-daacs-runtime-generated-workspace-static-validation` is used,
+  the demo compares nine variants and statically validates the verified fixture
+  app workspace. The public summary returns static validation hashes, status,
+  reasons, counts, and zero-call boundaries only. File contents, local root
+  paths, provider payloads, package installs, builds, server starts, network
+  calls, subprocess calls, and target runtime calls all remain `0`.
+- When `--include-daacs-runtime-buildable-fixture-manifest` is used, the demo
+  compares ten variants and validates the generated fixture app as a
+  build-ready candidate manifest. The public summary returns script labels,
+  dependency labels, source marker counts, hashes, status, reasons, and
+  zero-call boundaries only. Dependency values, file contents, local root
+  paths, provider payloads, package installs, builds, server starts, network
+  calls, subprocess calls, and target runtime calls all remain `0`.
+- When `--include-daacs-runtime-local-build-preflight` is used, the demo
+  compares eleven variants and validates local build preflight eligibility over
+  the build-ready candidate manifest. The public summary returns command
+  labels, command hashes, opt-in requirement, status, reasons, and zero-call
+  boundaries only. Operator opt-in is not present by default, execution
+  permission remains `0`, and package installs, builds, server starts, provider
+  calls, network calls, subprocess calls, and target runtime calls all remain
+  `0`.
+- When `--include-daacs-runtime-local-build-attempt` is used without
+  `--allow-local-build-attempt`, the demo compares twelve variants and records
+  the blocked default local build attempt path. Package installs, builds,
+  server starts, provider calls, network calls, subprocess calls, and target
+  runtime calls all remain `0`.
+- When `--include-daacs-runtime-local-build-attempt` and
+  `--allow-local-build-attempt` are used together, the demo compares twelve
+  variants and attempts one package install plus one build command inside the
+  run-scoped generated fixture app workspace. Public output returns hashes,
+  counts, byte counts, durations, status, and reasons only. Server starts,
+  provider calls, env value reads, SDK imports, and target runtime calls remain
+  `0`.
 - When `--include-provider-precheck` is used, manual proposal, disabled
   executor, one-shot permission, preflight audit, readiness decision, review
   packet, review packet export/read-model, handoff packet, and operator opt-in

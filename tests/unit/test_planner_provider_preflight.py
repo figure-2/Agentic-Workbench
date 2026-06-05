@@ -10,8 +10,11 @@ from packages.core.schemas import stable_contract_hash
 from packages.div_planner.provider_boundary import (
     PLANNER_PROVIDER_MODE_FIXTURE,
     PLANNER_PROVIDER_MODE_SOLAR_DISABLED,
+    PLANNER_PROVIDER_MODE_SOLAR_SPIKE_MANUAL,
+    PLANNER_PROVIDER_MODE_SOLAR_SPIKE_PREFLIGHT,
     PlannerProviderPreflightRequest,
     PlannerProviderSelector,
+    build_solar_planner_mock_response_projection,
     ready_planner_provider_policy,
 )
 from apps.api.agentic_workbench_api.services.planner_provider_preflight import (
@@ -234,3 +237,120 @@ def test_solar_planner_preflight_does_not_read_env_import_sdk_or_open_network(mo
     assert public["execution_boundary"]["env_key_value_reads"] == 0
     assert public["execution_boundary"]["sdk_imports"] == 0
     assert public["execution_boundary"]["network_calls"] == 0
+
+
+def test_solar_spike_preflight_builds_hash_only_envelope_from_ready_policy():
+    selector = PlannerProviderSelector()
+    result = selector.preflight(
+        PlannerProviderPreflightRequest(
+            run_id="run-planner-spike-preflight",
+            prompt_contract_hash=_prompt_contract_hash(),
+            planner_provider_mode=PLANNER_PROVIDER_MODE_SOLAR_SPIKE_PREFLIGHT,
+            policy=ready_planner_provider_policy(),
+        )
+    )
+    public = result.to_dict()
+    envelope = public["planner_spike_envelope"]
+    serialized = _serialized(public)
+
+    assert public["status"] == "solar_spike_preflight_ready"
+    assert public["reason"] == "solar_spike_preflight_ready_no_call"
+    assert envelope["run_id"] == "run-planner-spike-preflight"
+    assert envelope["prompt_contract_hash"] == _prompt_contract_hash()
+    assert len(envelope["planning_request_hash"]) == 64
+    assert envelope["model_family"] == "solar-pro3"
+    assert envelope["timeout_seconds"] == 30
+    assert envelope["output_budget"] == 512
+    assert envelope["cost_limit_label"] == "one-shot-bounded"
+    assert len(envelope["response_projection_schema_hash"]) == 64
+    assert envelope["input_text_included"] is False
+    assert envelope["provider_body_included"] is False
+    assert public["counts"]["planner_spike_envelope_count"] == 1
+    assert public["counts"]["solar_spike_preflight_ready_count"] == 1
+    assert public["execution_boundary"]["provider_calls"] == 0
+    assert public["execution_boundary"]["env_key_value_reads"] == 0
+    assert public["execution_boundary"]["sdk_imports"] == 0
+    assert public["execution_boundary"]["network_calls"] == 0
+    assert public["claim_boundary"]["solar_spike_path"] is True
+    assert "Build a small task collaboration app" not in serialized
+    assert "raw_prompt" not in serialized
+    assert_public_projection_safe(public)
+
+
+def test_solar_spike_manual_blocks_without_operator_approval_hash():
+    selector = PlannerProviderSelector()
+    result = selector.preflight(
+        PlannerProviderPreflightRequest(
+            run_id="run-planner-spike-manual",
+            prompt_contract_hash=_prompt_contract_hash(),
+            planner_provider_mode=PLANNER_PROVIDER_MODE_SOLAR_SPIKE_MANUAL,
+            policy=ready_planner_provider_policy(),
+        )
+    ).to_dict()
+    checks = _checks(result)
+
+    assert result["status"] == "blocked"
+    assert result["reason"] == "solar_spike_operator_approval_hash_missing"
+    assert checks["solar_spike_operator_approval_hash_present"] is False
+    assert result["planner_spike_envelope"] == {}
+    assert result["execution_boundary"]["provider_calls"] == 0
+
+
+def test_solar_spike_manual_is_ready_with_operator_approval_hash_but_no_call():
+    approval_hash = stable_contract_hash(
+        {
+            "operator": "portfolio-reviewer",
+            "scope": "solar planner spike",
+        }
+    )
+    selector = PlannerProviderSelector()
+    result = selector.preflight(
+        PlannerProviderPreflightRequest(
+            run_id="run-planner-spike-manual-ready",
+            prompt_contract_hash=_prompt_contract_hash(),
+            planner_provider_mode=PLANNER_PROVIDER_MODE_SOLAR_SPIKE_MANUAL,
+            policy=ready_planner_provider_policy(),
+            operator_approval_hash=approval_hash,
+        )
+    ).to_dict()
+
+    assert result["status"] == "solar_spike_manual_ready"
+    assert result["reason"] == "manual_spike_ready_no_call"
+    assert result["counts"]["solar_spike_manual_ready_count"] == 1
+    assert result["execution_boundary"]["one_shot_execution_permission"] is False
+    assert result["execution_boundary"]["provider_calls"] == 0
+
+
+def test_solar_spike_mock_response_projection_is_sanitized_hash_only():
+    preflight = PlannerProviderSelector().preflight(
+        PlannerProviderPreflightRequest(
+            run_id="run-planner-spike-mock",
+            prompt_contract_hash=_prompt_contract_hash(),
+            planner_provider_mode=PLANNER_PROVIDER_MODE_SOLAR_SPIKE_PREFLIGHT,
+            policy=ready_planner_provider_policy(),
+        )
+    )
+    result = build_solar_planner_mock_response_projection(
+        preflight,
+        response_summary="PRD and implementation plan sections were expanded.",
+        summary_section_count=4,
+        raw_response_body="RAW_SOLAR_RESPONSE_BODY_SENTINEL secret=bad",
+    )
+    serialized = _serialized(result)
+    projection = result["response_projection"]
+
+    assert result["status"] == "mock_projected"
+    assert result["reason"] == "mock_solar_planner_response_projected"
+    assert len(result["planning_request_hash"]) == 64
+    assert len(projection["response_contract_hash"]) == 64
+    assert len(projection["content_hash"]) == 64
+    assert len(projection["summary_hash"]) == 64
+    assert projection["summary_section_count"] == 4
+    assert projection["source_body_included"] is False
+    assert projection["provider_body_included"] is False
+    assert result["counts"]["mock_response_projection_count"] == 1
+    assert result["execution_boundary"]["provider_calls"] == 0
+    assert "RAW_SOLAR_RESPONSE_BODY_SENTINEL" not in serialized
+    assert "secret=bad" not in serialized
+    assert "raw_response_body" not in serialized
+    assert_public_projection_safe(result)

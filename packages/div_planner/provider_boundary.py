@@ -24,9 +24,14 @@ from packages.core.schemas import JsonDict, stable_contract_hash
 
 
 PLANNER_PROVIDER_PREFLIGHT_VERSION = "planner-provider-preflight-public-v1"
+PLANNER_PROVIDER_SPIKE_RESPONSE_VERSION = "planner-provider-spike-response-public-v1"
 PLANNER_PROVIDER_MODE_FIXTURE = "fixture"
 PLANNER_PROVIDER_MODE_SOLAR_DISABLED = "solar_pro_3_disabled"
+PLANNER_PROVIDER_MODE_SOLAR_SPIKE_PREFLIGHT = "solar_spike_preflight"
+PLANNER_PROVIDER_MODE_SOLAR_SPIKE_MANUAL = "solar_spike_manual"
 PLANNER_PROVIDER_STAGE_TARGET = "PlanningBlueprint"
+SOLAR_SPIKE_MODEL_FAMILY = "solar-pro3"
+SOLAR_SPIKE_COST_LIMIT_LABEL = "one-shot-bounded"
 SAFE_RUN_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 CONTRACT_HASH_PATTERN = re.compile(r"^[a-f0-9]{64}$")
 
@@ -62,6 +67,9 @@ class PlannerProviderPreflightRequest:
     stage_target: str = PLANNER_PROVIDER_STAGE_TARGET
     env_key_name: str = SOLAR_PRO_3_ENV_KEY_NAME
     policy: PlannerProviderPolicy = field(default_factory=PlannerProviderPolicy)
+    operator_approval_hash: str = ""
+    model_family: str = SOLAR_SPIKE_MODEL_FAMILY
+    cost_limit_label: str = SOLAR_SPIKE_COST_LIMIT_LABEL
     metadata: JsonDict = field(default_factory=dict)
 
 
@@ -78,6 +86,7 @@ class PlannerProviderPreflightResult:
     request_contract_hash: str
     policy_hash: str
     cost_timeout_quota_hash: str
+    planner_spike_envelope: JsonDict
     checks: list[JsonDict]
     counts: JsonDict
     execution_boundary: JsonDict
@@ -127,14 +136,16 @@ def _zero_execution_boundary() -> JsonDict:
         "filesystem_writes": 0,
         "target_runtime_calls": 0,
         "response_projection_parsed": False,
+        "one_shot_execution_permission": False,
     }
 
 
-def _claim_boundary(status: str) -> JsonDict:
+def _claim_boundary(status: str, *, spike_path: bool = False) -> JsonDict:
     return {
         "scope": "planner provider preflight only",
         "status": status,
         "fixture_planner_default": True,
+        "solar_spike_path": bool(spike_path),
         "provider_generated_blueprint": False,
         "provider_success_claim": False,
         "external_provider_outcome": False,
@@ -166,6 +177,49 @@ def _cost_timeout_quota_hash(policy: PlannerProviderPolicy) -> str:
             "retry_count": policy.retry_count,
         }
     )
+
+
+def _response_projection_schema_hash() -> str:
+    return stable_contract_hash(
+        {
+            "schema": "planner-provider-spike-response-projection-v1",
+            "fields": [
+                "response_contract_hash",
+                "content_hash",
+                "summary_section_count",
+                "status",
+                "reason",
+            ],
+        }
+    )
+
+
+def _planning_request_hash(request: PlannerProviderPreflightRequest) -> str:
+    return stable_contract_hash(
+        {
+            "run_id": _safe_run_id(request.run_id),
+            "prompt_contract_hash": request.prompt_contract_hash,
+            "stage_target": request.stage_target,
+            "model_family": request.model_family,
+            "response_projection_schema_hash": _response_projection_schema_hash(),
+        }
+    )
+
+
+def _spike_envelope(request: PlannerProviderPreflightRequest) -> JsonDict:
+    policy = request.policy
+    return {
+        "run_id": _safe_run_id(request.run_id),
+        "prompt_contract_hash": request.prompt_contract_hash,
+        "planning_request_hash": _planning_request_hash(request),
+        "model_family": request.model_family,
+        "timeout_seconds": int(policy.request_timeout_seconds or 0),
+        "output_budget": int(policy.max_output_tokens or 0),
+        "cost_limit_label": request.cost_limit_label,
+        "response_projection_schema_hash": _response_projection_schema_hash(),
+        "input_text_included": False,
+        "provider_body_included": False,
+    }
 
 
 def _live_open_decision(request: PlannerProviderPreflightRequest) -> JsonDict:
@@ -211,6 +265,27 @@ def _counts(
         "live_open_eligible_count": 1
         if live_open_status == "eligible_for_separate_live_implementation"
         else 0,
+        "solar_spike_mode_count": 1
+        if status
+        in {
+            "solar_spike_preflight_ready",
+            "solar_spike_manual_ready",
+        }
+        else 0,
+        "solar_spike_preflight_ready_count": 1
+        if status == "solar_spike_preflight_ready"
+        else 0,
+        "solar_spike_manual_ready_count": 1
+        if status == "solar_spike_manual_ready"
+        else 0,
+        "planner_spike_envelope_count": 1
+        if status
+        in {
+            "solar_spike_preflight_ready",
+            "solar_spike_manual_ready",
+        }
+        else 0,
+        "mock_response_projection_count": 0,
     }
 
 
@@ -227,7 +302,12 @@ class PlannerProviderSelector:
             failures,
             name="planner_provider_mode_explicit",
             passed=request.planner_provider_mode
-            in {PLANNER_PROVIDER_MODE_FIXTURE, PLANNER_PROVIDER_MODE_SOLAR_DISABLED},
+            in {
+                PLANNER_PROVIDER_MODE_FIXTURE,
+                PLANNER_PROVIDER_MODE_SOLAR_DISABLED,
+                PLANNER_PROVIDER_MODE_SOLAR_SPIKE_PREFLIGHT,
+                PLANNER_PROVIDER_MODE_SOLAR_SPIKE_MANUAL,
+            },
             reason="planner_provider_mode_unknown",
         )
         _check(
@@ -254,6 +334,11 @@ class PlannerProviderSelector:
             reason="stage_target_invalid",
         )
 
+        spike_path = request.planner_provider_mode in {
+            PLANNER_PROVIDER_MODE_SOLAR_SPIKE_PREFLIGHT,
+            PLANNER_PROVIDER_MODE_SOLAR_SPIKE_MANUAL,
+        }
+
         if request.planner_provider_mode == PLANNER_PROVIDER_MODE_FIXTURE:
             _check(
                 checks,
@@ -270,7 +355,12 @@ class PlannerProviderSelector:
                 checks,
                 failures,
                 name="solar_planner_preflight_explicit",
-                passed=request.planner_provider_mode == PLANNER_PROVIDER_MODE_SOLAR_DISABLED,
+                passed=request.planner_provider_mode
+                in {
+                    PLANNER_PROVIDER_MODE_SOLAR_DISABLED,
+                    PLANNER_PROVIDER_MODE_SOLAR_SPIKE_PREFLIGHT,
+                    PLANNER_PROVIDER_MODE_SOLAR_SPIKE_MANUAL,
+                },
                 reason="solar_planner_mode_not_explicit",
             )
             _check(
@@ -325,8 +415,46 @@ class PlannerProviderSelector:
                 passed=True,
                 reason="planner_provider_call_enabled",
             )
-            status = "preflight_only" if not failures else "blocked"
-            reason = "provider_call_disabled_by_design" if status == "preflight_only" else failures[0]
+            if spike_path:
+                _check(
+                    checks,
+                    failures,
+                    name="solar_spike_model_family_supported",
+                    passed=request.model_family == SOLAR_SPIKE_MODEL_FAMILY,
+                    reason="solar_spike_model_family_invalid",
+                )
+                _check(
+                    checks,
+                    failures,
+                    name="solar_spike_cost_limit_label_present",
+                    passed=isinstance(request.cost_limit_label, str)
+                    and bool(request.cost_limit_label.strip()),
+                    reason="solar_spike_cost_limit_label_missing",
+                )
+                if request.planner_provider_mode == PLANNER_PROVIDER_MODE_SOLAR_SPIKE_MANUAL:
+                    _check(
+                        checks,
+                        failures,
+                        name="solar_spike_operator_approval_hash_present",
+                        passed=isinstance(request.operator_approval_hash, str)
+                        and CONTRACT_HASH_PATTERN.fullmatch(
+                            request.operator_approval_hash
+                        )
+                        is not None,
+                        reason="solar_spike_operator_approval_hash_missing",
+                    )
+            if failures:
+                status = "blocked"
+                reason = failures[0]
+            elif request.planner_provider_mode == PLANNER_PROVIDER_MODE_SOLAR_DISABLED:
+                status = "preflight_only"
+                reason = "provider_call_disabled_by_design"
+            elif request.planner_provider_mode == PLANNER_PROVIDER_MODE_SOLAR_SPIKE_MANUAL:
+                status = "solar_spike_manual_ready"
+                reason = "manual_spike_ready_no_call"
+            else:
+                status = "solar_spike_preflight_ready"
+                reason = "solar_spike_preflight_ready_no_call"
 
         request_contract_hash = stable_contract_hash(
             {
@@ -337,9 +465,23 @@ class PlannerProviderSelector:
                 "env_key_name": request.env_key_name,
                 "policy_hash": _policy_hash(policy),
                 "cost_timeout_quota_hash": _cost_timeout_quota_hash(policy),
+                "operator_approval_hash_present": bool(
+                    request.operator_approval_hash
+                ),
+                "model_family": request.model_family,
+                "cost_limit_label": request.cost_limit_label,
             }
         )
         failed_count = sum(1 for check in checks if not check["passed"])
+        planner_spike_envelope = (
+            _spike_envelope(request)
+            if status
+            in {
+                "solar_spike_preflight_ready",
+                "solar_spike_manual_ready",
+            }
+            else {}
+        )
         return PlannerProviderPreflightResult(
             projection_version=PLANNER_PROVIDER_PREFLIGHT_VERSION,
             run_id=_safe_run_id(request.run_id),
@@ -350,6 +492,7 @@ class PlannerProviderSelector:
             request_contract_hash=request_contract_hash,
             policy_hash=_policy_hash(policy),
             cost_timeout_quota_hash=_cost_timeout_quota_hash(policy),
+            planner_spike_envelope=planner_spike_envelope,
             checks=checks,
             counts=_counts(
                 status=status,
@@ -358,8 +501,100 @@ class PlannerProviderSelector:
                 live_open_status=live_open_status,
             ),
             execution_boundary=_zero_execution_boundary(),
-            claim_boundary=_claim_boundary(status),
+            claim_boundary=_claim_boundary(status, spike_path=spike_path),
         )
+
+
+def build_solar_planner_mock_response_projection(
+    preflight: PlannerProviderPreflightResult | JsonDict,
+    *,
+    response_summary: str,
+    summary_section_count: int,
+    raw_response_body: str | None = None,
+) -> JsonDict:
+    """Project a Solar-shaped mocked response without storing provider body."""
+    public = preflight.to_dict() if isinstance(
+        preflight, PlannerProviderPreflightResult
+    ) else sanitize_public_payload(dict(preflight))
+    if not isinstance(public, dict):
+        raise ValueError("planner provider preflight projection must be a mapping")
+    envelope = public.get("planner_spike_envelope", {})
+    if public.get("status") not in {
+        "solar_spike_preflight_ready",
+        "solar_spike_manual_ready",
+    } or not isinstance(envelope, dict) or not envelope:
+        result = {
+            "projection_version": PLANNER_PROVIDER_SPIKE_RESPONSE_VERSION,
+            "run_id": public.get("run_id", "run-redacted"),
+            "planner_provider_mode": public.get("planner_provider_mode", "unknown"),
+            "status": "blocked",
+            "reason": "solar_spike_preflight_not_ready",
+            "request_contract_hash": public.get("request_contract_hash", ""),
+            "planning_request_hash": "",
+            "response_projection": {},
+            "counts": {
+                "mock_response_projection_count": 0,
+                "response_body_returned_count": 0,
+                "raw_provider_body_stored_count": 0,
+            },
+            "execution_boundary": _zero_execution_boundary(),
+            "claim_boundary": _claim_boundary("blocked", spike_path=True),
+        }
+        assert_public_projection_safe(result)
+        return result
+
+    sanitized_summary = (
+        response_summary.strip()
+        if isinstance(response_summary, str) and response_summary.strip()
+        else "sanitized planner summary"
+    )
+    normalized_section_count = (
+        summary_section_count if type(summary_section_count) is int and summary_section_count > 0 else 0
+    )
+    planning_request_hash = str(envelope.get("planning_request_hash", ""))
+    content_hash = stable_contract_hash(
+        {
+            "planning_request_hash": planning_request_hash,
+            "response_summary": sanitized_summary,
+            "summary_section_count": normalized_section_count,
+            "raw_response_body_ignored": bool(raw_response_body),
+        }
+    )
+    response_contract_hash = stable_contract_hash(
+        {
+            "version": PLANNER_PROVIDER_SPIKE_RESPONSE_VERSION,
+            "request_contract_hash": public.get("request_contract_hash", ""),
+            "planning_request_hash": planning_request_hash,
+            "content_hash": content_hash,
+        }
+    )
+    result = {
+        "projection_version": PLANNER_PROVIDER_SPIKE_RESPONSE_VERSION,
+        "run_id": public.get("run_id", "run-redacted"),
+        "planner_provider_mode": public.get("planner_provider_mode", "unknown"),
+        "status": "mock_projected",
+        "reason": "mock_solar_planner_response_projected",
+        "request_contract_hash": public.get("request_contract_hash", ""),
+        "planning_request_hash": planning_request_hash,
+        "response_projection": {
+            "response_kind": "sanitized_planner_summary_hash",
+            "response_contract_hash": response_contract_hash,
+            "content_hash": content_hash,
+            "summary_hash": stable_contract_hash({"summary": sanitized_summary}),
+            "summary_section_count": normalized_section_count,
+            "source_body_included": False,
+            "provider_body_included": False,
+        },
+        "counts": {
+            "mock_response_projection_count": 1,
+            "response_body_returned_count": 0,
+            "raw_provider_body_stored_count": 0,
+        },
+        "execution_boundary": _zero_execution_boundary(),
+        "claim_boundary": _claim_boundary("mock_projected", spike_path=True),
+    }
+    assert_public_projection_safe(result)
+    return result
 
 
 def ready_planner_provider_policy(**overrides: Any) -> PlannerProviderPolicy:
@@ -385,12 +620,16 @@ def default_planner_provider_selector() -> PlannerProviderSelector:
 __all__ = [
     "PLANNER_PROVIDER_MODE_FIXTURE",
     "PLANNER_PROVIDER_MODE_SOLAR_DISABLED",
+    "PLANNER_PROVIDER_MODE_SOLAR_SPIKE_MANUAL",
+    "PLANNER_PROVIDER_MODE_SOLAR_SPIKE_PREFLIGHT",
     "PLANNER_PROVIDER_PREFLIGHT_VERSION",
+    "PLANNER_PROVIDER_SPIKE_RESPONSE_VERSION",
     "PLANNER_PROVIDER_STAGE_TARGET",
     "PlannerProviderPolicy",
     "PlannerProviderPreflightRequest",
     "PlannerProviderPreflightResult",
     "PlannerProviderSelector",
+    "build_solar_planner_mock_response_projection",
     "default_planner_provider_selector",
     "ready_planner_provider_policy",
 ]

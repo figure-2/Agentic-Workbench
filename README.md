@@ -79,9 +79,15 @@ Current implementation:
 - Static HTML UI shell over the same sanitized public demo summary
 - AW-MVP-01 service-shaped vertical slice with 7/7 stage coverage and a verification read-model endpoint
 - Disabled Solar planner provider preflight boundary for fixture-vs-preflight comparison, still no provider call
+- Controlled Solar planner one-shot spike preparation with hash-only envelope and mocked response projection, still no provider call
 - DAACS target runtime sandbox preflight boundary for dry-run-vs-preflight comparison, still no runtime call
 - Disabled generated artifact bundle contract over the persisted output manifest read model, still no runtime call or generated file body
 - Fixture-backed target runtime artifact materialization in a configured run-scoped workspace, returning relative paths, hashes, status, and counts only
+- Portfolio-facing artifact preview surface over the same public summary, showing workflow coverage, document chain status, sanitized fixture artifact cards, verification status, and zero-call counters
+- Restricted fixture app skeleton generation under a run-scoped workspace, returning generated file relative paths, hashes, byte counts, status, and zero-call counters only
+- Generated fixture app skeleton verification by workspace-relative path, content hash, and byte count, returning hash/status/count projection only
+- Build-ready candidate manifest for the generated fixture app, returning script labels, dependency labels, source marker counts, hashes, status, and zero-call counters only
+- Explicit opt-in local fixture app package/build attempt in a run-scoped workspace, returning command labels, exit-code hashes, output hashes, byte counts, durations, status, and counts only
 - Disabled-by-default Solar Pro 3 provider adapter skeleton with fake/live path separation
 - No-call Solar Pro 3 request/response contract fixtures with cost/timeout policy checks
 - Provider envelope persistence/read-model projection for no-call Solar contract evidence
@@ -156,9 +162,11 @@ Not included in the current scope:
 
 - Real external provider calls
 - Direct original runtime execution
-- Generated application artifact production, except disabled bundle contracts and sanitized local fixture artifacts
+- Generated application artifact production, except disabled bundle contracts, sanitized local fixture artifacts, restricted fixture app skeleton files, hash-only verification of those fixture files, static validation of the generated fixture workspace, build-ready candidate manifest projection, and explicit opt-in local fixture app package/build attempt evidence
+- Deployed app preview or package/build verification beyond the local fixture
+  attempt evidence
 - CLI agent execution
-- Package install, server start, unrestricted file write
+- Server start, unrestricted file write, and package install/build outside the explicit run-scoped local fixture app build attempt path
 - Hosted deployment success claim
 - Production security, trust, or durable persistence claim
 - Hosted or production database persistence claim
@@ -187,12 +195,12 @@ python -m pytest tests
 Latest documented local baseline:
 
 ```text
-Measurement date: 2026-06-02
-Pytest: 567 / 567 passed
+Measurement date: 2026-06-05
+Pytest: 710 / 710 passed
 Live LLM calls in offline/dry-run/fake paths: 0
 Live API calls in offline/dry-run/fake paths: 0
 Provider calls/imports in the latest documented eval: 0
-Network calls in the latest documented eval: 0
+Provider/runtime network calls in the latest documented eval: 0
 Direct original-runtime calls in the latest documented eval: 0
 ```
 
@@ -218,6 +226,9 @@ Allowed public summary:
 - Composed canonical run/evidence read models for local projection rows
 - Local fixture/dry-run service-shaped demo over the public API boundary
 - Minimal local Markdown/CLI run status surface over fixture/dry-run projections
+- Local restricted fixture app skeleton, hash verification, static validation,
+  build-ready candidate manifest, and explicit opt-in local fixture app
+  package/build attempt with server/provider/runtime calls kept at `0`
 - Live-open readiness policy gate that keeps provider/runtime calls at 0 and does not grant execution permission
 - Static local UI shell over sanitized fixture/dry-run projections
 - Disabled Solar Pro 3 provider adapter skeleton with provider calls kept at 0
@@ -292,6 +303,10 @@ Do not interpret current results as:
 - Real external-provider integration success
 - Direct original runtime execution success
 - Generated application production
+- Build-ready candidate manifest as package install success, build success,
+  server start, hosted behavior, or generated app production
+- Local build preflight as package install success, build success, server start,
+  hosted behavior, or generated app production
 - Hosted deployment success
 - Production security or durable replay infrastructure
 - Benchmark, success-rate, or productivity proof
@@ -391,4 +406,14 @@ Current status addendum: AW-DAACS-RUNTIME-05 defines a disabled generated artifa
 
 Current status addendum: AW-DAACS-RUNTIME-06 materializes sanitized fixture artifacts under a configured run-scoped local workspace. The public projection returns relative paths, hashes, status, reason, counts, repository flags, and claim boundary only. It does not expose file bodies or local root paths, and target runtime calls remain `0`.
 
-Next implementation track: AW-APP-01 should add a portfolio-facing artifact preview/read surface over the public fixture materialization projection. The goal is reviewer-visible output shape without exposing raw file bodies or claiming target-runtime execution.
+Current status addendum: AW-VERIFY-01 verifies the restricted fixture app skeleton files by workspace-relative path, content hash, and byte count. The public projection returns verification hashes, status, reasons, counts, repository flags, and zero-call counters only. It reads local fixture files for hashing but does not expose file bodies, local root paths, provider payloads, or runtime output.
+
+Current status addendum: AW-BUILD-01 statically validates the verified fixture app workspace. It checks package JSON parsing, required script labels, App/API markers, and zero-call notes while keeping package install, build, server start, provider calls, network calls, subprocess calls, and DAACS target runtime calls at `0`.
+
+Current status addendum: AW-BUILD-02 hardens the generated fixture app manifest into a build-ready candidate projection. It checks script labels, dependency labels, `index.html`, `src/main.tsx`, `vite.config.ts`, and `tsconfig.json` markers while keeping package install, build, server start, provider calls, network calls, subprocess calls, and DAACS target runtime calls at `0`.
+
+Current status addendum: AW-BUILD-03 adds local build preflight over the build-ready candidate manifest. It exposes command labels, command hashes, opt-in requirement, and zero default execution counters while keeping package install, build, server start, provider calls, network calls, subprocess calls, and DAACS target runtime calls at `0`.
+
+Current status addendum: AW-BUILD-04 adds one explicit opt-in local fixture app package/build attempt inside a run-scoped generated workspace. The measured local path records two sanitized command outcomes, package install count `1`, build count `1`, server start count `0`, provider call count `0`, and DAACS target runtime call count `0`.
+
+Next implementation track: package the service-shaped demo and preview into a portfolio review flow that can be run with one documented command, while keeping hosted behavior and runtime/provider claims out of scope until separately measured.

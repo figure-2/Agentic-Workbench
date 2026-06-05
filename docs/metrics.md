@@ -2,7 +2,7 @@
 
 ## Measurement Date
 
-2026-06-03
+2026-06-05
 
 ## Source Project Metrics
 
@@ -33,24 +33,149 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-DAACS-RUNTIME-06` fixture artifact materialization
-boundary.
+Current snapshot after `AW-BUILD-04` explicit local fixture app build attempt.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and local artifacts | 415 |
-| Counted code/doc files, excluding cache and local artifacts | 412 |
-| Project lines, excluding cache and local artifacts | 105,749 |
-| Python files | 101 |
-| Markdown files | 307 |
-| Test files | 42 |
-| Unit test files | 32 |
-| Smoke test files | 9 |
+| Project files, excluding cache and local artifacts | 428 |
+| Counted code/doc files, excluding cache and local artifacts | 427 |
+| Project lines, excluding cache and local artifacts | 114,702 |
+| Python files | 121 |
+| Markdown files | 302 |
+| Test files | 49 |
+| Unit test files | 38 |
+| Smoke test files | 10 |
 | Integration test files | 1 |
-| Pytest collected cases | 640 |
-| Pytest passed cases | 640 |
+| Pytest collected cases | 710 |
+| Pytest passed cases | 710 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
+
+## AW-DAACS-RUNTIME-MVP-01 Restricted Workspace Generation Metrics
+
+Measured after adding the local restricted fixture app skeleton generation
+surface.
+
+| Metric | Value |
+|---|---:|
+| Generated workspace scenarios | 1 |
+| Generated files | 9 |
+| File hash count | 9 |
+| Required generated paths | 9/9 |
+| Demo comparison variants | 7 |
+| Write allowlist violations | 0 |
+| Path traversal-like template fixtures blocked | 1 |
+| Absolute-like template fixtures blocked | 1 |
+| Unsafe run id fixtures blocked | 1 |
+| Raw file content returns | 0 |
+| Local root path returns | 0 |
+| Solar Pro 3 provider calls | 0 |
+| DAACS target runtime calls | 0 |
+| SDK imports | 0 |
+| Env value reads | 0 |
+| Network calls | 0 |
+| Subprocess calls | 0 |
+| Package installs | 0 |
+| Builds | 0 |
+| Server starts | 0 |
+| New unit tests | 9 |
+| New smoke tests | 2 |
+
+| Surface | Generated file cards | Stage coverage | Provider calls | Target runtime calls | Builds |
+|---|---:|---:|---:|---:|---:|
+| JSON demo summary | 9 | 7/7 | 0 | 0 | 0 |
+| AW-APP-01 preview | 9 | 7/7 | 0 | 0 | 0 |
+
+Verification:
+
+```text
+python -m pytest tests\unit\test_target_runtime_restricted_workspace_generation.py tests\smoke\test_daacs_runtime_preflight.py tests\smoke\test_artifact_preview_surface.py -q
+20 passed
+python -m pytest tests -q
+659 passed in 234.11s
+```
+
+## AW-SOLAR-02 Planner One-Shot Spike Metrics
+
+Measured after adding the controlled Solar planner spike envelope and mocked
+response projection.
+
+| Metric | Value |
+|---|---:|
+| Default planner mode | fixture |
+| Solar spike modes added | 2 |
+| Official references checked | 3 |
+| Planner spike envelope count in demo | 1 |
+| Mocked response projection count in demo | 1 |
+| Demo comparison variants | 3 |
+| Fixture stage coverage | 7/7 |
+| Raw prompt persistence findings | 0 |
+| Raw provider body persistence findings | 0 |
+| Env value reads in automated tests | 0 |
+| SDK imports in automated tests | 0 |
+| Network calls in automated tests | 0 |
+| Provider calls in automated tests | 0 |
+| New unit tests | 4 |
+| New smoke tests | 2 |
+
+| Variant | Status | Stage coverage | Provider calls | SDK imports | Env value reads | Network calls |
+|---|---|---:|---:|---:|---:|---:|
+| `fixture_planner` | passed | 7/7 | 0 | 0 | 0 | 0 |
+| `solar_pro_3_disabled_preflight` | preflight_only | preflight-only | 0 | 0 | 0 | 0 |
+| `solar_spike_preflight_mock` | mock_projected | fixture remains 7/7 | 0 | 0 | 0 | 0 |
+
+Verification:
+
+```text
+python -m pytest tests\unit\test_planner_provider_preflight.py tests\smoke\test_solar_planner_preflight.py -q
+15 passed
+python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-solar-02-demo --include-solar-planner-spike
+status passed, solar_spike_status mock_projected, provider/network calls 0
+python -m pytest tests -q
+648 passed in 230.04s
+```
+
+## AW-APP-01 Artifact Preview Metrics
+
+Measured after adding the local portfolio-facing artifact preview surface.
+
+| Metric | Value |
+|---|---:|
+| Golden path scenario count | 1 |
+| Workflow stage coverage | 7/7 |
+| Workflow stage coverage percent | 100.0 |
+| Demo artifact count | 6 |
+| Preview fixture artifact cards | 3 |
+| Document chain rows | 5 |
+| DAACS runtime comparison variants | 6 |
+| Fixture materialization record count | 3 |
+| Fixture materialization content hash count | 3 |
+| Fixture workspace writes | 3 |
+| Fixture writes outside workspace | 0 |
+| Raw exposure findings | 0 |
+| Public claim drift findings | 0 |
+| Solar Pro 3 provider calls | 0 |
+| DAACS target runtime calls | 0 |
+| Network calls | 0 |
+| Subprocess calls | 0 |
+| Local root path returns | 0 |
+| Artifact content returns | 0 |
+| New smoke tests | 2 |
+
+| Surface | Artifact cards | Stage coverage | Provider calls | Target runtime calls |
+|---|---:|---:|---:|---:|
+| JSON demo summary | 0 | 7/7 | 0 | 0 |
+| Static UI shell | 0 | 7/7 | 0 | 0 |
+| AW-APP-01 preview | 3 | 7/7 | 0 | 0 |
+
+Verification:
+
+```text
+python -m pytest tests\smoke\test_artifact_preview_surface.py -q
+2 passed
+python -m pytest tests -q
+642 passed in 201.61s
+```
 
 ## AW-NEXT-01 Gate Metrics
 
@@ -5552,19 +5677,367 @@ by writing local sanitized fixture artifacts. It does not add provider calls,
 subprocess execution, package installation, server start, network access,
 target runtime execution, raw file storage, build success, or hosted behavior.
 
+## AW-VERIFY-01 Generated Artifact Verification Metrics
+
+`AW-VERIFY-01` verifies the restricted fixture app skeleton files generated
+under a run-scoped workspace. It checks workspace-relative paths, content
+hashes, and byte counts. Public projections return status, hashes, reasons,
+counts, repository flags, and zero-call counters only.
+
+| Metric | Value |
+|---|---:|
+| Verification scenarios | 1 |
+| Comparison variants | 8 |
+| Dry-run fixture stage coverage | 7/7 |
+| Generated fixture files expected | 9 |
+| Generated fixture files checked | 9 |
+| Content hash matches | 9 |
+| Byte count matches | 9 |
+| File read count for hash verification | 9 |
+| Missing file fixtures blocked | 1 |
+| Path traversal fixtures blocked | 1 |
+| Absolute path fixtures blocked | 1 |
+| Workspace hash mismatch fixtures blocked | 1 |
+| Public artifact body return count | 0 |
+| Public root path return count | 0 |
+| Execution permission count | 0 |
+| Provider calls | 0 |
+| SDK imports | 0 |
+| Env value reads | 0 |
+| Network calls | 0 |
+| Subprocess calls | 0 |
+| Package installs | 0 |
+| Builds | 0 |
+| Server starts | 0 |
+| DAACS target runtime calls | 0 |
+| Raw exposure findings | 0 |
+| Public claim drift findings | 0 |
+| New unit tests | 10 |
+| Updated smoke tests | 2 |
+
+| Comparison Variant | Status | Stage Coverage | Checked Files | File Reads | Subprocess Calls | Network Calls | Runtime Calls |
+|---|---|---:|---:|---:|---:|---:|---:|
+| `dry_run_runner` | passed | 7/7 | n/a | 0 | 0 | 0 | 0 |
+| `target_runtime_preflight` | blocked | preflight-only | n/a | 0 | 0 | 0 | 0 |
+| `persisted_disabled_adapter_admission` | blocked/read-model available | adapter-disabled | n/a | 0 | 0 | 0 | 0 |
+| `persisted_disabled_output_manifest` | blocked/read-model available | manifest-only | n/a | 0 | 0 | 0 | 0 |
+| `disabled_generated_artifact_bundle` | blocked | bundle-only | n/a | 0 | 0 | 0 | 0 |
+| `fixture_artifact_materialization` | passed | fixture-only | 3 | 0 | 0 | 0 | 0 |
+| `restricted_workspace_generation` | passed | fixture-only | 9 | 0 | 0 | 0 | 0 |
+| `generated_artifact_verification` | passed | verification-only | 9 | 9 | 0 | 0 | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m compileall packages\daacs_builder\target_runtime_generated_artifact_verification.py apps\api\agentic_workbench_api\services\target_runtime_generated_artifact_verification.py apps\api\agentic_workbench_api\main.py examples\demo-service-flow\run_local_demo.py examples\demo-service-flow\render_artifact_preview.py tests\unit\test_target_runtime_generated_artifact_verification.py tests\smoke\test_daacs_runtime_preflight.py tests\smoke\test_artifact_preview_surface.py` | passed |
+| `python -m pytest tests\unit\test_target_runtime_generated_artifact_verification.py -q` | 10 passed |
+| `python -m pytest tests\smoke\test_daacs_runtime_preflight.py tests\smoke\test_artifact_preview_surface.py -q` | 12 passed |
+| `python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-verify-01-demo --include-daacs-runtime-generated-artifact-verification` | passed |
+| `python examples\demo-service-flow\render_artifact_preview.py --store-root .local\aw-verify-01-preview --output .local\aw-verify-01-preview.html` | passed |
+| `python -m pytest tests -q --color=no` | 670 passed |
+| `git diff --check` | passed |
+
+Interpretation: AW-VERIFY-01 makes generated fixture files verifiable by local
+hash and byte-count checks. It does not add package installation, build,
+server start, DAACS target runtime execution, provider calls, network calls,
+raw file exposure, or hosted behavior.
+
+## AW-BUILD-01 Generated Workspace Static Validation Metrics
+
+`AW-BUILD-01` statically validates the verified restricted fixture app
+workspace. It checks package JSON parsing, script labels, frontend/API markers,
+and zero-call verification notes without running install/build/server commands.
+
+| Metric | Value |
+|---|---:|
+| Static validation scenarios | 1 |
+| Comparison variants | 9 |
+| Dry-run fixture stage coverage | 7/7 |
+| Verified file records used | 9 |
+| Files statically checked | 9 |
+| Static file reads | 9 |
+| JSON parse checks | 1 |
+| JSON parse passes | 1 |
+| Required script labels | 4/4 |
+| App component markers | 2/2 |
+| API client markers | 2/2 |
+| Zero-call report markers | 5/5 |
+| Invalid package JSON fixtures blocked | 1 |
+| Missing script fixtures blocked | 1 |
+| Missing component marker fixtures blocked | 1 |
+| Public artifact body return count | 0 |
+| Public root path return count | 0 |
+| Execution permission count | 0 |
+| Provider calls | 0 |
+| SDK imports | 0 |
+| Env value reads | 0 |
+| Network calls | 0 |
+| Subprocess calls | 0 |
+| Package installs | 0 |
+| Builds | 0 |
+| Server starts | 0 |
+| DAACS target runtime calls | 0 |
+| Raw exposure findings | 0 |
+| Public claim drift findings | 0 |
+| New unit tests | 10 |
+| Updated smoke tests | 2 |
+
+| Comparison Variant | Status | Stage Coverage | Static Files | File Reads | Package Installs | Builds | Runtime Calls |
+|---|---|---:|---:|---:|---:|---:|---:|
+| `dry_run_runner` | passed | 7/7 | n/a | 0 | 0 | 0 | 0 |
+| `target_runtime_preflight` | blocked | preflight-only | n/a | 0 | 0 | 0 | 0 |
+| `persisted_disabled_adapter_admission` | blocked/read-model available | adapter-disabled | n/a | 0 | 0 | 0 | 0 |
+| `persisted_disabled_output_manifest` | blocked/read-model available | manifest-only | n/a | 0 | 0 | 0 | 0 |
+| `disabled_generated_artifact_bundle` | blocked | bundle-only | n/a | 0 | 0 | 0 | 0 |
+| `fixture_artifact_materialization` | passed | fixture-only | 3 | 0 | 0 | 0 | 0 |
+| `restricted_workspace_generation` | passed | fixture-only | 9 | 0 | 0 | 0 | 0 |
+| `generated_artifact_verification` | passed | verification-only | 9 | 9 | 0 | 0 | 0 |
+| `generated_workspace_static_validation` | passed | static-validation-only | 9 | 9 | 0 | 0 | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m compileall packages\daacs_builder\target_runtime_generated_workspace_static_validation.py apps\api\agentic_workbench_api\services\target_runtime_generated_workspace_static_validation.py apps\api\agentic_workbench_api\main.py examples\demo-service-flow\run_local_demo.py examples\demo-service-flow\render_artifact_preview.py tests\unit\test_target_runtime_generated_workspace_static_validation.py tests\smoke\test_daacs_runtime_preflight.py tests\smoke\test_artifact_preview_surface.py` | passed |
+| `python -m pytest tests\unit\test_target_runtime_generated_workspace_static_validation.py -q --color=no` | 10 passed |
+| `python -m pytest tests\smoke\test_daacs_runtime_preflight.py tests\smoke\test_artifact_preview_surface.py -q --color=no` | 13 passed |
+| `python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-build-01-demo --include-daacs-runtime-generated-workspace-static-validation` | passed |
+| `python examples\demo-service-flow\render_artifact_preview.py --store-root .local\aw-build-01-preview --output .local\aw-build-01-preview.html` | passed |
+| `python -m pytest tests -q --color=no` | 681 passed |
+| `git diff --check` | passed |
+
+Interpretation: AW-BUILD-01 raises the generated fixture workspace from
+hash-verified files to static app-shape validation. It does not add package
+installation, build, server start, DAACS target runtime execution, provider
+calls, network calls, raw file exposure, or hosted behavior.
+
+## AW-BUILD-02 Buildable Fixture App Manifest Metrics
+
+`AW-BUILD-02` hardens the generated fixture workspace into a build-ready
+candidate manifest. It records package script labels, dependency labels,
+source entrypoint markers, hashes, counts, and zero-call boundaries without
+running package installation, build, server start, provider calls, network
+calls, subprocess calls, or DAACS target runtime execution.
+
+| Metric | Value |
+|---|---:|
+| Build-readiness scenarios | 1 |
+| Comparison variants | 10 |
+| Dry-run fixture stage coverage | 7/7 |
+| Generated fixture files | 9 |
+| Verified file records used | 9 |
+| Static validation file reads | 9 |
+| Build-ready required file reads | 5 |
+| Required script labels | 4/4 |
+| Dependency labels | 7 |
+| Placeholder dependency values | 0 |
+| Index entry markers | 2/2 |
+| Main entrypoint markers | 2/2 |
+| Vite config markers | 2/2 |
+| TS config markers | 2/2 |
+| Package manifest dependency values returned | 0 |
+| Public artifact body return count | 0 |
+| Public root path return count | 0 |
+| Execution permission count | 0 |
+| Provider calls | 0 |
+| SDK imports | 0 |
+| Env value reads | 0 |
+| Network calls | 0 |
+| Subprocess calls | 0 |
+| Package installs | 0 |
+| Builds | 0 |
+| Server starts | 0 |
+| DAACS target runtime calls | 0 |
+| Raw exposure findings | 0 |
+| Public claim drift findings | 0 |
+| New unit tests | 9 |
+| Updated smoke tests | 1 |
+
+| Comparison Variant | Status | Stage Coverage | Generated Files | File Reads | Package Installs | Builds | Runtime Calls |
+|---|---|---:|---:|---:|---:|---:|---:|
+| `dry_run_runner` | passed | 7/7 | n/a | 0 | 0 | 0 | 0 |
+| `target_runtime_preflight` | blocked | preflight-only | n/a | 0 | 0 | 0 | 0 |
+| `persisted_disabled_adapter_admission` | blocked/read-model available | adapter-disabled | n/a | 0 | 0 | 0 | 0 |
+| `persisted_disabled_output_manifest` | blocked/read-model available | manifest-only | n/a | 0 | 0 | 0 | 0 |
+| `disabled_generated_artifact_bundle` | blocked | bundle-only | n/a | 0 | 0 | 0 | 0 |
+| `fixture_artifact_materialization` | passed | fixture-only | 3 | 0 | 0 | 0 | 0 |
+| `restricted_workspace_generation` | passed | fixture-only | 9 | 0 | 0 | 0 | 0 |
+| `generated_artifact_verification` | passed | verification-only | 9 | 9 | 0 | 0 | 0 |
+| `generated_workspace_static_validation` | passed | static-validation-only | 9 | 9 | 0 | 0 | 0 |
+| `buildable_fixture_manifest` | passed | manifest-only | 9 | 5 | 0 | 0 | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m compileall packages\daacs_builder\target_runtime_restricted_workspace_generation.py packages\daacs_builder\target_runtime_buildable_fixture_manifest.py apps\api\agentic_workbench_api\services\target_runtime_buildable_fixture_manifest.py apps\api\agentic_workbench_api\main.py examples\demo-service-flow\run_local_demo.py examples\demo-service-flow\render_artifact_preview.py tests\unit\test_target_runtime_buildable_fixture_manifest.py tests\unit\test_target_runtime_restricted_workspace_generation.py tests\unit\test_target_runtime_generated_artifact_verification.py tests\unit\test_target_runtime_generated_workspace_static_validation.py tests\smoke\test_daacs_runtime_preflight.py tests\smoke\test_artifact_preview_surface.py` | passed |
+| `python -m pytest tests\unit\test_target_runtime_buildable_fixture_manifest.py tests\unit\test_target_runtime_restricted_workspace_generation.py tests\unit\test_target_runtime_generated_artifact_verification.py tests\unit\test_target_runtime_generated_workspace_static_validation.py -q --color=no` | 38 passed |
+| `python -m pytest tests\smoke\test_daacs_runtime_preflight.py tests\smoke\test_artifact_preview_surface.py -q --color=no` | 14 passed |
+| `python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-build-02-demo --include-daacs-runtime-buildable-fixture-manifest` | passed |
+| `python examples\demo-service-flow\render_artifact_preview.py --store-root .local\aw-build-02-preview --output .local\aw-build-02-preview.html` | passed |
+| `python -m pytest tests -q --color=no` | 691 passed |
+| `python -m pytest tests\unit\test_public_claim_projection_docs.py -q --color=no` | 3 passed |
+| `git diff --check` | passed |
+
+Interpretation: AW-BUILD-02 makes the fixture app a build-ready candidate by
+manifest and static source shape only. It does not claim package install
+success, local build success, server start, hosted behavior, Solar Pro 3
+output, or DAACS target runtime execution.
+
+## AW-BUILD-03 Local Build Preflight Metrics
+
+`AW-BUILD-03` adds an explicit local build preflight over the AW-BUILD-02
+buildable fixture app manifest. It records command labels, manifest hash
+linkage, opt-in requirement, and zero default execution counters without
+running package installation, build, server start, provider calls, network
+calls, subprocess calls, or DAACS target runtime execution.
+
+| Metric | Value |
+|---|---:|
+| Build preflight scenarios | 1 |
+| Comparison variants | 11 |
+| Dry-run fixture stage coverage | 7/7 |
+| Generated fixture files | 9 |
+| Build-ready required file reads | 5 |
+| Local build command labels | 4 |
+| Local build command hashes | 4 |
+| Explicit local build opt-in required | 1 |
+| Operator opt-in present by default | 0 |
+| Execution permission count | 0 |
+| Dependency value returns | 0 |
+| Public artifact body return count | 0 |
+| Public root path return count | 0 |
+| Provider calls | 0 |
+| SDK imports | 0 |
+| Env value reads | 0 |
+| Network calls | 0 |
+| Subprocess calls | 0 |
+| Package installs | 0 |
+| Builds | 0 |
+| Server starts | 0 |
+| DAACS target runtime calls | 0 |
+| Raw exposure findings | 0 |
+| Public claim drift findings | 0 |
+| New unit tests | 8 |
+| Updated smoke tests | 3 |
+
+| Comparison Variant | Status | Stage Coverage | Generated Files | File Reads | Package Installs | Builds | Runtime Calls |
+|---|---|---:|---:|---:|---:|---:|---:|
+| `dry_run_runner` | passed | 7/7 | n/a | 0 | 0 | 0 | 0 |
+| `target_runtime_preflight` | blocked | preflight-only | n/a | 0 | 0 | 0 | 0 |
+| `persisted_disabled_adapter_admission` | blocked/read-model available | adapter-disabled | n/a | 0 | 0 | 0 | 0 |
+| `persisted_disabled_output_manifest` | blocked/read-model available | manifest-only | n/a | 0 | 0 | 0 | 0 |
+| `disabled_generated_artifact_bundle` | blocked | bundle-only | n/a | 0 | 0 | 0 | 0 |
+| `fixture_artifact_materialization` | passed | fixture-only | 3 | 0 | 0 | 0 | 0 |
+| `restricted_workspace_generation` | passed | fixture-only | 9 | 0 | 0 | 0 | 0 |
+| `generated_artifact_verification` | passed | verification-only | 9 | 9 | 0 | 0 | 0 |
+| `generated_workspace_static_validation` | passed | static-validation-only | 9 | 9 | 0 | 0 | 0 |
+| `buildable_fixture_manifest` | passed | manifest-only | 9 | 5 | 0 | 0 | 0 |
+| `local_build_preflight` | passed | preflight-only | 9 | 5 | 0 | 0 | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m compileall packages\daacs_builder\target_runtime_local_build_preflight.py apps\api\agentic_workbench_api\services\target_runtime_local_build_preflight.py apps\api\agentic_workbench_api\main.py examples\demo-service-flow\run_local_demo.py examples\demo-service-flow\render_artifact_preview.py tests\unit\test_target_runtime_local_build_preflight.py tests\smoke\test_daacs_runtime_preflight.py tests\smoke\test_artifact_preview_surface.py` | passed |
+| `python -m pytest tests\unit\test_target_runtime_local_build_preflight.py tests\unit\test_target_runtime_buildable_fixture_manifest.py -q --color=no` | 17 passed |
+| `python -m pytest tests\smoke\test_daacs_runtime_preflight.py tests\smoke\test_artifact_preview_surface.py -q --color=no` | 16 passed |
+| `python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-build-03-demo --include-daacs-runtime-local-build-preflight` | passed |
+| `python examples\demo-service-flow\render_artifact_preview.py --store-root .local\aw-build-03-preview --output .local\aw-build-03-preview.html` | passed |
+| `python -m pytest tests -q --color=no` | 701 passed |
+
+Interpretation: AW-BUILD-03 makes the generated fixture app eligible for a
+future explicit local build attempt by preflight only. It does not claim
+package install success, local build success, server start, hosted behavior,
+Solar Pro 3 output, or DAACS target runtime execution.
+
+## AW-BUILD-04 Explicit Local Fixture App Build Attempt Metrics
+
+`AW-BUILD-04` runs one explicit opt-in local fixture app package/build attempt
+inside the run-scoped generated workspace. The default path remains blocked.
+The attempted path records sanitized command labels, exit-code hashes, output
+hashes, byte counts, durations, status, reason, and counters only.
+
+| Metric | Value |
+|---|---:|
+| Local build attempt scenarios | 1 |
+| Comparison variants | 12 |
+| Dry-run fixture stage coverage | 7/7 |
+| Generated fixture app files | 9 |
+| Required preflight hash match | 1/1 |
+| Operator opt-in present | 1 |
+| Local command execution allowed | 1 |
+| Command result count | 2 |
+| Command output hash count | 2 |
+| Package install attempts | 1 |
+| Package install calls | 1 |
+| Build attempts | 1 |
+| Build calls | 1 |
+| Server start attempts | 0 |
+| Server start calls | 0 |
+| Subprocess calls | 2 |
+| Package-manager network attempts | 1 |
+| Provider calls | 0 |
+| SDK imports | 0 |
+| Env value reads | 0 |
+| DAACS target runtime calls | 0 |
+| Raw command output returns | 0 |
+| Public artifact body return count | 0 |
+| Public root path return count | 0 |
+| Failed checks | 0 |
+| Public claim drift findings | 0 |
+| New unit tests | 6 |
+| Updated smoke tests | 3 |
+
+| Comparison Variant | Status | Stage Coverage | Generated Files | Package Installs | Builds | Server Starts | Runtime Calls |
+|---|---|---:|---:|---:|---:|---:|---:|
+| `dry_run_runner` | passed | 7/7 | n/a | 0 | 0 | 0 | 0 |
+| `target_runtime_preflight` | blocked | preflight-only | n/a | 0 | 0 | 0 | 0 |
+| `persisted_disabled_adapter_admission` | blocked/read-model available | adapter-disabled | n/a | 0 | 0 | 0 | 0 |
+| `persisted_disabled_output_manifest` | blocked/read-model available | manifest-only | n/a | 0 | 0 | 0 | 0 |
+| `disabled_generated_artifact_bundle` | blocked | bundle-only | n/a | 0 | 0 | 0 | 0 |
+| `fixture_artifact_materialization` | passed | fixture-only | 3 | 0 | 0 | 0 | 0 |
+| `restricted_workspace_generation` | passed | fixture-only | 9 | 0 | 0 | 0 | 0 |
+| `generated_artifact_verification` | passed | verification-only | 9 | 0 | 0 | 0 | 0 |
+| `generated_workspace_static_validation` | passed | static-validation-only | 9 | 0 | 0 | 0 | 0 |
+| `buildable_fixture_manifest` | passed | manifest-only | 9 | 0 | 0 | 0 | 0 |
+| `local_build_preflight` | passed | preflight-only | 9 | 0 | 0 | 0 | 0 |
+| `local_build_attempt` | passed | local-build-attempt-only | 9 | 1 | 1 | 0 | 0 |
+
+| Local Environment | Result |
+|---|---|
+| Node.js | `v24.15.0` |
+| npm | `11.12.1` |
+| Package install command | exit code `0` |
+| Build command | exit code `0` |
+| Sanitized install output byte count | `25` |
+| Sanitized build output byte count | `389` |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m compileall packages\daacs_builder\target_runtime_local_build_attempt.py apps\api\agentic_workbench_api\services\target_runtime_local_build_attempt.py apps\api\agentic_workbench_api\main.py` | passed |
+| `python -m pytest tests\unit\test_target_runtime_local_build_attempt.py -q --color=no` | 6 passed |
+| `python -m pytest tests\smoke\test_daacs_runtime_preflight.py::test_daacs_runtime_local_build_attempt_api_requires_explicit_opt_in tests\smoke\test_daacs_runtime_preflight.py::test_local_service_demo_records_local_build_attempt_as_blocked_without_allow -q --color=no` | 2 passed |
+| `python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-build-04-demo --include-daacs-runtime-local-build-attempt --allow-local-build-attempt` | passed |
+| `python -m pytest tests\smoke\test_artifact_preview_surface.py -q --color=no` | 3 passed |
+| `python -m pytest tests\unit\test_public_claim_projection_docs.py -q --color=no` | 3 passed |
+| `python -m pytest tests -q --color=no` | 710 passed |
+| `git diff --check` | passed |
+
+Interpretation: AW-BUILD-04 proves that the generated fixture app can reach a
+measured opt-in local package/build attempt in the current local environment.
+It does not claim server start, hosted behavior, external provider output,
+Solar Pro 3 planner output, or DAACS target runtime execution.
+
 ## Next Implementation Measurement Plan
 
-The next implementation work should prioritize a reviewer-facing artifact
-preview/read surface over the public materialization projection.
+The next implementation work should package the service-shaped demo and local
+preview into a reviewer-friendly portfolio flow.
 
 | Work Order | Primary target | Required boundary |
 |---|---|---|
-| `AW-APP-01` | portfolio-facing artifact preview/read surface | public projection only; no raw file bodies or local roots |
+| `AW-DEMO-FINAL-01` | one-command portfolio demo package | local summary/preview/build evidence only, no hosting claim, no provider call, no DAACS target runtime execution |
 
 | Planned Metric | Target |
 |---|---:|
-| Materialized fixture artifact preview coverage | 3/3 |
+| Portfolio demo command count | 1 |
+| Stage coverage | 7/7 |
+| Fixture app build attempt evidence included | 1 |
+| Preview HTML generated | 1 |
+| Server starts | 0 |
+| Provider/DAACS runtime calls | 0 |
 | Public raw file body exposure | 0 |
 | Local root path exposure | 0 |
-| Provider/subprocess/network calls | 0 |
-| Public claim drift findings | 0 |

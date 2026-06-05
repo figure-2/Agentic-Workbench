@@ -14,6 +14,7 @@ from packages.div_planner.provider_boundary import (
     PLANNER_PROVIDER_MODE_SOLAR_DISABLED,
     PlannerProviderPolicy,
     PlannerProviderPreflightRequest,
+    build_solar_planner_mock_response_projection,
     default_planner_provider_selector,
 )
 
@@ -56,8 +57,29 @@ def run_planner_provider_preflight(payload: dict[str, Any]) -> dict[str, Any]:
         stage_target=str(payload.get("stage_target", "PlanningBlueprint")),
         env_key_name=str(payload.get("env_key_name", "UPSTAGE_API_KEY")),
         policy=_policy_from_payload(payload),
+        operator_approval_hash=str(payload.get("operator_approval_hash", "")),
+        model_family=str(payload.get("model_family", "solar-pro3")),
+        cost_limit_label=str(payload.get("cost_limit_label", "one-shot-bounded")),
         metadata={},
     )
     result = default_planner_provider_selector().preflight(request).to_dict()
+    assert_public_projection_safe(result)
+    return result
+
+
+def run_planner_provider_spike_mock_response(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return a sanitized mocked Solar planner response projection."""
+    preflight = run_planner_provider_preflight(payload)
+    result = build_solar_planner_mock_response_projection(
+        preflight,
+        response_summary=str(
+            payload.get(
+                "response_summary",
+                "sanitized Solar planner spike summary",
+            )
+        ),
+        summary_section_count=payload.get("summary_section_count", 0),
+        raw_response_body=payload.get("raw_response_body"),
+    )
     assert_public_projection_safe(result)
     return result
