@@ -88,6 +88,7 @@ Current implementation:
 - Generated fixture app skeleton verification by workspace-relative path, content hash, and byte count, returning hash/status/count projection only
 - Build-ready candidate manifest for the generated fixture app, returning script labels, dependency labels, source marker counts, hashes, status, and zero-call counters only
 - Explicit opt-in local fixture app package/build attempt in a run-scoped workspace, returning command labels, exit-code hashes, output hashes, byte counts, durations, status, and counts only
+- One-command local portfolio demo package that writes a sanitized JSON summary and static HTML preview over the same public projection
 - Disabled-by-default Solar Pro 3 provider adapter skeleton with fake/live path separation
 - No-call Solar Pro 3 request/response contract fixtures with cost/timeout policy checks
 - Provider envelope persistence/read-model projection for no-call Solar contract evidence
@@ -192,11 +193,31 @@ Run the local test suite:
 python -m pytest tests
 ```
 
+## Portfolio Demo
+
+Run the local portfolio package:
+
+```powershell
+python examples\demo-service-flow\run_portfolio_demo.py --output-dir .local\aw-demo-final-01 --allow-local-build-attempt
+```
+
+This writes:
+
+```text
+aw-demo-final-01-summary.json
+aw-demo-final-01-preview.html
+```
+
+The command produces local fixture/demo evidence only. It may run one local
+fixture app package/build attempt when `--allow-local-build-attempt` is present,
+but it does not start a server, call an external provider, execute the DAACS
+target runtime, or claim hosted behavior.
+
 Latest documented local baseline:
 
 ```text
 Measurement date: 2026-06-05
-Pytest: 710 / 710 passed
+Pytest: 713 / 713 passed
 Live LLM calls in offline/dry-run/fake paths: 0
 Live API calls in offline/dry-run/fake paths: 0
 Provider calls/imports in the latest documented eval: 0
@@ -416,4 +437,6 @@ Current status addendum: AW-BUILD-03 adds local build preflight over the build-r
 
 Current status addendum: AW-BUILD-04 adds one explicit opt-in local fixture app package/build attempt inside a run-scoped generated workspace. The measured local path records two sanitized command outcomes, package install count `1`, build count `1`, server start count `0`, provider call count `0`, and DAACS target runtime call count `0`.
 
-Next implementation track: package the service-shaped demo and preview into a portfolio review flow that can be run with one documented command, while keeping hosted behavior and runtime/provider claims out of scope until separately measured.
+Current status addendum: AW-DEMO-FINAL-01 packages the local service-shaped demo into one reviewer-facing command that writes a sanitized JSON summary and static HTML preview. With explicit local build opt-in, the measured path records stage coverage `7/7`, generated fixture app files `9`, package install attempts `1`, build attempts `1`, server starts `0`, provider calls `0`, and DAACS target runtime calls `0`.
+
+Next implementation track: run a tightly scoped Solar planner live spike or DAACS runtime MVP, with the decision based on whether planner quality or generated-code realism is the higher portfolio gap.

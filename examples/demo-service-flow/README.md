@@ -173,6 +173,19 @@ counts only. It does not return command output bodies, dependency values, file
 contents, local root paths, start a server, call providers, or execute the DAACS
 target runtime.
 
+To run the AW-DEMO-FINAL-01 portfolio package in one command:
+
+```powershell
+python examples/demo-service-flow/run_portfolio_demo.py --output-dir .local/aw-demo-final-01 --allow-local-build-attempt
+```
+
+This writes `aw-demo-final-01-summary.json` and
+`aw-demo-final-01-preview.html` under the selected output directory. The printed
+report contains output file names, stage coverage, fixture app file count,
+local build attempt status/counts, and execution boundary counters only. It
+does not print local root paths, command output bodies, file contents, hosted
+state, provider output, or target runtime output.
+
 To render the AW-APP-01 portfolio-facing artifact preview over the same public
 summary:
 
@@ -334,6 +347,11 @@ rows.
   counts, byte counts, durations, status, and reasons only. Server starts,
   provider calls, env value reads, SDK imports, and target runtime calls remain
   `0`.
+- When `run_portfolio_demo.py --allow-local-build-attempt` is used, the command
+  writes one sanitized JSON summary and one static HTML preview for portfolio
+  review. The generated fixture app local build attempt is included, while
+  server starts, provider calls, DAACS target runtime calls, raw body exposure,
+  and local root path exposure remain `0`.
 - When `--include-provider-precheck` is used, manual proposal, disabled
   executor, one-shot permission, preflight audit, readiness decision, review
   packet, review packet export/read-model, handoff packet, and operator opt-in

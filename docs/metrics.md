@@ -46,8 +46,8 @@ Current snapshot after `AW-BUILD-04` explicit local fixture app build attempt.
 | Unit test files | 38 |
 | Smoke test files | 10 |
 | Integration test files | 1 |
-| Pytest collected cases | 710 |
-| Pytest passed cases | 710 |
+| Pytest collected cases | 713 |
+| Pytest passed cases | 713 |
 | Live LLM calls during eval | 0 |
 | Live API calls during eval | 0 |
 
@@ -6022,22 +6022,64 @@ measured opt-in local package/build attempt in the current local environment.
 It does not claim server start, hosted behavior, external provider output,
 Solar Pro 3 planner output, or DAACS target runtime execution.
 
+## AW-DEMO-FINAL-01 Portfolio Demo Package Metrics
+
+`AW-DEMO-FINAL-01` packages the service-shaped local demo into one
+reviewer-facing command. The command writes a sanitized JSON summary and static
+HTML preview. With explicit opt-in, it includes the AW-BUILD-04 local fixture
+app build-attempt evidence.
+
+| Metric | Value |
+|---|---:|
+| Portfolio demo scenarios | 1 |
+| Portfolio command count | 1 |
+| Dry-run fixture stage coverage | 7/7 |
+| Stage coverage percent | 100.0 |
+| Summary JSON generated | 1 |
+| Preview HTML generated | 1 |
+| Generated fixture app files | 9 |
+| Local build attempt evidence records | 1 |
+| Local build attempt status | passed |
+| Local build command results | 2 |
+| Package install attempts | 1 |
+| Build attempts | 1 |
+| Server starts | 0 |
+| Provider calls | 0 |
+| DAACS target runtime calls | 0 |
+| Public raw body exposure | 0 |
+| Public root path exposure | 0 |
+| Public claim drift findings | 0 |
+| New smoke tests | 3 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m compileall examples\demo-service-flow\run_portfolio_demo.py tests\smoke\test_portfolio_demo_package.py` | passed |
+| `python -m pytest tests\smoke\test_portfolio_demo_package.py -q --color=no` | 3 passed |
+| `python examples\demo-service-flow\run_portfolio_demo.py --output-dir .local\aw-demo-final-01 --allow-local-build-attempt` | passed |
+| `python -m pytest tests\smoke\test_portfolio_demo_package.py tests\unit\test_public_claim_projection_docs.py -q --color=no` | 6 passed |
+| `python -m pytest tests -q --color=no` | 713 passed |
+| `git diff --check` | passed |
+
+Interpretation: AW-DEMO-FINAL-01 gives reviewers one local command that creates
+both machine-readable and human-readable demo evidence. It does not claim
+server start, hosted behavior, external provider output, Solar Pro 3 planner
+output, or DAACS target runtime execution.
+
 ## Next Implementation Measurement Plan
 
-The next implementation work should package the service-shaped demo and local
-preview into a reviewer-friendly portfolio flow.
+The next implementation work should choose between planner quality and
+generated-code realism.
 
 | Work Order | Primary target | Required boundary |
 |---|---|---|
-| `AW-DEMO-FINAL-01` | one-command portfolio demo package | local summary/preview/build evidence only, no hosting claim, no provider call, no DAACS target runtime execution |
+| `AW-SOLAR-LIVE-01` | one tightly scoped Solar planner live spike | one representative idea, timeout/cost/input-size cap, sanitized response projection, no DAACS target runtime execution |
+| `AW-DAACS-RUNTIME-MVP-02` | dynamic fixture-to-code generation over SoT/Brief | run-scoped workspace only, no provider call unless explicitly routed, no server start by default |
 
 | Planned Metric | Target |
 |---|---:|
-| Portfolio demo command count | 1 |
-| Stage coverage | 7/7 |
-| Fixture app build attempt evidence included | 1 |
-| Preview HTML generated | 1 |
+| Representative scenario count | 1 |
+| Sanitized projection count | 1 |
 | Server starts | 0 |
-| Provider/DAACS runtime calls | 0 |
+| Unapproved provider/DAACS runtime calls | 0 |
 | Public raw file body exposure | 0 |
 | Local root path exposure | 0 |
