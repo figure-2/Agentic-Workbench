@@ -80,6 +80,7 @@ Current implementation:
 - AW-MVP-01 service-shaped vertical slice with 7/7 stage coverage and a verification read-model endpoint
 - Disabled Solar planner provider preflight boundary for fixture-vs-preflight comparison, still no provider call
 - Controlled Solar planner one-shot spike preparation with hash-only envelope and mocked response projection, still no provider call
+- Operator-opted Solar planner one-shot live spike evidence with provider/network/env-read counts capped at 1 and public output limited to hash/status/count projection
 - DAACS target runtime sandbox preflight boundary for dry-run-vs-preflight comparison, still no runtime call
 - Disabled generated artifact bundle contract over the persisted output manifest read model, still no runtime call or generated file body
 - Fixture-backed target runtime artifact materialization in a configured run-scoped workspace, returning relative paths, hashes, status, and counts only
@@ -321,7 +322,8 @@ Allowed public summary:
 
 Do not interpret current results as:
 
-- Real external-provider integration success
+- Real external-provider integration success beyond one bounded Solar planner
+  spike
 - Direct original runtime execution success
 - Generated application production
 - Build-ready candidate manifest as package install success, build success,
@@ -439,4 +441,6 @@ Current status addendum: AW-BUILD-04 adds one explicit opt-in local fixture app 
 
 Current status addendum: AW-DEMO-FINAL-01 packages the local service-shaped demo into one reviewer-facing command that writes a sanitized JSON summary and static HTML preview. With explicit local build opt-in, the measured path records stage coverage `7/7`, generated fixture app files `9`, package install attempts `1`, build attempts `1`, server starts `0`, provider calls `0`, and DAACS target runtime calls `0`.
 
-Next implementation track: run a tightly scoped Solar planner live spike or DAACS runtime MVP, with the decision based on whether planner quality or generated-code realism is the higher portfolio gap.
+Current status addendum: AW-SOLAR-LIVE-01 adds one operator-opted Solar planner live spike over the service-shaped demo. The measured path records provider calls `1`, network calls `1`, env value reads `1`, response status code `200`, response projection count `1`, server starts `0`, and DAACS target runtime calls `0`; the default planner remains fixture-based and public output remains hash/status/count only.
+
+Next implementation track: compare Solar planner projection quality against the fixture planner, then either bind reviewed Solar output into draft PlanningBlueprint/PRDPackage generation or move to DAACS runtime MVP for generated-code realism.

@@ -33,23 +33,23 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-BUILD-04` explicit local fixture app build attempt.
+Current snapshot after `AW-SOLAR-LIVE-01` one-shot planner live spike.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and local artifacts | 428 |
-| Counted code/doc files, excluding cache and local artifacts | 427 |
-| Project lines, excluding cache and local artifacts | 114,702 |
-| Python files | 121 |
-| Markdown files | 302 |
-| Test files | 49 |
-| Unit test files | 38 |
-| Smoke test files | 10 |
+| Project files, excluding cache and local artifacts | 458 |
+| Counted code/doc files, excluding cache and local artifacts | 455 |
+| Project lines, excluding cache and local artifacts | 120,294 |
+| Python files | 125 |
+| Markdown files | 326 |
+| Test files | 51 |
+| Unit test files | 39 |
+| Smoke test files | 11 |
 | Integration test files | 1 |
-| Pytest collected cases | 713 |
-| Pytest passed cases | 713 |
-| Live LLM calls during eval | 0 |
-| Live API calls during eval | 0 |
+| Pytest collected cases | 719 |
+| Pytest passed cases | 719 |
+| Live LLM calls during eval | 1 |
+| Live API calls during eval | 1 |
 
 ## AW-DAACS-RUNTIME-MVP-01 Restricted Workspace Generation Metrics
 
@@ -133,6 +133,52 @@ python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-solar
 status passed, solar_spike_status mock_projected, provider/network calls 0
 python -m pytest tests -q
 648 passed in 230.04s
+```
+
+## AW-SOLAR-LIVE-01 One-Shot Planner Live Spike Metrics
+
+Measured after adding the explicit Solar planner live spike path and running one
+operator-opted representative scenario.
+
+| Metric | Value |
+|---|---:|
+| Representative live planner scenarios | 1 |
+| Explicit operator opt-in count | 1 |
+| Provider call count in manual spike | 1 |
+| Network call count in manual spike | 1 |
+| Env value reads in manual spike | 1 |
+| SDK imports in manual spike | 0 |
+| Response projection count | 1 |
+| Response status code | 200 |
+| Response body bytes observed privately | 2300 |
+| Response section count | 18 |
+| Artifact hint count | 3 |
+| Fixture stage coverage | 7/7 |
+| DAACS target runtime calls | 0 |
+| Server starts | 0 |
+| Credential value exposure findings | 0 |
+| Raw prompt/body exposure findings | 0 |
+| Public local root path exposure findings | 0 |
+| New unit tests | 4 |
+| New smoke tests | 2 |
+
+| Variant | Status | Stage coverage | Provider calls | Env reads | Network calls | Target runtime calls |
+|---|---|---:|---:|---:|---:|---:|
+| `fixture_planner` | passed | 7/7 | 0 | 0 | 0 | 0 |
+| `solar_live_one_shot_blocked` | blocked | fixture remains 7/7 | 0 | 0 | 0 | 0 |
+| `solar_live_one_shot_projected` | projected | fixture remains 7/7 | 1 | 1 | 1 | 0 |
+
+Verification:
+
+```text
+python -m pytest tests\unit\test_solar_planner_live_spike.py -q --color=no
+4 passed
+python -m pytest tests\smoke\test_solar_planner_preflight.py -q --color=no
+6 passed
+python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-solar-live-01 --include-solar-planner-live-spike --allow-solar-planner-live-call
+status passed, solar_live_spike_status projected, provider/network calls 1, target runtime calls 0
+python -m pytest tests -q --color=no
+719 passed in 256.87s
 ```
 
 ## AW-APP-01 Artifact Preview Metrics

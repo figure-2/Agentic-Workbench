@@ -28,6 +28,7 @@ from .services.evidence_write_model import persist_fixture_run_evidence
 from .services.fixture_harness import create_fixture_harness
 from .services.planner_provider_preflight import (
     run_planner_provider_preflight,
+    run_planner_provider_solar_live_spike,
     run_planner_provider_spike_mock_response,
 )
 from .services.target_runtime_admission import (
@@ -300,6 +301,13 @@ def create_app(
     def create_planner_provider_solar_spike_mock_response(payload: dict):
         try:
             return {"data": run_planner_provider_spike_mock_response(payload)}
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/planner/provider/solar-live/spike")
+    def create_planner_provider_solar_live_spike(payload: dict):
+        try:
+            return {"data": run_planner_provider_solar_live_spike(payload)}
         except (KeyError, TypeError, ValueError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 

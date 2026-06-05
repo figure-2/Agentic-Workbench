@@ -48,6 +48,30 @@ This keeps the fixture planner as the artifact-producing path while adding a
 Solar-shaped spike envelope and mocked response projection. Provider calls, SDK
 imports, env value reads, and network calls remain `0`.
 
+To include the AW-SOLAR-LIVE-01 Solar planner live spike boundary without
+operator opt-in:
+
+```powershell
+python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-solar-live-01-blocked --include-solar-planner-live-spike
+```
+
+This records the blocked default path. Provider calls, env value reads, network
+calls, server starts, and DAACS target runtime calls remain `0`.
+
+To opt in to one bounded Solar planner live spike:
+
+```powershell
+python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-solar-live-01 --include-solar-planner-live-spike --allow-solar-planner-live-call
+```
+
+This reads the configured `UPSTAGE_API_KEY` environment value and may perform
+one Upstage chat completion attempt with timeout, input-size, output-token, and
+call-count caps. The fixture planner remains the artifact-producing path. The
+public summary returns status, hashes, counts, response byte count, response
+section count, and artifact hint count only. It does not return the credential
+value, raw prompt text, provider response body, local root paths, file bodies,
+server state, or DAACS target runtime output.
+
 To include the AW-DAACS-RUNTIME-00 no-call target runtime sandbox comparison:
 
 ```powershell

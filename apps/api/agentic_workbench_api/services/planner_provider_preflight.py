@@ -1,8 +1,8 @@
-"""API service for planner provider preflight projections.
+"""API service for planner provider preflight and spike projections.
 
-The service is a no-call boundary. It validates the future Solar planner path
-using hashes and policy flags only; it never reads provider secrets or invokes
-the provider.
+The default preflight and mock spike paths are no-call boundaries. The explicit
+Solar live spike path is operator-opted, bounded to one call, and returns only
+sanitized hash/status/count evidence.
 """
 
 from __future__ import annotations
@@ -16,6 +16,11 @@ from packages.div_planner.provider_boundary import (
     PlannerProviderPreflightRequest,
     build_solar_planner_mock_response_projection,
     default_planner_provider_selector,
+)
+from packages.div_planner.solar_live_spike import (
+    SolarPlannerLiveRunner,
+    run_solar_planner_live_spike,
+    solar_live_spike_request_from_payload,
 )
 
 
@@ -81,5 +86,20 @@ def run_planner_provider_spike_mock_response(payload: dict[str, Any]) -> dict[st
         summary_section_count=payload.get("summary_section_count", 0),
         raw_response_body=payload.get("raw_response_body"),
     )
+    assert_public_projection_safe(result)
+    return result
+
+
+def run_planner_provider_solar_live_spike(
+    payload: dict[str, Any],
+    *,
+    live_runner: SolarPlannerLiveRunner | None = None,
+) -> dict[str, Any]:
+    """Run one explicit Solar planner live spike and return sanitized evidence."""
+    request = solar_live_spike_request_from_payload(payload)
+    result = run_solar_planner_live_spike(
+        request,
+        live_runner=live_runner,
+    ).to_dict()
     assert_public_projection_safe(result)
     return result

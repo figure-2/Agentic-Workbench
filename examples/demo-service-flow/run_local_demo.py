@@ -159,6 +159,9 @@ from packages.div_planner.provider_boundary import (
     PLANNER_PROVIDER_MODE_SOLAR_DISABLED,
     PLANNER_PROVIDER_MODE_SOLAR_SPIKE_PREFLIGHT,
 )
+from packages.div_planner.solar_live_spike import (
+    SOLAR_PLANNER_LIVE_SPIKE_VERSION,
+)
 
 
 DEMO_PAYLOAD = {
@@ -1445,6 +1448,46 @@ def _post_solar_planner_spike_mock_response(
     return response.json()["data"]
 
 
+def _solar_planner_live_spike_payload(
+    run_id: str,
+    prompt_contract_hash: str,
+    *,
+    allow_solar_planner_live_call: bool,
+) -> dict[str, Any]:
+    return {
+        "run_id": run_id,
+        "prompt_contract_hash": prompt_contract_hash,
+        "operator_live_opt_in": allow_solar_planner_live_call,
+        "env_key_name": "UPSTAGE_API_KEY",
+        "model": "solar-pro3",
+        "request_timeout_seconds": 20,
+        "max_input_chars": 1800,
+        "max_output_tokens": 384,
+        "max_live_api_calls": 1,
+        "cost_limit_label": "one-shot-bounded",
+        "sanitized_idea_summary": "study group task collaboration app with dashboard",
+    }
+
+
+def _post_solar_planner_live_spike(
+    client: TestClient,
+    *,
+    run_id: str,
+    prompt_contract_hash: str,
+    allow_solar_planner_live_call: bool,
+) -> dict[str, Any]:
+    response = client.post(
+        "/api/v1/planner/provider/solar-live/spike",
+        json=_solar_planner_live_spike_payload(
+            run_id,
+            prompt_contract_hash,
+            allow_solar_planner_live_call=allow_solar_planner_live_call,
+        ),
+    )
+    response.raise_for_status()
+    return response.json()["data"]
+
+
 def _daacs_runtime_preflight_payload(run_id: str, runner_plan_hash: str) -> dict[str, Any]:
     readiness = {field_name: True for field_name in LIVE_OPEN_REQUIRED_CONTROLS}
     workspace_root = f"runs/{run_id}/workspace"
@@ -1995,6 +2038,7 @@ def _checks(
     provider_envelope_data: dict[str, Any] | None = None,
     solar_planner_preflight_data: dict[str, Any] | None = None,
     solar_planner_spike_data: dict[str, Any] | None = None,
+    solar_planner_live_spike_data: dict[str, Any] | None = None,
     daacs_runtime_preflight_data: dict[str, Any] | None = None,
     daacs_runtime_adapter_admission_data: dict[str, Any] | None = None,
     daacs_runtime_adapter_admission_read_data: dict[str, Any] | None = None,
@@ -3066,6 +3110,53 @@ def _checks(
             int(counts.get("mock_response_projection_count", -1)) == 1
             and int(counts.get("raw_provider_body_stored_count", -1)) == 0
         )
+    if solar_planner_live_spike_data is None:
+        checks["solar_planner_live_spike_optional"] = True
+    else:
+        execution = solar_planner_live_spike_data.get("execution_boundary", {})
+        counts = solar_planner_live_spike_data.get("counts", {})
+        response_projection = solar_planner_live_spike_data.get(
+            "response_projection", {}
+        )
+        status = solar_planner_live_spike_data.get("status")
+        checks["solar_planner_live_spike_projection"] = (
+            solar_planner_live_spike_data.get("projection_version")
+            == SOLAR_PLANNER_LIVE_SPIKE_VERSION
+        )
+        checks["solar_planner_live_spike_observed"] = status in {
+            "projected",
+            "failed",
+            "blocked",
+        }
+        checks["solar_planner_live_spike_one_call_or_blocked"] = (
+            (
+                status == "projected"
+                and int(execution.get("provider_calls", -1)) == 1
+                and int(counts.get("provider_call_count", -1)) == 1
+            )
+            or (
+                status in {"failed", "blocked"}
+                and int(execution.get("provider_calls", 0)) in {0, 1}
+                and int(counts.get("provider_call_count", 0)) in {0, 1}
+            )
+        )
+        checks["solar_planner_live_spike_public_safe"] = (
+            int(counts.get("credential_value_exposure_count", -1)) == 0
+            and int(counts.get("input_text_exposure_count", -1)) == 0
+            and int(counts.get("raw_provider_body_stored_count", -1)) == 0
+            and int(counts.get("raw_provider_body_returned_count", -1)) == 0
+            and int(execution.get("target_runtime_calls", -1)) == 0
+            and int(execution.get("server_start_calls", -1)) == 0
+        )
+        checks["solar_planner_live_spike_hash_only"] = (
+            status != "projected"
+            or (
+                len(str(response_projection.get("response_contract_hash", "")))
+                == 64
+                and len(str(response_projection.get("summary_hash", ""))) == 64
+                and response_projection.get("provider_body_included") is False
+            )
+        )
     if daacs_runtime_preflight_data is None:
         checks["daacs_runtime_preflight_optional"] = True
     else:
@@ -3635,6 +3726,7 @@ def run_demo(
     include_provider_precheck: bool = False,
     include_solar_planner_preflight: bool = False,
     include_solar_planner_spike: bool = False,
+    include_solar_planner_live_spike: bool = False,
     include_daacs_runtime_preflight: bool = False,
     include_daacs_runtime_adapter_admission: bool = False,
     include_daacs_runtime_output_manifest: bool = False,
@@ -3647,6 +3739,7 @@ def run_demo(
     include_daacs_runtime_local_build_preflight: bool = False,
     include_daacs_runtime_local_build_attempt: bool = False,
     allow_local_build_attempt: bool = False,
+    allow_solar_planner_live_call: bool = False,
 ) -> dict[str, Any]:
     selected_root = Path(store_root) if store_root else Path(__file__).resolve().parent / ".local"
     selected_root.mkdir(parents=True, exist_ok=True)
@@ -3725,6 +3818,7 @@ def run_demo(
     provider_envelope_read_data = None
     solar_planner_preflight_data = None
     solar_planner_spike_data = None
+    solar_planner_live_spike_data = None
     daacs_runtime_preflight_data = None
     daacs_runtime_adapter_admission_data = None
     daacs_runtime_adapter_admission_read_data = None
@@ -3759,6 +3853,13 @@ def run_demo(
             client,
             run_id=run_id,
             prompt_contract_hash=str(create_data["run"]["prompt_contract_hash"]),
+        )
+    if include_solar_planner_live_spike:
+        solar_planner_live_spike_data = _post_solar_planner_live_spike(
+            client,
+            run_id=run_id,
+            prompt_contract_hash=str(create_data["run"]["prompt_contract_hash"]),
+            allow_solar_planner_live_call=allow_solar_planner_live_call,
         )
     if (
         include_daacs_runtime_preflight
@@ -4018,6 +4119,7 @@ def run_demo(
         provider_envelope_data=provider_envelope_data,
         solar_planner_preflight_data=solar_planner_preflight_data,
         solar_planner_spike_data=solar_planner_spike_data,
+        solar_planner_live_spike_data=solar_planner_live_spike_data,
         daacs_runtime_preflight_data=daacs_runtime_preflight_data,
         daacs_runtime_adapter_admission_data=daacs_runtime_adapter_admission_data,
         daacs_runtime_adapter_admission_read_data=(
@@ -4063,6 +4165,11 @@ def run_demo(
     solar_planner_spike_execution = (
         solar_planner_spike_data.get("execution_boundary", {})
         if solar_planner_spike_data
+        else {}
+    )
+    solar_planner_live_spike_execution = (
+        solar_planner_live_spike_data.get("execution_boundary", {})
+        if solar_planner_live_spike_data
         else {}
     )
     daacs_runtime_execution = (
@@ -4127,7 +4234,9 @@ def run_demo(
         else {}
     )
     comparison_variant_count = (
-        3
+        4
+        if solar_planner_live_spike_data
+        else 3
         if solar_planner_spike_data
         else 2
         if solar_planner_preflight_data
@@ -4221,7 +4330,9 @@ def run_demo(
             if checks["mvp_artifact_linkage_100_percent"]
             else 0,
             "raw_exposure_findings": 0,
-            "live_provider_calls": 0,
+            "live_provider_calls": _as_int(
+                solar_planner_live_spike_execution.get("provider_calls")
+            ),
             "daacs_target_runtime_calls": 0,
             "public_claim_drift_findings": 0,
         },
@@ -4339,6 +4450,76 @@ def run_demo(
                 solar_planner_spike_execution.get("network_calls")
             ),
             "raw_exposure_findings": 0,
+            "public_claim_drift_findings": 0,
+        },
+        "solar_planner_live_spike": (
+            {
+                "projection_version": solar_planner_live_spike_data.get(
+                    "projection_version"
+                ),
+                "status": solar_planner_live_spike_data.get("status"),
+                "reason": solar_planner_live_spike_data.get("reason"),
+                "planner_provider_mode": solar_planner_live_spike_data.get(
+                    "planner_provider_mode"
+                ),
+                "request_contract_hash": solar_planner_live_spike_data.get(
+                    "request_contract_hash"
+                ),
+                "prompt_contract_hash": solar_planner_live_spike_data.get(
+                    "prompt_contract_hash"
+                ),
+                "model": solar_planner_live_spike_data.get("model"),
+                "endpoint_host_hash": solar_planner_live_spike_data.get(
+                    "endpoint_host_hash"
+                ),
+                "response_projection": solar_planner_live_spike_data.get(
+                    "response_projection", {}
+                ),
+                "counts": solar_planner_live_spike_data.get("counts", {}),
+                "execution_boundary": solar_planner_live_spike_data.get(
+                    "execution_boundary", {}
+                ),
+                "claim_boundary": solar_planner_live_spike_data.get(
+                    "claim_boundary", {}
+                ),
+            }
+            if solar_planner_live_spike_data is not None
+            else {
+                "status": "skipped",
+                "reason": "optional solar planner live spike not requested",
+                "external_provider_outcome": False,
+                "target_runtime_outcome": False,
+            }
+        ),
+        "solar_planner_live_spike_comparison": {
+            "comparison_variant_count": comparison_variant_count,
+            "fixture_stage_coverage": f"{stage_coverage['covered_stage_count']}/{stage_coverage['required_stage_count']}",
+            "solar_live_spike_status": (
+                solar_planner_live_spike_data.get("status")
+                if solar_planner_live_spike_data
+                else "skipped"
+            ),
+            "solar_live_spike_provider_calls": _as_int(
+                solar_planner_live_spike_execution.get("provider_calls")
+            ),
+            "solar_live_spike_env_value_reads": _as_int(
+                solar_planner_live_spike_execution.get("env_key_value_reads")
+            ),
+            "solar_live_spike_sdk_imports": _as_int(
+                solar_planner_live_spike_execution.get("sdk_imports")
+            ),
+            "solar_live_spike_network_calls": _as_int(
+                solar_planner_live_spike_execution.get("network_calls")
+            ),
+            "solar_live_spike_response_projection_count": _as_int(
+                solar_planner_live_spike_data.get("counts", {}).get(
+                    "response_projection_count"
+                )
+                if solar_planner_live_spike_data
+                else None
+            ),
+            "raw_exposure_findings": 0,
+            "credential_value_exposure_findings": 0,
             "public_claim_drift_findings": 0,
         },
         "daacs_runtime_preflight": (
@@ -9087,6 +9268,23 @@ def main() -> None:
         help="Also run the no-call Solar planner one-shot spike mock projection.",
     )
     parser.add_argument(
+        "--include-solar-planner-live-spike",
+        action="store_true",
+        help=(
+            "Also run the Solar planner one-shot live spike boundary. "
+            "Without --allow-solar-planner-live-call this remains blocked."
+        ),
+    )
+    parser.add_argument(
+        "--allow-solar-planner-live-call",
+        action="store_true",
+        help=(
+            "Allow exactly one Upstage Solar Pro 3 chat completion attempt "
+            "with timeout/input/output caps. This reads UPSTAGE_API_KEY but "
+            "never prints or stores its value."
+        ),
+    )
+    parser.add_argument(
         "--include-daacs-runtime-preflight",
         action="store_true",
         help="Also run the no-call DAACS target runtime sandbox preflight comparison.",
@@ -9162,6 +9360,7 @@ def main() -> None:
         include_provider_precheck=args.include_provider_precheck,
         include_solar_planner_preflight=args.include_solar_planner_preflight,
         include_solar_planner_spike=args.include_solar_planner_spike,
+        include_solar_planner_live_spike=args.include_solar_planner_live_spike,
         include_daacs_runtime_preflight=args.include_daacs_runtime_preflight,
         include_daacs_runtime_adapter_admission=args.include_daacs_runtime_adapter_admission,
         include_daacs_runtime_output_manifest=args.include_daacs_runtime_output_manifest,
@@ -9190,6 +9389,7 @@ def main() -> None:
             args.include_daacs_runtime_local_build_attempt
         ),
         allow_local_build_attempt=args.allow_local_build_attempt,
+        allow_solar_planner_live_call=args.allow_solar_planner_live_call,
     )
     rendered = json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True)
     print(rendered)

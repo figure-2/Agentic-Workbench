@@ -173,6 +173,44 @@ def test_solar_spike_mock_response_api_is_no_call_and_public_safe():
     assert_public_projection_safe(data)
 
 
+def test_solar_live_spike_api_blocks_without_operator_opt_in():
+    client = TestClient(create_app())
+
+    response = client.post(
+        "/api/v1/planner/provider/solar-live/spike",
+        json={
+            "run_id": "run-solar-live-api",
+            "prompt_contract_hash": _prompt_contract_hash(),
+            "operator_live_opt_in": False,
+            "env_key_name": "UPSTAGE_API_KEY",
+            "model": "solar-pro3",
+            "request_timeout_seconds": 20,
+            "max_input_chars": 1800,
+            "max_output_tokens": 384,
+            "max_live_api_calls": 1,
+            "cost_limit_label": "one-shot-bounded",
+            "raw_prompt": "SOLAR_LIVE_API_RAW_PROMPT_SENTINEL",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    serialized = _serialized(data)
+
+    assert data["projection_version"] == "planner-provider-solar-live-spike-public-v1"
+    assert data["status"] == "blocked"
+    assert data["reason"] == "operator_live_opt_in_missing"
+    assert data["counts"]["provider_call_count"] == 0
+    assert data["counts"]["env_value_read_count"] == 0
+    assert data["counts"]["credential_value_exposure_count"] == 0
+    assert data["counts"]["input_text_exposure_count"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["target_runtime_calls"] == 0
+    assert "SOLAR_LIVE_API_RAW_PROMPT_SENTINEL" not in serialized
+    assert "raw_prompt" not in serialized
+    assert_public_projection_safe(data)
+
+
 def test_local_service_demo_can_include_solar_spike_mock_projection(tmp_path):
     module = _load_demo_module()
 
@@ -208,6 +246,43 @@ def test_local_service_demo_can_include_solar_spike_mock_projection(tmp_path):
         "provider_payload",
         "runtime_payload",
         "RAW_SOLAR",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+    assert_public_projection_safe(summary)
+
+
+def test_local_service_demo_can_include_blocked_solar_live_spike(tmp_path):
+    module = _load_demo_module()
+
+    summary = module.run_demo(
+        tmp_path / "solar-live-spike-store",
+        include_solar_planner_live_spike=True,
+        allow_solar_planner_live_call=False,
+    )
+    serialized = _serialized(summary)
+    live_spike = summary["solar_planner_live_spike"]
+    comparison = summary["solar_planner_live_spike_comparison"]
+    checks = summary["checks"]
+
+    assert summary["status"] == "passed"
+    assert live_spike["status"] == "blocked"
+    assert live_spike["reason"] == "operator_live_opt_in_missing"
+    assert comparison["comparison_variant_count"] == 4
+    assert comparison["solar_live_spike_provider_calls"] == 0
+    assert comparison["solar_live_spike_env_value_reads"] == 0
+    assert comparison["solar_live_spike_network_calls"] == 0
+    assert checks["solar_planner_live_spike_projection"] is True
+    assert checks["solar_planner_live_spike_observed"] is True
+    assert checks["solar_planner_live_spike_one_call_or_blocked"] is True
+    assert checks["solar_planner_live_spike_public_safe"] is True
+
+    for forbidden in (
+        "raw_prompt",
+        "Build a small task collaboration app",
+        "provider_payload",
+        "runtime_payload",
+        "UPSTAGE_API_KEY=",
         str(tmp_path),
     ):
         assert forbidden not in serialized
