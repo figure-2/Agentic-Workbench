@@ -81,6 +81,7 @@ Current implementation:
 - Disabled Solar planner provider preflight boundary for fixture-vs-preflight comparison, still no provider call
 - Controlled Solar planner one-shot spike preparation with hash-only envelope and mocked response projection, still no provider call
 - Operator-opted Solar planner one-shot live spike evidence with provider/network/env-read counts capped at 1 and public output limited to hash/status/count projection
+- Solar planner quality comparison over public live-spike projection with reviewer-gated draft binding and zero additional provider calls by default
 - DAACS target runtime sandbox preflight boundary for dry-run-vs-preflight comparison, still no runtime call
 - Disabled generated artifact bundle contract over the persisted output manifest read model, still no runtime call or generated file body
 - Fixture-backed target runtime artifact materialization in a configured run-scoped workspace, returning relative paths, hashes, status, and counts only
@@ -443,4 +444,6 @@ Current status addendum: AW-DEMO-FINAL-01 packages the local service-shaped demo
 
 Current status addendum: AW-SOLAR-LIVE-01 adds one operator-opted Solar planner live spike over the service-shaped demo. The measured path records provider calls `1`, network calls `1`, env value reads `1`, response status code `200`, response projection count `1`, server starts `0`, and DAACS target runtime calls `0`; the default planner remains fixture-based and public output remains hash/status/count only.
 
-Next implementation track: compare Solar planner projection quality against the fixture planner, then either bind reviewed Solar output into draft PlanningBlueprint/PRDPackage generation or move to DAACS runtime MVP for generated-code realism.
+Current status addendum: AW-SOLAR-QUALITY-01 compares fixture planner evidence with Solar live-spike public projection using section count, artifact hint count, missing required stage count, and reviewer approval hash status. The default comparison performs `0` additional provider calls and keeps Solar-authored artifact binding blocked unless reviewer approval is present.
+
+Next implementation track: bind reviewer-approved Solar quality evidence into draft PlanningBlueprint/PRDPackage generation, or move to DAACS runtime MVP if generated-code realism is the higher portfolio gap.

@@ -72,6 +72,30 @@ section count, and artifact hint count only. It does not return the credential
 value, raw prompt text, provider response body, local root paths, file bodies,
 server state, or DAACS target runtime output.
 
+To include the AW-SOLAR-QUALITY-01 fixture-vs-Solar quality comparison without
+an additional live call:
+
+```powershell
+python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-solar-quality-01 --include-solar-planner-quality-comparison
+```
+
+This compares the fixture planner stage coverage with the Solar live-spike
+public projection. Without `--include-solar-planner-live-spike` and
+`--allow-solar-planner-live-call`, the comparison uses the blocked Solar
+projection and performs `0` provider calls, env value reads, and network calls.
+Reviewer approval is absent by default, so Solar-authored artifact binding
+remains blocked.
+
+To attach a reviewer approval hash to the comparison:
+
+```powershell
+python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-solar-quality-01 --include-solar-planner-quality-comparison --allow-solar-quality-reviewer-approval
+```
+
+This only marks the quality comparison as reviewer-bound when the Solar
+projection is otherwise eligible. It does not create Solar-authored artifacts,
+store provider bodies, start servers, or execute the DAACS target runtime.
+
 To include the AW-DAACS-RUNTIME-00 no-call target runtime sandbox comparison:
 
 ```powershell

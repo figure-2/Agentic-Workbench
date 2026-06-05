@@ -162,6 +162,9 @@ from packages.div_planner.provider_boundary import (
 from packages.div_planner.solar_live_spike import (
     SOLAR_PLANNER_LIVE_SPIKE_VERSION,
 )
+from packages.div_planner.solar_quality_comparison import (
+    SOLAR_PLANNER_QUALITY_COMPARISON_VERSION,
+)
 
 
 DEMO_PAYLOAD = {
@@ -1488,6 +1491,56 @@ def _post_solar_planner_live_spike(
     return response.json()["data"]
 
 
+def _solar_planner_quality_comparison_payload(
+    run_id: str,
+    prompt_contract_hash: str,
+    *,
+    stage_coverage: dict[str, Any],
+    fixture_artifact_count: int,
+    solar_live_spike_projection: dict[str, Any],
+    reviewer_approval_hash: str = "",
+) -> dict[str, Any]:
+    return {
+        "run_id": run_id,
+        "prompt_contract_hash": prompt_contract_hash,
+        "fixture_required_stage_count": _as_int(
+            stage_coverage.get("required_stage_count")
+        ),
+        "fixture_covered_stage_count": _as_int(
+            stage_coverage.get("covered_stage_count")
+        ),
+        "fixture_artifact_count": fixture_artifact_count,
+        "solar_live_spike_projection": solar_live_spike_projection,
+        "reviewer_approval_hash": reviewer_approval_hash,
+        "required_solar_section_count": 4,
+    }
+
+
+def _post_solar_planner_quality_comparison(
+    client: TestClient,
+    *,
+    run_id: str,
+    prompt_contract_hash: str,
+    stage_coverage: dict[str, Any],
+    fixture_artifact_count: int,
+    solar_live_spike_projection: dict[str, Any],
+    reviewer_approval_hash: str = "",
+) -> dict[str, Any]:
+    response = client.post(
+        "/api/v1/planner/provider/solar-quality/comparison",
+        json=_solar_planner_quality_comparison_payload(
+            run_id,
+            prompt_contract_hash,
+            stage_coverage=stage_coverage,
+            fixture_artifact_count=fixture_artifact_count,
+            solar_live_spike_projection=solar_live_spike_projection,
+            reviewer_approval_hash=reviewer_approval_hash,
+        ),
+    )
+    response.raise_for_status()
+    return response.json()["data"]
+
+
 def _daacs_runtime_preflight_payload(run_id: str, runner_plan_hash: str) -> dict[str, Any]:
     readiness = {field_name: True for field_name in LIVE_OPEN_REQUIRED_CONTROLS}
     workspace_root = f"runs/{run_id}/workspace"
@@ -2039,6 +2092,7 @@ def _checks(
     solar_planner_preflight_data: dict[str, Any] | None = None,
     solar_planner_spike_data: dict[str, Any] | None = None,
     solar_planner_live_spike_data: dict[str, Any] | None = None,
+    solar_planner_quality_comparison_data: dict[str, Any] | None = None,
     daacs_runtime_preflight_data: dict[str, Any] | None = None,
     daacs_runtime_adapter_admission_data: dict[str, Any] | None = None,
     daacs_runtime_adapter_admission_read_data: dict[str, Any] | None = None,
@@ -3157,6 +3211,52 @@ def _checks(
                 and response_projection.get("provider_body_included") is False
             )
         )
+    if solar_planner_quality_comparison_data is None:
+        checks["solar_planner_quality_comparison_optional"] = True
+    else:
+        execution = solar_planner_quality_comparison_data.get("execution_boundary", {})
+        counts = solar_planner_quality_comparison_data.get("counts", {})
+        review_gate = solar_planner_quality_comparison_data.get("review_gate", {})
+        solar_summary = solar_planner_quality_comparison_data.get("solar_summary", {})
+        checks["solar_planner_quality_comparison_projection"] = (
+            solar_planner_quality_comparison_data.get("projection_version")
+            == SOLAR_PLANNER_QUALITY_COMPARISON_VERSION
+        )
+        checks["solar_planner_quality_comparison_stage_coverage"] = (
+            int(counts.get("fixture_required_stage_count", -1)) == 7
+            and int(counts.get("fixture_covered_stage_count", -1)) == 7
+        )
+        checks["solar_planner_quality_comparison_summary_metrics"] = (
+            "summary_section_count" in solar_summary
+            and "artifact_hint_count" in solar_summary
+            and "missing_required_stage_count" in solar_summary
+        )
+        checks["solar_planner_quality_comparison_review_gate"] = (
+            (
+                review_gate.get("status") == "blocked"
+                and review_gate.get("artifact_binding_permission") is False
+            )
+            or (
+                review_gate.get("status") == "ready"
+                and review_gate.get("artifact_binding_permission") is True
+                and review_gate.get("artifact_binding_performed") is False
+            )
+        )
+        checks["solar_planner_quality_comparison_no_extra_live_call"] = (
+            int(execution.get("comparison_provider_calls", -1)) == 0
+            and int(execution.get("comparison_live_api_calls", -1)) == 0
+            and int(execution.get("comparison_network_calls", -1)) == 0
+            and int(execution.get("comparison_env_key_value_reads", -1)) == 0
+            and int(counts.get("additional_live_call_count", -1)) == 0
+        )
+        checks["solar_planner_quality_comparison_public_safe"] = (
+            int(counts.get("raw_provider_body_stored_count", -1)) == 0
+            and int(counts.get("raw_provider_body_returned_count", -1)) == 0
+            and int(counts.get("credential_value_exposure_count", -1)) == 0
+            and int(counts.get("input_text_exposure_count", -1)) == 0
+            and int(execution.get("target_runtime_calls", -1)) == 0
+            and int(execution.get("server_start_calls", -1)) == 0
+        )
     if daacs_runtime_preflight_data is None:
         checks["daacs_runtime_preflight_optional"] = True
     else:
@@ -3727,6 +3827,7 @@ def run_demo(
     include_solar_planner_preflight: bool = False,
     include_solar_planner_spike: bool = False,
     include_solar_planner_live_spike: bool = False,
+    include_solar_planner_quality_comparison: bool = False,
     include_daacs_runtime_preflight: bool = False,
     include_daacs_runtime_adapter_admission: bool = False,
     include_daacs_runtime_output_manifest: bool = False,
@@ -3740,6 +3841,7 @@ def run_demo(
     include_daacs_runtime_local_build_attempt: bool = False,
     allow_local_build_attempt: bool = False,
     allow_solar_planner_live_call: bool = False,
+    allow_solar_quality_reviewer_approval: bool = False,
 ) -> dict[str, Any]:
     selected_root = Path(store_root) if store_root else Path(__file__).resolve().parent / ".local"
     selected_root.mkdir(parents=True, exist_ok=True)
@@ -3819,6 +3921,7 @@ def run_demo(
     solar_planner_preflight_data = None
     solar_planner_spike_data = None
     solar_planner_live_spike_data = None
+    solar_planner_quality_comparison_data = None
     daacs_runtime_preflight_data = None
     daacs_runtime_adapter_admission_data = None
     daacs_runtime_adapter_admission_read_data = None
@@ -3860,6 +3963,38 @@ def run_demo(
             run_id=run_id,
             prompt_contract_hash=str(create_data["run"]["prompt_contract_hash"]),
             allow_solar_planner_live_call=allow_solar_planner_live_call,
+        )
+    if include_solar_planner_quality_comparison:
+        if solar_planner_live_spike_data is None:
+            solar_planner_live_spike_data = _post_solar_planner_live_spike(
+                client,
+                run_id=run_id,
+                prompt_contract_hash=str(create_data["run"]["prompt_contract_hash"]),
+                allow_solar_planner_live_call=False,
+            )
+        reviewer_approval_hash = (
+            stable_contract_hash(
+                {
+                    "run_id": run_id,
+                    "decision": "review_solar_quality_comparison_only",
+                    "artifact_binding": "draft_candidate_only",
+                }
+            )
+            if allow_solar_quality_reviewer_approval
+            else ""
+        )
+        solar_planner_quality_comparison_data = (
+            _post_solar_planner_quality_comparison(
+                client,
+                run_id=run_id,
+                prompt_contract_hash=str(create_data["run"]["prompt_contract_hash"]),
+                stage_coverage=_mvp_stage_coverage(run_data, verification_data),
+                fixture_artifact_count=_as_int(
+                    run_data.get("counts", {}).get("artifact_count")
+                ),
+                solar_live_spike_projection=solar_planner_live_spike_data,
+                reviewer_approval_hash=reviewer_approval_hash,
+            )
         )
     if (
         include_daacs_runtime_preflight
@@ -4120,6 +4255,7 @@ def run_demo(
         solar_planner_preflight_data=solar_planner_preflight_data,
         solar_planner_spike_data=solar_planner_spike_data,
         solar_planner_live_spike_data=solar_planner_live_spike_data,
+        solar_planner_quality_comparison_data=solar_planner_quality_comparison_data,
         daacs_runtime_preflight_data=daacs_runtime_preflight_data,
         daacs_runtime_adapter_admission_data=daacs_runtime_adapter_admission_data,
         daacs_runtime_adapter_admission_read_data=(
@@ -4170,6 +4306,11 @@ def run_demo(
     solar_planner_live_spike_execution = (
         solar_planner_live_spike_data.get("execution_boundary", {})
         if solar_planner_live_spike_data
+        else {}
+    )
+    solar_planner_quality_execution = (
+        solar_planner_quality_comparison_data.get("execution_boundary", {})
+        if solar_planner_quality_comparison_data
         else {}
     )
     daacs_runtime_execution = (
@@ -4517,6 +4658,116 @@ def run_demo(
                 )
                 if solar_planner_live_spike_data
                 else None
+            ),
+            "raw_exposure_findings": 0,
+            "credential_value_exposure_findings": 0,
+            "public_claim_drift_findings": 0,
+        },
+        "solar_planner_quality_comparison": (
+            {
+                "projection_version": solar_planner_quality_comparison_data.get(
+                    "projection_version"
+                ),
+                "status": solar_planner_quality_comparison_data.get("status"),
+                "reason": solar_planner_quality_comparison_data.get("reason"),
+                "mode": solar_planner_quality_comparison_data.get("mode"),
+                "comparison_hash": solar_planner_quality_comparison_data.get(
+                    "comparison_hash"
+                ),
+                "fixture_summary": solar_planner_quality_comparison_data.get(
+                    "fixture_summary", {}
+                ),
+                "solar_summary": solar_planner_quality_comparison_data.get(
+                    "solar_summary", {}
+                ),
+                "review_gate": solar_planner_quality_comparison_data.get(
+                    "review_gate", {}
+                ),
+                "counts": solar_planner_quality_comparison_data.get("counts", {}),
+                "execution_boundary": solar_planner_quality_comparison_data.get(
+                    "execution_boundary", {}
+                ),
+                "claim_boundary": solar_planner_quality_comparison_data.get(
+                    "claim_boundary", {}
+                ),
+            }
+            if solar_planner_quality_comparison_data is not None
+            else {
+                "status": "skipped",
+                "reason": "optional solar planner quality comparison not requested",
+                "external_provider_outcome": False,
+                "target_runtime_outcome": False,
+            }
+        ),
+        "solar_planner_quality_summary": {
+            "comparison_variant_count": comparison_variant_count,
+            "fixture_stage_coverage": f"{stage_coverage['covered_stage_count']}/{stage_coverage['required_stage_count']}",
+            "quality_comparison_status": (
+                solar_planner_quality_comparison_data.get("status")
+                if solar_planner_quality_comparison_data
+                else "skipped"
+            ),
+            "quality_comparison_reason": (
+                solar_planner_quality_comparison_data.get("reason")
+                if solar_planner_quality_comparison_data
+                else "optional solar planner quality comparison not requested"
+            ),
+            "solar_summary_section_count": _as_int(
+                solar_planner_quality_comparison_data.get("counts", {}).get(
+                    "solar_summary_section_count"
+                )
+                if solar_planner_quality_comparison_data
+                else None
+            ),
+            "solar_artifact_hint_count": _as_int(
+                solar_planner_quality_comparison_data.get("counts", {}).get(
+                    "solar_artifact_hint_count"
+                )
+                if solar_planner_quality_comparison_data
+                else None
+            ),
+            "missing_required_stage_count": _as_int(
+                solar_planner_quality_comparison_data.get("counts", {}).get(
+                    "missing_required_stage_count"
+                )
+                if solar_planner_quality_comparison_data
+                else None
+            ),
+            "reviewer_approval_count": _as_int(
+                solar_planner_quality_comparison_data.get("counts", {}).get(
+                    "reviewer_approval_count"
+                )
+                if solar_planner_quality_comparison_data
+                else None
+            ),
+            "artifact_binding_permission_count": _as_int(
+                solar_planner_quality_comparison_data.get("counts", {}).get(
+                    "artifact_binding_permission_count"
+                )
+                if solar_planner_quality_comparison_data
+                else None
+            ),
+            "artifact_binding_performed_count": _as_int(
+                solar_planner_quality_comparison_data.get("counts", {}).get(
+                    "artifact_binding_performed_count"
+                )
+                if solar_planner_quality_comparison_data
+                else None
+            ),
+            "additional_live_call_count": _as_int(
+                solar_planner_quality_execution.get("additional_live_call_count")
+            ),
+            "comparison_provider_calls": _as_int(
+                solar_planner_quality_execution.get("comparison_provider_calls")
+            ),
+            "comparison_env_value_reads": _as_int(
+                solar_planner_quality_execution.get("comparison_env_key_value_reads")
+            ),
+            "comparison_network_calls": _as_int(
+                solar_planner_quality_execution.get("comparison_network_calls")
+            ),
+            "target_runtime_calls": _as_int(
+                solar_planner_quality_execution.get("target_runtime_calls")
             ),
             "raw_exposure_findings": 0,
             "credential_value_exposure_findings": 0,
@@ -9285,6 +9536,22 @@ def main() -> None:
         ),
     )
     parser.add_argument(
+        "--include-solar-planner-quality-comparison",
+        action="store_true",
+        help=(
+            "Compare fixture planner evidence with the Solar live spike public "
+            "projection. Without live opt-in this uses the blocked projection."
+        ),
+    )
+    parser.add_argument(
+        "--allow-solar-quality-reviewer-approval",
+        action="store_true",
+        help=(
+            "Attach a deterministic reviewer approval hash to the Solar "
+            "quality comparison. This does not create Solar-authored artifacts."
+        ),
+    )
+    parser.add_argument(
         "--include-daacs-runtime-preflight",
         action="store_true",
         help="Also run the no-call DAACS target runtime sandbox preflight comparison.",
@@ -9361,6 +9628,9 @@ def main() -> None:
         include_solar_planner_preflight=args.include_solar_planner_preflight,
         include_solar_planner_spike=args.include_solar_planner_spike,
         include_solar_planner_live_spike=args.include_solar_planner_live_spike,
+        include_solar_planner_quality_comparison=(
+            args.include_solar_planner_quality_comparison
+        ),
         include_daacs_runtime_preflight=args.include_daacs_runtime_preflight,
         include_daacs_runtime_adapter_admission=args.include_daacs_runtime_adapter_admission,
         include_daacs_runtime_output_manifest=args.include_daacs_runtime_output_manifest,
@@ -9390,6 +9660,9 @@ def main() -> None:
         ),
         allow_local_build_attempt=args.allow_local_build_attempt,
         allow_solar_planner_live_call=args.allow_solar_planner_live_call,
+        allow_solar_quality_reviewer_approval=(
+            args.allow_solar_quality_reviewer_approval
+        ),
     )
     rendered = json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True)
     print(rendered)

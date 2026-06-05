@@ -22,6 +22,10 @@ from packages.div_planner.solar_live_spike import (
     run_solar_planner_live_spike,
     solar_live_spike_request_from_payload,
 )
+from packages.div_planner.solar_quality_comparison import (
+    compare_solar_planner_quality,
+    solar_quality_comparison_request_from_payload,
+)
 
 
 def _policy_bool(policy: dict[str, Any], key: str) -> bool:
@@ -101,5 +105,15 @@ def run_planner_provider_solar_live_spike(
         request,
         live_runner=live_runner,
     ).to_dict()
+    assert_public_projection_safe(result)
+    return result
+
+
+def run_planner_provider_solar_quality_comparison(
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    """Compare fixture planner evidence with Solar public projection."""
+    request = solar_quality_comparison_request_from_payload(payload)
+    result = compare_solar_planner_quality(request).to_dict()
     assert_public_projection_safe(result)
     return result

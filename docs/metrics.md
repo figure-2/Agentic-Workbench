@@ -33,21 +33,21 @@ Focused core directories:
 
 ## Agentic Workbench Metrics
 
-Current snapshot after `AW-SOLAR-LIVE-01` one-shot planner live spike.
+Current snapshot after `AW-SOLAR-QUALITY-01` fixture-vs-Solar quality comparison.
 
 | Metric | Value |
 |---|---:|
-| Project files, excluding cache and local artifacts | 458 |
-| Counted code/doc files, excluding cache and local artifacts | 455 |
-| Project lines, excluding cache and local artifacts | 120,294 |
-| Python files | 125 |
-| Markdown files | 326 |
-| Test files | 51 |
-| Unit test files | 39 |
+| Project files, excluding cache and local artifacts | 461 |
+| Counted code/doc files, excluding cache and local artifacts | 458 |
+| Project lines, excluding cache and local artifacts | 121,319 |
+| Python files | 127 |
+| Markdown files | 327 |
+| Test files | 52 |
+| Unit test files | 40 |
 | Smoke test files | 11 |
 | Integration test files | 1 |
-| Pytest collected cases | 719 |
-| Pytest passed cases | 719 |
+| Pytest collected cases | 724 |
+| Pytest passed cases | 724 |
 | Live LLM calls during eval | 1 |
 | Live API calls during eval | 1 |
 
@@ -179,6 +179,50 @@ python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-solar
 status passed, solar_live_spike_status projected, provider/network calls 1, target runtime calls 0
 python -m pytest tests -q --color=no
 719 passed in 256.87s
+```
+
+## AW-SOLAR-QUALITY-01 Fixture vs Solar Quality Comparison Metrics
+
+Measured after adding the fixture-vs-Solar quality comparison projection.
+
+| Metric | Value |
+|---|---:|
+| Comparison scenarios | 1 |
+| Fixture stage coverage | 7/7 |
+| Fixture artifact count | 6 |
+| Default additional provider calls | 0 |
+| Default additional network calls | 0 |
+| Default additional env value reads | 0 |
+| Default reviewer approval count | 0 |
+| Default artifact binding permission count | 0 |
+| Default artifact binding performed count | 0 |
+| Default Solar summary section count | 0 |
+| Default Solar artifact hint count | 0 |
+| Default missing required stage count | 4 |
+| Raw provider body stored/returned | 0 |
+| Credential value exposure findings | 0 |
+| DAACS target runtime calls | 0 |
+| Server starts | 0 |
+| New unit tests | 3 |
+| New smoke tests | 2 |
+
+| Variant | Status | Stage coverage | Additional provider calls | Reviewer approval | Artifact binding performed |
+|---|---|---:|---:|---:|---:|
+| `fixture_planner` | passed | 7/7 | 0 | 0 | 0 |
+| `solar_quality_default_blocked` | review_blocked | 7/7 | 0 | 0 | 0 |
+| `solar_quality_api_fake_projected` | review_blocked | 7/7 | 0 | 0 | 0 |
+
+Verification:
+
+```text
+python -m pytest tests\unit\test_solar_planner_quality_comparison.py tests\unit\test_solar_planner_live_spike.py -q --color=no
+7 passed
+python -m pytest tests\smoke\test_solar_planner_preflight.py -q --color=no
+8 passed
+python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-solar-quality-01 --include-solar-planner-quality-comparison
+status passed, quality_comparison_status review_blocked, additional live/provider/env/network calls 0, target runtime calls 0
+python -m pytest tests -q --color=no
+724 passed in 343.27s
 ```
 
 ## AW-APP-01 Artifact Preview Metrics

@@ -12,6 +12,11 @@ from packages.div_planner.provider_boundary import (
     PLANNER_PROVIDER_MODE_SOLAR_DISABLED,
     PLANNER_PROVIDER_MODE_SOLAR_SPIKE_PREFLIGHT,
 )
+from packages.div_planner.solar_live_spike import (
+    SolarPlannerHTTPResponse,
+    SolarPlannerLiveSpikeRequest,
+    run_solar_planner_live_spike,
+)
 
 
 DEMO_SCRIPT = (
@@ -38,6 +43,46 @@ def _prompt_contract_hash() -> str:
             "prompt": "hash-only",
         }
     )
+
+
+def _projected_solar_live_spike(run_id: str = "run-solar-quality-api") -> dict:
+    def runner(**kwargs):
+        return SolarPlannerHTTPResponse(
+            status_code=200,
+            body=json.dumps(
+                {
+                    "choices": [
+                        {
+                            "message": {
+                                "content": json.dumps(
+                                    {
+                                        "planning_blueprint": "workflow",
+                                        "prd_package": "requirements",
+                                        "implementation_brief": "build plan",
+                                        "acceptance_criteria": "checks",
+                                    }
+                                )
+                            }
+                        }
+                    ]
+                }
+            ).encode("utf-8"),
+        )
+
+    return run_solar_planner_live_spike(
+        SolarPlannerLiveSpikeRequest(
+            run_id=run_id,
+            prompt_contract_hash=_prompt_contract_hash(),
+            operator_live_opt_in=True,
+            request_timeout_seconds=20,
+            max_input_chars=1800,
+            max_output_tokens=384,
+            max_live_api_calls=1,
+            cost_limit_label="one-shot-bounded",
+        ),
+        credential_reader=lambda _: "up_test_key",
+        live_runner=runner,
+    ).to_dict()
 
 
 def _ready_policy() -> dict:
@@ -276,6 +321,89 @@ def test_local_service_demo_can_include_blocked_solar_live_spike(tmp_path):
     assert checks["solar_planner_live_spike_observed"] is True
     assert checks["solar_planner_live_spike_one_call_or_blocked"] is True
     assert checks["solar_planner_live_spike_public_safe"] is True
+
+    for forbidden in (
+        "raw_prompt",
+        "Build a small task collaboration app",
+        "provider_payload",
+        "runtime_payload",
+        "UPSTAGE_API_KEY=",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+    assert_public_projection_safe(summary)
+
+
+def test_solar_quality_comparison_api_blocks_artifact_binding_without_review():
+    client = TestClient(create_app())
+
+    response = client.post(
+        "/api/v1/planner/provider/solar-quality/comparison",
+        json={
+            "run_id": "run-solar-quality-api",
+            "prompt_contract_hash": _prompt_contract_hash(),
+            "fixture_required_stage_count": 7,
+            "fixture_covered_stage_count": 7,
+            "fixture_artifact_count": 6,
+            "solar_live_spike_projection": _projected_solar_live_spike(),
+            "raw_provider_body": "SOLAR_QUALITY_RAW_BODY_SENTINEL",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    serialized = _serialized(data)
+
+    assert data["projection_version"] == "solar-planner-quality-comparison-public-v1"
+    assert data["status"] == "review_blocked"
+    assert data["reason"] == "reviewer_approval_missing"
+    assert data["fixture_summary"]["stage_coverage"] == "7/7"
+    assert data["solar_summary"]["summary_section_count"] == 4
+    assert data["solar_summary"]["missing_required_stage_count"] == 0
+    assert data["review_gate"]["status"] == "blocked"
+    assert data["review_gate"]["artifact_binding_permission"] is False
+    assert data["counts"]["additional_live_call_count"] == 0
+    assert data["counts"]["raw_provider_body_returned_count"] == 0
+    assert data["execution_boundary"]["comparison_provider_calls"] == 0
+    assert data["execution_boundary"]["observed_solar_provider_calls"] == 1
+    assert data["execution_boundary"]["target_runtime_calls"] == 0
+    assert "SOLAR_QUALITY_RAW_BODY_SENTINEL" not in serialized
+    assert data["solar_summary"]["provider_body_included"] is False
+    assert "up_test_key" not in serialized
+    assert_public_projection_safe(data)
+
+
+def test_local_service_demo_can_include_solar_quality_comparison_without_live_call(
+    tmp_path,
+):
+    module = _load_demo_module()
+
+    summary = module.run_demo(
+        tmp_path / "solar-quality-store",
+        include_solar_planner_quality_comparison=True,
+    )
+    serialized = _serialized(summary)
+    quality = summary["solar_planner_quality_comparison"]
+    quality_summary = summary["solar_planner_quality_summary"]
+    live_spike = summary["solar_planner_live_spike"]
+    checks = summary["checks"]
+
+    assert summary["status"] == "passed"
+    assert live_spike["status"] == "blocked"
+    assert quality["projection_version"] == "solar-planner-quality-comparison-public-v1"
+    assert quality["status"] == "review_blocked"
+    assert quality["review_gate"]["artifact_binding_permission"] is False
+    assert quality_summary["fixture_stage_coverage"] == "7/7"
+    assert quality_summary["additional_live_call_count"] == 0
+    assert quality_summary["comparison_provider_calls"] == 0
+    assert quality_summary["comparison_env_value_reads"] == 0
+    assert quality_summary["comparison_network_calls"] == 0
+    assert quality_summary["target_runtime_calls"] == 0
+    assert checks["solar_planner_quality_comparison_projection"] is True
+    assert checks["solar_planner_quality_comparison_stage_coverage"] is True
+    assert checks["solar_planner_quality_comparison_review_gate"] is True
+    assert checks["solar_planner_quality_comparison_no_extra_live_call"] is True
+    assert checks["solar_planner_quality_comparison_public_safe"] is True
 
     for forbidden in (
         "raw_prompt",
