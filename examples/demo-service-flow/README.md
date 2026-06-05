@@ -96,6 +96,17 @@ This only marks the quality comparison as reviewer-bound when the Solar
 projection is otherwise eligible. It does not create Solar-authored artifacts,
 store provider bodies, start servers, or execute the DAACS target runtime.
 
+To include the AW-SOLAR-DRAFT-01 reviewer-gated draft projection:
+
+```powershell
+python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-solar-draft-01 --include-solar-planner-draft-projection
+```
+
+This projects draft `PlanningBlueprint` and `PRDPackage` candidates only when a
+review-ready Solar quality comparison and matching reviewer approval hash are
+present. The default local demo remains blocked and performs `0` additional live
+calls, canonical artifact writes, server starts, or DAACS target runtime calls.
+
 To include the AW-DAACS-RUNTIME-00 no-call target runtime sandbox comparison:
 
 ```powershell

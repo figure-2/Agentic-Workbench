@@ -225,6 +225,47 @@ python -m pytest tests -q --color=no
 724 passed in 343.27s
 ```
 
+## AW-SOLAR-DRAFT-01 Solar Draft Projection Metrics
+
+Measured after adding reviewer-gated Solar draft `PlanningBlueprint` and
+`PRDPackage` projection over `AW-SOLAR-QUALITY-01` evidence.
+
+| Metric | Value |
+|---|---:|
+| Draft projection scenarios | 1 |
+| Successful API draft labels | 2 |
+| PlanningBlueprint draft projection count | 1 |
+| PRDPackage draft projection count | 1 |
+| Default local demo draft artifact count | 0 |
+| Default local demo canonical artifact writes | 0 |
+| Default additional provider calls | 0 |
+| Default additional network calls | 0 |
+| Default additional env value reads | 0 |
+| Raw provider body stored/returned | 0 |
+| Credential value exposure findings | 0 |
+| DAACS target runtime calls | 0 |
+| Server starts | 0 |
+| New unit tests | 3 |
+| New smoke tests | 2 |
+
+| Variant | Status | Draft artifacts | Canonical writes | Additional provider calls | Target runtime calls |
+|---|---|---:|---:|---:|---:|
+| `solar_draft_default_demo` | blocked | 0 | 0 | 0 | 0 |
+| `solar_draft_api_reviewer_bound` | draft_projected | 2 | 0 | 0 | 0 |
+
+Verification:
+
+```text
+python -m pytest tests\unit\test_solar_planner_draft_projection.py -q --color=no
+3 passed
+python -m pytest tests\smoke\test_solar_planner_preflight.py -q --color=no
+10 passed
+python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-solar-draft-01 --include-solar-planner-draft-projection
+status passed, draft_projection_status blocked, draft artifacts 0, canonical writes 0, additional live/provider/env/network calls 0, target runtime calls 0
+python -m pytest tests -q --color=no
+729 passed in 385.62s
+```
+
 ## AW-APP-01 Artifact Preview Metrics
 
 Measured after adding the local portfolio-facing artifact preview surface.

@@ -82,6 +82,7 @@ Current implementation:
 - Controlled Solar planner one-shot spike preparation with hash-only envelope and mocked response projection, still no provider call
 - Operator-opted Solar planner one-shot live spike evidence with provider/network/env-read counts capped at 1 and public output limited to hash/status/count projection
 - Solar planner quality comparison over public live-spike projection with reviewer-gated draft binding and zero additional provider calls by default
+- Reviewer-gated Solar draft PlanningBlueprint/PRDPackage projection over quality evidence, with canonical artifact writes and additional live calls kept at 0
 - DAACS target runtime sandbox preflight boundary for dry-run-vs-preflight comparison, still no runtime call
 - Disabled generated artifact bundle contract over the persisted output manifest read model, still no runtime call or generated file body
 - Fixture-backed target runtime artifact materialization in a configured run-scoped workspace, returning relative paths, hashes, status, and counts only

@@ -17,6 +17,10 @@ from packages.div_planner.solar_live_spike import (
     SolarPlannerLiveSpikeRequest,
     run_solar_planner_live_spike,
 )
+from packages.div_planner.solar_quality_comparison import (
+    SolarPlannerQualityComparisonRequest,
+    compare_solar_planner_quality,
+)
 
 
 DEMO_SCRIPT = (
@@ -82,6 +86,30 @@ def _projected_solar_live_spike(run_id: str = "run-solar-quality-api") -> dict:
         ),
         credential_reader=lambda _: "up_test_key",
         live_runner=runner,
+    ).to_dict()
+
+
+def _reviewer_approval_hash(run_id: str = "run-solar-draft-api") -> str:
+    return stable_contract_hash(
+        {
+            "run_id": run_id,
+            "decision": "review_solar_quality_comparison_only",
+            "artifact_binding": "draft_candidate_only",
+        }
+    )
+
+
+def _review_ready_quality_projection(run_id: str = "run-solar-draft-api") -> dict:
+    return compare_solar_planner_quality(
+        SolarPlannerQualityComparisonRequest(
+            run_id=run_id,
+            prompt_contract_hash=_prompt_contract_hash(),
+            fixture_required_stage_count=7,
+            fixture_covered_stage_count=7,
+            fixture_artifact_count=6,
+            solar_live_spike_projection=_projected_solar_live_spike(run_id),
+            reviewer_approval_hash=_reviewer_approval_hash(run_id),
+        )
     ).to_dict()
 
 
@@ -404,6 +432,93 @@ def test_local_service_demo_can_include_solar_quality_comparison_without_live_ca
     assert checks["solar_planner_quality_comparison_review_gate"] is True
     assert checks["solar_planner_quality_comparison_no_extra_live_call"] is True
     assert checks["solar_planner_quality_comparison_public_safe"] is True
+
+    for forbidden in (
+        "raw_prompt",
+        "Build a small task collaboration app",
+        "provider_payload",
+        "runtime_payload",
+        "UPSTAGE_API_KEY=",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+    assert_public_projection_safe(summary)
+
+
+def test_solar_draft_projection_api_projects_reviewer_bound_drafts():
+    client = TestClient(create_app())
+    quality = _review_ready_quality_projection()
+
+    response = client.post(
+        "/api/v1/planner/provider/solar-draft/projection",
+        json={
+            "run_id": "run-solar-draft-api",
+            "prompt_contract_hash": _prompt_contract_hash(),
+            "solar_quality_comparison_hash": quality["comparison_hash"],
+            "solar_quality_comparison_projection": quality,
+            "reviewer_approval_hash": _reviewer_approval_hash(),
+            "raw_provider_body": "SOLAR_DRAFT_RAW_BODY_SENTINEL",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    serialized = _serialized(data)
+
+    assert data["projection_version"] == "solar-planner-draft-projection-public-v1"
+    assert data["status"] == "draft_projected"
+    assert data["counts"]["draft_artifact_projection_count"] == 2
+    assert data["counts"]["draft_planning_blueprint_projection_count"] == 1
+    assert data["counts"]["draft_prd_package_projection_count"] == 1
+    assert data["counts"]["canonical_artifact_write_count"] == 0
+    assert data["counts"]["additional_live_call_count"] == 0
+    assert data["execution_boundary"]["draft_projection_provider_calls"] == 0
+    assert data["execution_boundary"]["draft_projection_env_key_value_reads"] == 0
+    assert data["execution_boundary"]["draft_projection_network_calls"] == 0
+    assert data["execution_boundary"]["target_runtime_calls"] == 0
+    assert data["review_gate"]["canonical_artifact_write_performed"] is False
+    assert {artifact["artifact_label"] for artifact in data["draft_artifacts"]} == {
+        "PlanningBlueprint",
+        "PRDPackage",
+    }
+    assert "SOLAR_DRAFT_RAW_BODY_SENTINEL" not in serialized
+    assert data["counts"]["raw_provider_body_stored_count"] == 0
+    assert data["counts"]["raw_provider_body_returned_count"] == 0
+    assert "up_test_key" not in serialized
+    assert_public_projection_safe(data)
+
+
+def test_local_service_demo_can_include_blocked_solar_draft_projection_without_live_call(
+    tmp_path,
+):
+    module = _load_demo_module()
+
+    summary = module.run_demo(
+        tmp_path / "solar-draft-store",
+        include_solar_planner_draft_projection=True,
+    )
+    serialized = _serialized(summary)
+    draft = summary["solar_planner_draft_projection"]
+    draft_summary = summary["solar_planner_draft_summary"]
+    checks = summary["checks"]
+
+    assert summary["status"] == "passed"
+    assert draft["projection_version"] == "solar-planner-draft-projection-public-v1"
+    assert draft["status"] == "blocked"
+    assert draft_summary["fixture_stage_coverage"] == "7/7"
+    assert draft_summary["draft_artifact_projection_count"] == 0
+    assert draft_summary["canonical_artifact_write_count"] == 0
+    assert draft_summary["additional_live_call_count"] == 0
+    assert draft_summary["draft_projection_provider_calls"] == 0
+    assert draft_summary["draft_projection_env_value_reads"] == 0
+    assert draft_summary["draft_projection_network_calls"] == 0
+    assert draft_summary["target_runtime_calls"] == 0
+    assert checks["solar_planner_draft_projection_projection"] is True
+    assert checks["solar_planner_draft_projection_status"] is True
+    assert checks["solar_planner_draft_projection_artifacts"] is True
+    assert checks["solar_planner_draft_projection_canonical_closed"] is True
+    assert checks["solar_planner_draft_projection_no_extra_live_call"] is True
+    assert checks["solar_planner_draft_projection_public_safe"] is True
 
     for forbidden in (
         "raw_prompt",
