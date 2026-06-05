@@ -24,6 +24,9 @@ from .target_runtime_generated_artifact_bundle import (
     TARGET_RUNTIME_GENERATED_ARTIFACT_BUNDLE_VERSION,
 )
 from .target_runtime_sandbox import CONTRACT_HASH_PATTERN
+from packages.div_planner.solar_draft_projection import (
+    SOLAR_PLANNER_DRAFT_PROJECTION_VERSION,
+)
 
 
 TARGET_RUNTIME_RESTRICTED_WORKSPACE_GENERATION_VERSION = (
@@ -65,6 +68,10 @@ class TargetRuntimeRestrictedWorkspaceGenerationRequest:
     implementation_brief_hash: str
     generated_artifact_bundle_hash: str
     generated_artifact_bundle_projection: JsonDict = field(default_factory=dict)
+    planning_blueprint_hash: str = ""
+    prd_package_hash: str = ""
+    solar_draft_projection_hash: str = ""
+    solar_draft_projection: JsonDict = field(default_factory=dict)
     workspace_root: str | Path | None = None
     template_ids: tuple[str, ...] = RESTRICTED_WORKSPACE_REQUIRED_TEMPLATE_IDS
     mode: str = TARGET_RUNTIME_RESTRICTED_WORKSPACE_GENERATION_MODE
@@ -105,6 +112,11 @@ class TargetRuntimeRestrictedWorkspaceGenerationResult:
     reason: str
     runner_plan_hash: str
     implementation_brief_hash: str
+    planning_blueprint_hash: str
+    prd_package_hash: str
+    solar_draft_projection_hash: str
+    codegen_input_hash: str
+    document_input_summary: JsonDict
     generated_artifact_bundle_hash: str
     generated_artifact_bundle_projection_hash: str
     generated_workspace_hash: str
@@ -211,6 +223,87 @@ def _bundle_execution(bundle: JsonDict) -> JsonDict:
     return execution if isinstance(execution, dict) else {}
 
 
+def _solar_draft_counts(projection: JsonDict) -> JsonDict:
+    counts = projection.get("counts", {})
+    return counts if isinstance(counts, dict) else {}
+
+
+def _solar_draft_available(request: TargetRuntimeRestrictedWorkspaceGenerationRequest) -> bool:
+    projection = (
+        request.solar_draft_projection
+        if isinstance(request.solar_draft_projection, dict)
+        else {}
+    )
+    counts = _solar_draft_counts(projection)
+    return (
+        _is_contract_hash(request.solar_draft_projection_hash)
+        and projection.get("projection_version") == SOLAR_PLANNER_DRAFT_PROJECTION_VERSION
+        and projection.get("status") == "draft_projected"
+        and request.solar_draft_projection_hash
+        == projection.get("draft_projection_hash")
+        and _as_int(counts.get("draft_artifact_projection_count")) >= 2
+        and _as_int(counts.get("canonical_artifact_write_count")) == 0
+    )
+
+
+def _document_input_summary(
+    request: TargetRuntimeRestrictedWorkspaceGenerationRequest,
+) -> JsonDict:
+    planning_valid = _is_contract_hash(request.planning_blueprint_hash)
+    prd_valid = _is_contract_hash(request.prd_package_hash)
+    implementation_valid = _is_contract_hash(request.implementation_brief_hash)
+    solar_draft_valid = _solar_draft_available(request)
+    document_hash_count = sum(
+        1 for valid in (planning_valid, prd_valid, implementation_valid) if valid
+    )
+    if solar_draft_valid:
+        source = "solar_draft_projection"
+    elif planning_valid and prd_valid:
+        source = "fixture_planning_documents"
+    elif implementation_valid:
+        source = "fixture_implementation_brief"
+    else:
+        source = "missing"
+    return {
+        "source": source,
+        "planning_blueprint_hash_present": planning_valid,
+        "prd_package_hash_present": prd_valid,
+        "implementation_brief_hash_present": implementation_valid,
+        "solar_draft_projection_hash_present": solar_draft_valid,
+        "document_hash_count": document_hash_count,
+        "draft_artifact_projection_count": _as_int(
+            _solar_draft_counts(
+                request.solar_draft_projection
+                if isinstance(request.solar_draft_projection, dict)
+                else {}
+            ).get("draft_artifact_projection_count")
+        ),
+        "body_included": False,
+    }
+
+
+def _codegen_input_hash(
+    request: TargetRuntimeRestrictedWorkspaceGenerationRequest,
+) -> str:
+    return stable_contract_hash(
+        {
+            "run_id": safe_public_run_id(request.run_id),
+            "runner_plan_hash": request.runner_plan_hash,
+            "planning_blueprint_hash": request.planning_blueprint_hash
+            if _is_contract_hash(request.planning_blueprint_hash)
+            else "",
+            "prd_package_hash": request.prd_package_hash
+            if _is_contract_hash(request.prd_package_hash)
+            else "",
+            "implementation_brief_hash": request.implementation_brief_hash,
+            "solar_draft_projection_hash": request.solar_draft_projection_hash
+            if _is_contract_hash(request.solar_draft_projection_hash)
+            else "",
+            "document_input_summary": _document_input_summary(request),
+        }
+    )
+
+
 def _bundle_projection_hash(bundle: JsonDict) -> str:
     sanitized = sanitize_public_payload(bundle)
     if not isinstance(sanitized, dict):
@@ -220,15 +313,24 @@ def _bundle_projection_hash(bundle: JsonDict) -> str:
 
 
 def _render_readme(request: TargetRuntimeRestrictedWorkspaceGenerationRequest) -> str:
+    document_summary = _document_input_summary(request)
     return (
         "# Agentic Workbench Fixture App Skeleton\n\n"
-        "This folder is a sanitized, template-backed local fixture generated for "
-        "portfolio preview.\n\n"
+        "This folder is a sanitized, template-backed local fixture generated from "
+        "Agentic Workbench planning evidence for portfolio preview.\n\n"
         "## Evidence\n\n"
         f"- run_id: {safe_public_run_id(request.run_id)}\n"
         f"- runner_plan_hash: {request.runner_plan_hash}\n"
+        f"- planning_blueprint_hash_present: {document_summary['planning_blueprint_hash_present']}\n"
+        f"- prd_package_hash_present: {document_summary['prd_package_hash_present']}\n"
         f"- implementation_brief_hash: {request.implementation_brief_hash}\n"
+        f"- solar_draft_projection_hash_present: {document_summary['solar_draft_projection_hash_present']}\n"
+        f"- codegen_input_hash: {_codegen_input_hash(request)}\n"
         f"- generated_artifact_bundle_hash: {request.generated_artifact_bundle_hash}\n\n"
+        "## Generated App Shape\n\n"
+        "- React/Vite task collaboration dashboard shell\n"
+        "- Fixture API client with typed task and workflow evidence data\n"
+        "- Verification notes preserving zero-call execution counters\n\n"
         "## Execution Boundary\n\n"
         "- DAACS target runtime calls: 0\n"
         "- Provider calls: 0\n"
@@ -264,6 +366,10 @@ def _render_package_json(request: TargetRuntimeRestrictedWorkspaceGenerationRequ
         "agenticWorkbench": {
             "mode": TARGET_RUNTIME_RESTRICTED_WORKSPACE_GENERATION_MODE,
             "runId": safe_public_run_id(request.run_id),
+            "codegenInputHash": _codegen_input_hash(request),
+            "documentHashCount": _document_input_summary(request)[
+                "document_hash_count"
+            ],
             "targetRuntimeCalls": 0,
             "packageInstallCalls": 0,
             "buildCalls": 0,
@@ -308,33 +414,57 @@ def _render_app_component(
     request: TargetRuntimeRestrictedWorkspaceGenerationRequest,
 ) -> str:
     run_id = json.dumps(safe_public_run_id(request.run_id))
+    codegen_hash = json.dumps(_codegen_input_hash(request))
     return (
-        "import { getFixtureRunSummary } from './api';\n\n"
+        "import { getFixtureRunSummary, getFixtureTasks } from './api';\n\n"
         "export default function App() {\n"
         "  const summary = getFixtureRunSummary();\n"
+        "  const tasks = getFixtureTasks();\n"
+        "  const openTasks = tasks.filter((task) => task.status !== 'Done').length;\n"
         "  const cards = [\n"
-        "    { label: 'Planning', value: 'PRDPackage ready' },\n"
-        "    { label: 'Build', value: 'RunnerPlan ready' },\n"
-        "    { label: 'Verify', value: 'VerificationReport ready' },\n"
-        "  ];\n\n"
+        "    { label: 'Planning', value: summary.documentSource },\n"
+        "    { label: 'Open Tasks', value: String(openTasks) },\n"
+        "    { label: 'Verification', value: summary.verificationStatus },\n"
+        "  ];\n"
+        "  const shellStyle = { fontFamily: 'Inter, system-ui, sans-serif', margin: 0, padding: '32px', background: '#f7f8fa', color: '#1f2937' };\n"
+        "  const cardStyle = { background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px' };\n\n"
         "  return (\n"
-        "    <main aria-label=\"Agentic Workbench fixture app\">\n"
+        "    <main aria-label=\"Agentic Workbench fixture app\" style={shellStyle}>\n"
         "      <h1>Agentic Workbench Fixture App</h1>\n"
         f"      <p>Run {{ {run_id} }}</p>\n"
+        f"      <p>Codegen input {{ {codegen_hash}.slice(0, 12) }}</p>\n"
         "      <section>\n"
         "        <h2>Workflow</h2>\n"
         "        <ol>\n"
         "          {summary.stages.map((stage) => <li key={stage}>{stage}</li>)}\n"
         "        </ol>\n"
         "      </section>\n"
-        "      <section>\n"
+        "      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '12px' }}>\n"
         "        <h2>Artifact Cards</h2>\n"
         "        {cards.map((card) => (\n"
-        "          <article key={card.label}>\n"
+        "          <article key={card.label} style={cardStyle}>\n"
         "            <h3>{card.label}</h3>\n"
         "            <p>{card.value}</p>\n"
         "          </article>\n"
         "        ))}\n"
+        "      </section>\n"
+        "      <section>\n"
+        "        <h2>Task Board</h2>\n"
+        "        <table>\n"
+        "          <thead>\n"
+        "            <tr><th>Task</th><th>Owner</th><th>Status</th><th>Due</th></tr>\n"
+        "          </thead>\n"
+        "          <tbody>\n"
+        "            {tasks.map((task) => (\n"
+        "              <tr key={task.id}>\n"
+        "                <td>{task.title}</td>\n"
+        "                <td>{task.owner}</td>\n"
+        "                <td>{task.status}</td>\n"
+        "                <td>{task.due}</td>\n"
+        "              </tr>\n"
+        "            ))}\n"
+        "          </tbody>\n"
+        "        </table>\n"
         "      </section>\n"
         "    </main>\n"
         "  );\n"
@@ -343,10 +473,21 @@ def _render_app_component(
 
 
 def _render_api_client(request: TargetRuntimeRestrictedWorkspaceGenerationRequest) -> str:
+    document_summary = _document_input_summary(request)
     return (
+        "export type FixtureTask = {\n"
+        "  id: string;\n"
+        "  title: string;\n"
+        "  owner: string;\n"
+        "  status: 'Todo' | 'Doing' | 'Done';\n"
+        "  due: string;\n"
+        "};\n\n"
         "export type FixtureRunSummary = {\n"
         "  runId: string;\n"
         "  stages: string[];\n"
+        "  documentSource: string;\n"
+        "  codegenInputHash: string;\n"
+        "  verificationStatus: string;\n"
         "  providerCalls: number;\n"
         "  targetRuntimeCalls: number;\n"
         "};\n\n"
@@ -354,9 +495,20 @@ def _render_api_client(request: TargetRuntimeRestrictedWorkspaceGenerationReques
         "  return {\n"
         f"    runId: {json.dumps(safe_public_run_id(request.run_id))},\n"
         "    stages: ['Idea', 'PlanningBlueprint', 'PRDPackage', 'ImplementationBrief', 'Approval', 'RunnerPlan', 'VerificationReport'],\n"
+        f"    documentSource: {json.dumps(str(document_summary['source']))},\n"
+        f"    codegenInputHash: {json.dumps(_codegen_input_hash(request))},\n"
+        "    verificationStatus: 'hash-and-byte-count verified',\n"
         "    providerCalls: 0,\n"
         "    targetRuntimeCalls: 0,\n"
         "  };\n"
+        "}\n"
+        "\n"
+        "export function getFixtureTasks(): FixtureTask[] {\n"
+        "  return [\n"
+        "    { id: 'task-1', title: 'Capture study group task', owner: 'Planner', status: 'Done', due: 'Day 1' },\n"
+        "    { id: 'task-2', title: 'Assign owner and status', owner: 'Builder', status: 'Doing', due: 'Day 2' },\n"
+        "    { id: 'task-3', title: 'Review incomplete dashboard', owner: 'Verifier', status: 'Todo', due: 'Day 3' },\n"
+        "  ];\n"
         "}\n"
     )
 
@@ -401,17 +553,20 @@ def _render_tsconfig_json(
 def _render_verification_notes(
     request: TargetRuntimeRestrictedWorkspaceGenerationRequest,
 ) -> str:
+    document_summary = _document_input_summary(request)
     return (
         "# Fixture Verification Notes\n\n"
         "| Check | Result |\n"
         "|---|---:|\n"
         "| Generated files | 9 |\n"
+        f"| Codegen input document hashes | {document_summary['document_hash_count']} |\n"
         "| Provider calls | 0 |\n"
         "| DAACS target runtime calls | 0 |\n"
         "| Package installs | 0 |\n"
         "| Builds | 0 |\n"
         "| Server starts | 0 |\n\n"
         f"generation_request_hash: {stable_contract_hash({'run_id': safe_public_run_id(request.run_id), 'runner_plan_hash': request.runner_plan_hash})}\n"
+        f"codegen_input_hash: {_codegen_input_hash(request)}\n"
     )
 
 
@@ -553,6 +708,7 @@ def _file_record(
 
 def _counts(
     *,
+    request: TargetRuntimeRestrictedWorkspaceGenerationRequest,
     checks: list[JsonDict],
     file_records: list[JsonDict],
     bundle: JsonDict,
@@ -560,12 +716,32 @@ def _counts(
     write_count: int,
 ) -> JsonDict:
     bundle_counts = _bundle_counts(bundle)
+    document_summary = _document_input_summary(request)
     failed_check_count = sum(1 for check in checks if not check["passed"])
     return {
         "restricted_workspace_generation_count": 1 if write_count else 0,
         "comparison_variant_count": 1,
         "check_count": len(checks),
         "failed_check_count": failed_check_count,
+        "codegen_input_hash_count": 1,
+        "codegen_input_document_hash_count": _as_int(
+            document_summary.get("document_hash_count")
+        ),
+        "codegen_input_source_count": 1
+        if str(document_summary.get("source", "")) != "missing"
+        else 0,
+        "planning_blueprint_hash_present_count": 1
+        if document_summary.get("planning_blueprint_hash_present") is True
+        else 0,
+        "prd_package_hash_present_count": 1
+        if document_summary.get("prd_package_hash_present") is True
+        else 0,
+        "implementation_brief_hash_present_count": 1
+        if document_summary.get("implementation_brief_hash_present") is True
+        else 0,
+        "solar_draft_projection_hash_present_count": 1
+        if document_summary.get("solar_draft_projection_hash_present") is True
+        else 0,
         "generated_artifact_bundle_projection_count": 1 if bundle else 0,
         "generated_artifact_bundle_hash_match_count": bundle_hash_match_count,
         "generated_artifact_bundle_artifact_unit_count": _as_int(
@@ -612,7 +788,17 @@ def _hash_for_workspace(
             "run_id": safe_public_run_id(request.run_id),
             "mode": request.mode,
             "runner_plan_hash": request.runner_plan_hash,
+            "planning_blueprint_hash": request.planning_blueprint_hash
+            if _is_contract_hash(request.planning_blueprint_hash)
+            else "",
+            "prd_package_hash": request.prd_package_hash
+            if _is_contract_hash(request.prd_package_hash)
+            else "",
             "implementation_brief_hash": request.implementation_brief_hash,
+            "solar_draft_projection_hash": request.solar_draft_projection_hash
+            if _is_contract_hash(request.solar_draft_projection_hash)
+            else "",
+            "codegen_input_hash": _codegen_input_hash(request),
             "generated_artifact_bundle_hash": request.generated_artifact_bundle_hash,
             "generated_artifact_bundle_projection_hash": bundle_projection_hash,
             "file_hashes": [record["content_hash"] for record in file_records],
@@ -656,6 +842,17 @@ def _result(
         implementation_brief_hash=request.implementation_brief_hash
         if _is_contract_hash(request.implementation_brief_hash)
         else "",
+        planning_blueprint_hash=request.planning_blueprint_hash
+        if _is_contract_hash(request.planning_blueprint_hash)
+        else "",
+        prd_package_hash=request.prd_package_hash
+        if _is_contract_hash(request.prd_package_hash)
+        else "",
+        solar_draft_projection_hash=request.solar_draft_projection_hash
+        if _is_contract_hash(request.solar_draft_projection_hash)
+        else "",
+        codegen_input_hash=_codegen_input_hash(request),
+        document_input_summary=_document_input_summary(request),
         generated_artifact_bundle_hash=request.generated_artifact_bundle_hash
         if _is_contract_hash(request.generated_artifact_bundle_hash)
         else "",
@@ -666,6 +863,7 @@ def _result(
         file_records=file_records,
         checks=checks,
         counts=_counts(
+            request=request,
             checks=checks,
             file_records=file_records,
             bundle=request.generated_artifact_bundle_projection,
@@ -700,6 +898,7 @@ class TargetRuntimeRestrictedWorkspaceGenerationService:
         )
         workspace_root = Path(request.workspace_root) if request.workspace_root else None
         configured = workspace_root is not None
+        document_summary = _document_input_summary(request)
         checks: list[JsonDict] = []
         failures: list[str] = []
 
@@ -739,6 +938,20 @@ class TargetRuntimeRestrictedWorkspaceGenerationService:
             name="implementation_brief_hash_valid",
             passed=_is_contract_hash(request.implementation_brief_hash),
             reason="implementation_brief_hash_invalid",
+        )
+        _check(
+            checks,
+            failures,
+            name="codegen_input_document_hash_present",
+            passed=_as_int(document_summary.get("document_hash_count")) >= 1,
+            reason="codegen_input_document_hash_missing",
+        )
+        _check(
+            checks,
+            failures,
+            name="codegen_input_body_absent",
+            passed=document_summary.get("body_included") is False,
+            reason="codegen_input_body_exposed",
         )
         _check(
             checks,

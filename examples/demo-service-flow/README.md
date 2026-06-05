@@ -142,16 +142,20 @@ python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-daacs
 ```
 
 To include the AW-DAACS-RUNTIME-MVP-01 restricted fixture app skeleton
-generation:
+generation, including the AW-DAACS-RUNTIME-MVP-02 document-linked codegen
+input evidence:
 
 ```powershell
 python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-daacs-runtime-mvp-01-demo --include-daacs-runtime-restricted-workspace-generation
 ```
 
 This writes nine sanitized fixture files under a run-scoped generated-app
-folder and returns relative paths, hashes, byte counts, status, and zero-call
-counters only. It does not install packages, run builds, start servers, return
-file contents, or execute the DAACS target runtime.
+folder and returns relative paths, hashes, byte counts, status, document input
+hash counts, a `codegen_input_hash`, and zero-call counters only. The codegen
+input binds the fixture PlanningBlueprint, PRDPackage, ImplementationBrief, and
+optional Solar draft projection hashes without storing or returning raw prompt
+or provider bodies. It does not install packages, run builds, start servers,
+return file contents, or execute the DAACS target runtime.
 
 To include the AW-VERIFY-01 generated artifact verification over those
 restricted fixture files:

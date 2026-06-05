@@ -77,6 +77,15 @@ def run_target_runtime_restricted_workspace_generation(
             payload.get("generated_artifact_bundle_projection", {}),
             field_name="generated_artifact_bundle_projection",
         ),
+        planning_blueprint_hash=str(payload.get("planning_blueprint_hash", "")),
+        prd_package_hash=str(payload.get("prd_package_hash", "")),
+        solar_draft_projection_hash=str(
+            payload.get("solar_draft_projection_hash", "")
+        ),
+        solar_draft_projection=_mapping(
+            payload.get("solar_draft_projection", {}),
+            field_name="solar_draft_projection",
+        ),
         workspace_root=workspace_root,
         template_ids=_template_ids(payload.get("template_ids")),
         mode=str(

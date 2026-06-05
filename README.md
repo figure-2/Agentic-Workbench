@@ -88,6 +88,7 @@ Current implementation:
 - Fixture-backed target runtime artifact materialization in a configured run-scoped workspace, returning relative paths, hashes, status, and counts only
 - Portfolio-facing artifact preview surface over the same public summary, showing workflow coverage, document chain status, sanitized fixture artifact cards, verification status, and zero-call counters
 - Restricted fixture app skeleton generation under a run-scoped workspace, returning generated file relative paths, hashes, byte counts, status, and zero-call counters only
+- Document-linked DAACS runtime MVP fixture codegen that binds PlanningBlueprint, PRDPackage, ImplementationBrief, and optional Solar draft projection hashes into a `codegen_input_hash`, then writes a richer generated app fixture under the same run-scoped workspace
 - Generated fixture app skeleton verification by workspace-relative path, content hash, and byte count, returning hash/status/count projection only
 - Build-ready candidate manifest for the generated fixture app, returning script labels, dependency labels, source marker counts, hashes, status, and zero-call counters only
 - Explicit opt-in local fixture app package/build attempt in a run-scoped workspace, returning command labels, exit-code hashes, output hashes, byte counts, durations, status, and counts only
@@ -166,7 +167,7 @@ Not included in the current scope:
 
 - Real external provider calls
 - Direct original runtime execution
-- Generated application artifact production, except disabled bundle contracts, sanitized local fixture artifacts, restricted fixture app skeleton files, hash-only verification of those fixture files, static validation of the generated fixture workspace, build-ready candidate manifest projection, and explicit opt-in local fixture app package/build attempt evidence
+- Generated application artifact production, except disabled bundle contracts, sanitized local fixture artifacts, document-linked restricted fixture app files, hash-only verification of those fixture files, static validation of the generated fixture workspace, build-ready candidate manifest projection, and explicit opt-in local fixture app package/build attempt evidence
 - Deployed app preview or package/build verification beyond the local fixture
   attempt evidence
 - CLI agent execution

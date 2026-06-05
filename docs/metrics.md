@@ -6214,3 +6214,57 @@ generated-code realism.
 | Unapproved provider/DAACS runtime calls | 0 |
 | Public raw file body exposure | 0 |
 | Local root path exposure | 0 |
+
+## AW-DAACS-RUNTIME-MVP-02 Document-Linked Codegen Metrics
+
+`AW-DAACS-RUNTIME-MVP-02` binds the restricted fixture app generation path to
+PlanningBlueprint, PRDPackage, ImplementationBrief, and optional Solar draft
+projection hashes. It keeps the output local, fixture-based, and restricted to
+the run-scoped workspace.
+
+| Metric | Value |
+|---|---:|
+| Representative scenario count | 1 |
+| Generated app file records | 9 |
+| Generated app file hashes | 9 |
+| Required core files present | 3/3 |
+| Codegen input hash count | 1 |
+| Codegen input document hash count | 3 |
+| PlanningBlueprint hash present count | 1 |
+| PRDPackage hash present count | 1 |
+| ImplementationBrief hash present count | 1 |
+| Solar draft hash present count | 0 by default |
+| Workspace writes | 9 |
+| Workspace outside writes | 0 |
+| Public file body returns | 0 |
+| Public local root path returns | 0 |
+| Provider calls | 0 |
+| SDK imports | 0 |
+| Env value reads | 0 |
+| Network calls | 0 |
+| Subprocess calls | 0 |
+| Package install calls | 0 |
+| Build calls | 0 |
+| Server starts | 0 |
+| DAACS target runtime calls | 0 |
+| Updated unit tests | 1 |
+| Updated smoke tests | 1 |
+
+| Comparison Variant | Status | Document Hash Count | Generated Files | Provider Calls | Runtime Calls |
+|---|---|---:|---:|---:|---:|
+| `restricted_workspace_static_fixture_baseline` | passed | 1 | 9 | 0 | 0 |
+| `restricted_workspace_document_linked_codegen` | passed | 3 | 9 | 0 | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m compileall packages\daacs_builder\target_runtime_restricted_workspace_generation.py apps\api\agentic_workbench_api\services\target_runtime_restricted_workspace_generation.py examples\demo-service-flow\run_local_demo.py -q` | passed |
+| `python -m pytest tests\unit\test_target_runtime_restricted_workspace_generation.py -q --color=no` | 9 passed |
+| `python -m pytest tests\unit\test_target_runtime_generated_artifact_verification.py tests\unit\test_target_runtime_generated_workspace_static_validation.py tests\unit\test_target_runtime_buildable_fixture_manifest.py tests\unit\test_target_runtime_local_build_preflight.py tests\unit\test_target_runtime_local_build_attempt.py -q --color=no` | 43 passed |
+| `python -m pytest tests\smoke\test_daacs_runtime_preflight.py::test_local_service_demo_generates_restricted_workspace_skeleton -q --color=no` | 1 passed |
+| `python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-daacs-runtime-mvp-02 --include-daacs-runtime-restricted-workspace-generation` | passed |
+| `python -m pytest tests -q --color=no` | 729 passed |
+
+Interpretation: the generated fixture app now carries document-chain evidence
+through `codegen_input_hash` and document hash counts, while side-effect counts
+remain closed by default. It does not claim DAACS runtime execution, hosted app
+behavior, or Solar-authored canonical artifact generation.

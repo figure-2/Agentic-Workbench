@@ -1824,16 +1824,26 @@ def _daacs_runtime_restricted_workspace_generation_payload(
     *,
     run_id: str,
     runner_plan_hash: str,
+    planning_blueprint_hash: str,
+    prd_package_hash: str,
     implementation_brief_hash: str,
     generated_artifact_bundle_hash: str,
     generated_artifact_bundle_projection: dict[str, Any],
+    solar_draft_projection: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    selected_solar_draft_projection = solar_draft_projection or {}
     return {
         "run_id": run_id,
         "runner_plan_hash": runner_plan_hash,
+        "planning_blueprint_hash": planning_blueprint_hash,
+        "prd_package_hash": prd_package_hash,
         "implementation_brief_hash": implementation_brief_hash,
         "generated_artifact_bundle_hash": generated_artifact_bundle_hash,
         "generated_artifact_bundle_projection": generated_artifact_bundle_projection,
+        "solar_draft_projection_hash": str(
+            selected_solar_draft_projection.get("draft_projection_hash", "")
+        ),
+        "solar_draft_projection": selected_solar_draft_projection,
         "mode": TARGET_RUNTIME_RESTRICTED_WORKSPACE_GENERATION_MODE,
     }
 
@@ -1843,18 +1853,24 @@ def _post_daacs_runtime_restricted_workspace_generation(
     *,
     run_id: str,
     runner_plan_hash: str,
+    planning_blueprint_hash: str,
+    prd_package_hash: str,
     implementation_brief_hash: str,
     generated_artifact_bundle_hash: str,
     generated_artifact_bundle_projection: dict[str, Any],
+    solar_draft_projection: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     response = client.post(
         "/api/v1/daacs/runtime/restricted-workspace-generation",
         json=_daacs_runtime_restricted_workspace_generation_payload(
             run_id=run_id,
             runner_plan_hash=runner_plan_hash,
+            planning_blueprint_hash=planning_blueprint_hash,
+            prd_package_hash=prd_package_hash,
             implementation_brief_hash=implementation_brief_hash,
             generated_artifact_bundle_hash=generated_artifact_bundle_hash,
             generated_artifact_bundle_projection=generated_artifact_bundle_projection,
+            solar_draft_projection=solar_draft_projection,
         ),
     )
     response.raise_for_status()
@@ -3581,6 +3597,11 @@ def _checks(
             and int(counts.get("generated_artifact_bundle_hash_match_count", -1))
             == 1
         )
+        checks["daacs_runtime_restricted_workspace_generation_codegen_input"] = (
+            int(counts.get("codegen_input_hash_count", -1)) == 1
+            and int(counts.get("codegen_input_document_hash_count", -1)) >= 1
+            and int(counts.get("implementation_brief_hash_present_count", -1)) == 1
+        )
         checks["daacs_runtime_restricted_workspace_generation_records"] = (
             int(counts.get("generated_workspace_file_record_count", -1)) >= 5
             and int(counts.get("generated_workspace_file_hash_count", -1)) >= 5
@@ -4126,6 +4147,14 @@ def run_demo(
     ):
         runner_plan_hashes = verification_data.get("runner_plan_hashes", [])
         runner_plan_hash = str(runner_plan_hashes[0] if runner_plan_hashes else "")
+        planning_blueprint_hash = _artifact_content_hash(
+            run_data.get("artifacts", []),
+            artifact_kind="planning_blueprint",
+        )
+        prd_package_hash = _artifact_content_hash(
+            run_data.get("artifacts", []),
+            artifact_kind="prd_package",
+        )
         implementation_brief_hash = _artifact_content_hash(
             run_data.get("artifacts", []),
             artifact_kind="implementation_brief",
@@ -4248,6 +4277,8 @@ def run_demo(
                                 client,
                                 run_id=run_id,
                                 runner_plan_hash=runner_plan_hash,
+                                planning_blueprint_hash=planning_blueprint_hash,
+                                prd_package_hash=prd_package_hash,
                                 implementation_brief_hash=implementation_brief_hash,
                                 generated_artifact_bundle_hash=str(
                                     daacs_runtime_generated_artifact_bundle_data.get(
@@ -4258,6 +4289,7 @@ def run_demo(
                                     daacs_runtime_generated_artifact_bundle_data
                                     or {}
                                 ),
+                                solar_draft_projection=solar_planner_draft_projection_data,
                             )
                         )
                     if (
@@ -5278,6 +5310,31 @@ def run_demo(
                 .get("counts", {})
                 .get("generated_workspace_file_byte_count")
             ),
+            "restricted_workspace_codegen_input_hash_count": _as_int(
+                (daacs_runtime_restricted_workspace_generation_data or {})
+                .get("counts", {})
+                .get("codegen_input_hash_count")
+            ),
+            "restricted_workspace_codegen_document_hash_count": _as_int(
+                (daacs_runtime_restricted_workspace_generation_data or {})
+                .get("counts", {})
+                .get("codegen_input_document_hash_count")
+            ),
+            "restricted_workspace_planning_hash_present_count": _as_int(
+                (daacs_runtime_restricted_workspace_generation_data or {})
+                .get("counts", {})
+                .get("planning_blueprint_hash_present_count")
+            ),
+            "restricted_workspace_prd_hash_present_count": _as_int(
+                (daacs_runtime_restricted_workspace_generation_data or {})
+                .get("counts", {})
+                .get("prd_package_hash_present_count")
+            ),
+            "restricted_workspace_solar_draft_hash_present_count": _as_int(
+                (daacs_runtime_restricted_workspace_generation_data or {})
+                .get("counts", {})
+                .get("solar_draft_projection_hash_present_count")
+            ),
             "restricted_workspace_writes": _as_int(
                 daacs_runtime_restricted_workspace_generation_execution.get(
                     "restricted_workspace_file_write_count"
@@ -6045,6 +6102,31 @@ def run_demo(
                 "implementation_brief_hash": (
                     daacs_runtime_restricted_workspace_generation_data.get(
                         "implementation_brief_hash"
+                    )
+                ),
+                "planning_blueprint_hash": (
+                    daacs_runtime_restricted_workspace_generation_data.get(
+                        "planning_blueprint_hash"
+                    )
+                ),
+                "prd_package_hash": (
+                    daacs_runtime_restricted_workspace_generation_data.get(
+                        "prd_package_hash"
+                    )
+                ),
+                "solar_draft_projection_hash": (
+                    daacs_runtime_restricted_workspace_generation_data.get(
+                        "solar_draft_projection_hash"
+                    )
+                ),
+                "codegen_input_hash": (
+                    daacs_runtime_restricted_workspace_generation_data.get(
+                        "codegen_input_hash"
+                    )
+                ),
+                "document_input_summary": (
+                    daacs_runtime_restricted_workspace_generation_data.get(
+                        "document_input_summary", {}
                     )
                 ),
                 "generated_workspace_hash": (

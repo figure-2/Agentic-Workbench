@@ -69,6 +69,24 @@ def _implementation_brief_hash() -> str:
     )
 
 
+def _planning_blueprint_hash() -> str:
+    return stable_contract_hash(
+        {
+            "purpose": "planning blueprint",
+            "artifact": "hash-only",
+        }
+    )
+
+
+def _prd_package_hash() -> str:
+    return stable_contract_hash(
+        {
+            "purpose": "prd package",
+            "artifact": "hash-only",
+        }
+    )
+
+
 def _preflight(run_id: str = RUN_ID) -> dict:
     request = TargetRuntimePreflightRequest(
         run_id=run_id,
@@ -159,6 +177,8 @@ def _request(tmp_path, **overrides) -> TargetRuntimeRestrictedWorkspaceGeneratio
     fields = {
         "run_id": RUN_ID,
         "runner_plan_hash": _runner_plan_hash(),
+        "planning_blueprint_hash": _planning_blueprint_hash(),
+        "prd_package_hash": _prd_package_hash(),
         "implementation_brief_hash": _implementation_brief_hash(),
         "generated_artifact_bundle_hash": bundle["generated_artifact_bundle_hash"],
         "generated_artifact_bundle_projection": bundle,
@@ -190,6 +210,11 @@ def test_restricted_workspace_generation_writes_minimal_skeleton(tmp_path):
     assert result["status"] == "passed"
     assert result["reason"] == "target_runtime_restricted_workspace_generated"
     assert result["counts"]["generated_artifact_bundle_hash_match_count"] == 1
+    assert result["counts"]["codegen_input_hash_count"] == 1
+    assert result["counts"]["codegen_input_document_hash_count"] == 3
+    assert result["counts"]["planning_blueprint_hash_present_count"] == 1
+    assert result["counts"]["prd_package_hash_present_count"] == 1
+    assert result["counts"]["implementation_brief_hash_present_count"] == 1
     assert result["counts"]["generated_workspace_file_record_count"] == 9
     assert result["counts"]["generated_workspace_file_hash_count"] == 9
     assert result["counts"]["restricted_workspace_file_write_count"] == 9
@@ -206,6 +231,9 @@ def test_restricted_workspace_generation_writes_minimal_skeleton(tmp_path):
     assert result["execution_boundary"]["server_start_calls"] == 0
     assert result["repository_boundary"]["root_path_returned"] is False
     assert result["repository_boundary"]["file_content_returned"] is False
+    assert result["document_input_summary"]["source"] == "fixture_planning_documents"
+    assert result["document_input_summary"]["document_hash_count"] == 3
+    assert len(result["codegen_input_hash"]) == 64
     assert str(tmp_path) not in serialized
 
     expected_paths = {
@@ -226,6 +254,20 @@ def test_restricted_workspace_generation_writes_minimal_skeleton(tmp_path):
         output_path = tmp_path / "restricted-workspace" / record["workspace_relative_path"]
         assert output_path.exists()
         assert output_path.read_text(encoding="utf-8").strip()
+    app_content = (
+        tmp_path
+        / "restricted-workspace"
+        / "runs/run-daacs-runtime-mvp-01/generated-app/src/App.tsx"
+    ).read_text(encoding="utf-8")
+    api_content = (
+        tmp_path
+        / "restricted-workspace"
+        / "runs/run-daacs-runtime-mvp-01/generated-app/src/api.ts"
+    ).read_text(encoding="utf-8")
+    assert "Task Board" in app_content
+    assert "getFixtureTasks" in app_content
+    assert "export type FixtureTask" in api_content
+    assert "codegenInputHash" in api_content
     assert_public_projection_safe(result)
 
 

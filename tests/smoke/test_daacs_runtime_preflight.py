@@ -1098,6 +1098,11 @@ def test_local_service_demo_generates_restricted_workspace_skeleton(tmp_path):
     assert comparison["restricted_workspace_file_record_count"] == 9
     assert comparison["restricted_workspace_file_hash_count"] == 9
     assert comparison["restricted_workspace_file_byte_count"] > 0
+    assert comparison["restricted_workspace_codegen_input_hash_count"] == 1
+    assert comparison["restricted_workspace_codegen_document_hash_count"] == 3
+    assert comparison["restricted_workspace_planning_hash_present_count"] == 1
+    assert comparison["restricted_workspace_prd_hash_present_count"] == 1
+    assert comparison["restricted_workspace_solar_draft_hash_present_count"] == 0
     assert comparison["restricted_workspace_writes"] == 9
     assert comparison["restricted_workspace_outside_writes"] == 0
     assert comparison["restricted_workspace_file_content_public_returns"] == 0
@@ -1116,6 +1121,13 @@ def test_local_service_demo_generates_restricted_workspace_skeleton(tmp_path):
     assert restricted_workspace["status"] == "passed"
     assert restricted_workspace["counts"]["generated_workspace_file_record_count"] == 9
     assert restricted_workspace["counts"]["generated_workspace_file_hash_count"] == 9
+    assert restricted_workspace["counts"]["codegen_input_hash_count"] == 1
+    assert restricted_workspace["counts"]["codegen_input_document_hash_count"] == 3
+    assert restricted_workspace["document_input_summary"]["document_hash_count"] == 3
+    assert restricted_workspace["document_input_summary"]["source"] == (
+        "fixture_planning_documents"
+    )
+    assert len(restricted_workspace["codegen_input_hash"]) == 64
     assert restricted_workspace["repository_boundary"]["root_path_returned"] is False
     assert restricted_workspace["repository_boundary"]["file_content_returned"] is False
     assert checks["daacs_runtime_restricted_workspace_generation_projection"] is True
@@ -1123,6 +1135,7 @@ def test_local_service_demo_generates_restricted_workspace_skeleton(tmp_path):
     assert checks["daacs_runtime_restricted_workspace_generation_prerequisite"] is True
     assert checks["daacs_runtime_restricted_workspace_generation_records"] is True
     assert checks["daacs_runtime_restricted_workspace_generation_writes"] is True
+    assert checks["daacs_runtime_restricted_workspace_generation_codegen_input"] is True
     assert checks["daacs_runtime_restricted_workspace_generation_public_safe"] is True
     assert checks["daacs_runtime_restricted_workspace_generation_live_zero"] is True
 
