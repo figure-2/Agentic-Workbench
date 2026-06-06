@@ -92,6 +92,7 @@ Not claimed:
 - Recruiter walkthrough: [docs/recruiter-walkthrough.md](recruiter-walkthrough.md)
 - AW-PORTFOLIO-RELEASE-06 public visibility: [docs/evals/aw-portfolio-release-06-public-visibility-execution.md](evals/aw-portfolio-release-06-public-visibility-execution.md)
 - AW-PORTFOLIO-RELEASE-07 public repo reviewer QA: [docs/evals/aw-portfolio-release-07-public-repo-reviewer-qa.md](evals/aw-portfolio-release-07-public-repo-reviewer-qa.md)
+- AW-PORTFOLIO-RELEASE-08 metadata/license decision precheck: [docs/evals/aw-portfolio-release-08-repository-metadata-license-decision.md](evals/aw-portfolio-release-08-repository-metadata-license-decision.md)
 - Metrics: [docs/metrics.md](metrics.md)
 - Work order: [docs/work-orders/aw-demo-final-04-interaction-backed-portfolio-package.md](work-orders/aw-demo-final-04-interaction-backed-portfolio-package.md)
 - Release work order: [docs/work-orders/aw-portfolio-release-01-recruiter-ready-repo-package.md](work-orders/aw-portfolio-release-01-recruiter-ready-repo-package.md)

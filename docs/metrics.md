@@ -6955,3 +6955,30 @@ boundary checks.
 Interpretation: the public repository is reviewable without authentication. The
 remaining portfolio polish is metadata/license decision work, not core workflow
 functionality.
+
+## AW-PORTFOLIO-RELEASE-08 Repository Metadata and License Decision Metrics
+
+`AW-PORTFOLIO-RELEASE-08` records the repository metadata/license decision
+precheck. It does not mutate GitHub metadata or add a license file.
+
+| Metric | Value |
+|---|---:|
+| Repository visibility | PUBLIC |
+| Default branch | main |
+| Description present | 1 |
+| Topic count | 0 |
+| License metadata present | 0 |
+| Root `LICENSE*` files | 0 |
+| Proposed topic count | 9 |
+| Proposed license options | 3 |
+| GitHub metadata mutation executed | 0 |
+| Local license file added | 0 |
+| Tracked local artifact findings | 0 |
+| High-confidence tracked secret findings | 0 |
+| Hosted/production overclaim blocking findings | 0 |
+| Provider calls | 0 |
+| Solar additional calls | 0 |
+| DAACS uncontrolled target runtime calls | 0 |
+
+Interpretation: description/topics/license remain an operator decision. The
+next step should apply only the approved metadata/license option.
