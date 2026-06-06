@@ -6809,3 +6809,30 @@ release eval without changing provider or target runtime behavior.
 Interpretation: the repository is now easier to review from the first page,
 while the public claim boundary still separates local fixture/demo evidence
 from hosted, provider, or uncontrolled runtime behavior.
+
+## AW-PORTFOLIO-RELEASE-03 GitHub Publish Gate Metrics
+
+`AW-PORTFOLIO-RELEASE-03` records the post-commit publish gate for GitHub
+handoff. It does not push to the remote.
+
+| Metric | Value |
+|---|---:|
+| Release commit | `6847089` |
+| Release commit created | 1 |
+| Branch | `main` |
+| Remote target | `origin/main` |
+| Ahead count after release commit | 13 |
+| Behind count after release commit | 0 |
+| Worktree clean after release commit | 1 |
+| Push executed | 0 |
+| Full test suite | 744 passed in 386.37s |
+| Public claim projection tests | 3 passed in 0.19s |
+| Staged high-confidence secret findings before commit | 0 |
+| Tracked local artifact findings before commit | 0 |
+| Provider calls | 0 |
+| Solar additional calls | 0 |
+| DAACS uncontrolled target runtime calls | 0 |
+
+Interpretation: the repository is locally ready for a normal `origin/main`
+push, but the push remains blocked until the operator explicitly approves the
+external GitHub state change.

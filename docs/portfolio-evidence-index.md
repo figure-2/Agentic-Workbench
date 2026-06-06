@@ -87,6 +87,7 @@ Not claimed:
 ## Linked Evidence
 
 - Eval: [docs/evals/aw-demo-final-04-interaction-backed-portfolio-package.md](evals/aw-demo-final-04-interaction-backed-portfolio-package.md)
+- Publish gate: [docs/evals/aw-portfolio-release-03-github-publish-gate.md](evals/aw-portfolio-release-03-github-publish-gate.md)
 - Metrics: [docs/metrics.md](metrics.md)
 - Work order: [docs/work-orders/aw-demo-final-04-interaction-backed-portfolio-package.md](work-orders/aw-demo-final-04-interaction-backed-portfolio-package.md)
 - Release work order: [docs/work-orders/aw-portfolio-release-01-recruiter-ready-repo-package.md](work-orders/aw-portfolio-release-01-recruiter-ready-repo-package.md)
