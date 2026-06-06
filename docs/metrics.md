@@ -6836,3 +6836,32 @@ handoff. It does not push to the remote.
 Interpretation: the repository is locally ready for a normal `origin/main`
 push, but the push remains blocked until the operator explicitly approves the
 external GitHub state change.
+
+## AW-PORTFOLIO-RELEASE-04 GitHub Push and Post-Push Verification Metrics
+
+`AW-PORTFOLIO-RELEASE-04` pushed the release baseline to `origin/main` and
+verified the remote branch content. Public unauthenticated visibility remains
+blocked because the repository is private.
+
+| Metric | Value |
+|---|---:|
+| Push command executed | 1 |
+| Push command status | passed |
+| Pre-push ahead count | 15 |
+| Pre-push behind count | 0 |
+| Post-push ahead count | 0 |
+| Post-push behind count | 0 |
+| Local HEAD equals remote HEAD | 1 |
+| Remote HEAD | `3b010cb15e0177c7d21cc36e4c0d99306fe82678` |
+| GitHub CLI visibility | `PRIVATE` |
+| Public raw README HTTP check | `404` |
+| Remote README content via git | verified |
+| Remote evidence index content via git | verified |
+| Force push usage | 0 |
+| Provider calls | 0 |
+| Solar additional calls | 0 |
+| DAACS uncontrolled target runtime calls | 0 |
+
+Interpretation: GitHub source handoff succeeded for authenticated repository
+access. Public portfolio access still requires a visibility decision or reviewer
+invites.
