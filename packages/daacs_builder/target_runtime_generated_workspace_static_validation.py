@@ -36,6 +36,44 @@ TARGET_RUNTIME_GENERATED_WORKSPACE_STATIC_VALIDATION_MODE = (
     "target_runtime_generated_workspace_static_validation"
 )
 REQUIRED_PACKAGE_SCRIPT_LABELS = ("dev", "build", "preview", "verify")
+APP_COMPONENT_MARKERS = (
+    "export default function App",
+    "Agentic Workbench Fixture App",
+    "Workflow Stages",
+    "Artifact Cards",
+    "Runner Plan",
+    "Verification Summary",
+    "Execution Boundary",
+    "Action Center",
+    "Evidence Timeline",
+    "Task Board",
+    "Owner Filter",
+    "Reviewer Decision",
+    "Interaction Ready",
+)
+API_CLIENT_MARKERS = (
+    "export type WorkflowStage",
+    "export type FixtureRunSummary",
+    "export type FixtureAction",
+    "export type EvidenceEvent",
+    "export function getFixtureRunSummary",
+    "export function getFixtureActions",
+    "export function getEvidenceTimeline",
+    "executionBoundary",
+)
+VERIFICATION_BOUNDARY_MARKERS = (
+    "Verification Summary",
+    "Execution Boundary",
+    "Provider calls",
+    "DAACS target runtime calls",
+)
+ZERO_CALL_MARKERS = (
+    "| Provider calls | 0 |",
+    "| DAACS target runtime calls | 0 |",
+    "| Package installs | 0 |",
+    "| Builds | 0 |",
+    "| Server starts | 0 |",
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -276,6 +314,7 @@ def _counts(
     script_present_count: int,
     app_marker_count: int,
     api_marker_count: int,
+    verification_boundary_marker_count: int,
     zero_call_marker_count: int,
     readme_marker_count: int,
     verification_hash_match_count: int,
@@ -305,11 +344,17 @@ def _counts(
         else 0,
         "required_script_count": len(REQUIRED_PACKAGE_SCRIPT_LABELS),
         "required_script_present_count": script_present_count,
-        "app_component_marker_check_count": 2,
+        "app_component_marker_check_count": len(APP_COMPONENT_MARKERS),
         "app_component_marker_present_count": app_marker_count,
-        "api_marker_check_count": 2,
+        "api_marker_check_count": len(API_CLIENT_MARKERS),
         "api_marker_present_count": api_marker_count,
-        "zero_call_marker_check_count": 5,
+        "verification_boundary_marker_check_count": len(
+            VERIFICATION_BOUNDARY_MARKERS
+        ),
+        "verification_boundary_marker_present_count": (
+            verification_boundary_marker_count
+        ),
+        "zero_call_marker_check_count": len(ZERO_CALL_MARKERS),
         "zero_call_marker_present_count": zero_call_marker_count,
         "readme_marker_check_count": 2,
         "readme_marker_present_count": readme_marker_count,
@@ -340,6 +385,7 @@ def _result(
     script_present_count: int = 0,
     app_marker_count: int = 0,
     api_marker_count: int = 0,
+    verification_boundary_marker_count: int = 0,
     zero_call_marker_count: int = 0,
     readme_marker_count: int = 0,
 ) -> TargetRuntimeGeneratedWorkspaceStaticValidationResult:
@@ -378,6 +424,7 @@ def _result(
             script_present_count=script_present_count,
             app_marker_count=app_marker_count,
             api_marker_count=api_marker_count,
+            verification_boundary_marker_count=verification_boundary_marker_count,
             zero_call_marker_count=zero_call_marker_count,
             readme_marker_count=readme_marker_count,
             verification_hash_match_count=verification_hash_match_count,
@@ -550,26 +597,33 @@ class TargetRuntimeGeneratedWorkspaceStaticValidationService:
         script_present_count, script_failure = _script_labels(package_json)
         app_marker_count, app_marker_hash = _contains_all(
             content_by_label.get("app_component", ""),
-            ("export default function App", "Agentic Workbench Fixture App"),
+            APP_COMPONENT_MARKERS,
         )
         api_marker_count, api_marker_hash = _contains_all(
             content_by_label.get("api_client", ""),
-            ("export type FixtureRunSummary", "export function getFixtureRunSummary"),
+            API_CLIENT_MARKERS,
+        )
+        verification_boundary_content = "\n".join(
+            (
+                content_by_label.get("app_component", ""),
+                content_by_label.get("verification_notes", ""),
+            )
+        )
+        (
+            verification_boundary_marker_count,
+            verification_boundary_marker_hash,
+        ) = _contains_all(
+            verification_boundary_content,
+            VERIFICATION_BOUNDARY_MARKERS,
         )
         zero_call_marker_count, zero_call_marker_hash = _contains_all(
             content_by_label.get("verification_notes", ""),
-            (
-                "| Provider calls | 0 |",
-                "| DAACS target runtime calls | 0 |",
-                "| Package installs | 0 |",
-                "| Builds | 0 |",
-                "| Server starts | 0 |",
-            ),
+            ZERO_CALL_MARKERS,
         )
         readme_marker_count, readme_marker_hash = _contains_all(
             content_by_label.get("readme", ""),
             (
-                "Agentic Workbench Fixture App Skeleton",
+                "Agentic Workbench Portfolio Fixture App",
                 "DAACS target runtime calls: 0",
             ),
         )
@@ -599,21 +653,29 @@ class TargetRuntimeGeneratedWorkspaceStaticValidationService:
             ),
             _validation_record(
                 name="app_component_markers",
-                passed=app_marker_count == 2,
+                passed=app_marker_count == len(APP_COMPONENT_MARKERS),
                 reason="static_validation_app_component_markers_missing",
                 evidence_hash=app_marker_hash,
                 count=app_marker_count,
             ),
             _validation_record(
                 name="api_client_markers",
-                passed=api_marker_count == 2,
+                passed=api_marker_count == len(API_CLIENT_MARKERS),
                 reason="static_validation_api_client_markers_missing",
                 evidence_hash=api_marker_hash,
                 count=api_marker_count,
             ),
             _validation_record(
+                name="verification_boundary_markers",
+                passed=verification_boundary_marker_count
+                == len(VERIFICATION_BOUNDARY_MARKERS),
+                reason="static_validation_verification_boundary_markers_missing",
+                evidence_hash=verification_boundary_marker_hash,
+                count=verification_boundary_marker_count,
+            ),
+            _validation_record(
                 name="verification_notes_zero_call_markers",
-                passed=zero_call_marker_count == 5,
+                passed=zero_call_marker_count == len(ZERO_CALL_MARKERS),
                 reason="static_validation_zero_call_markers_missing",
                 evidence_hash=zero_call_marker_hash,
                 count=zero_call_marker_count,
@@ -657,6 +719,7 @@ class TargetRuntimeGeneratedWorkspaceStaticValidationService:
             script_present_count=script_present_count,
             app_marker_count=app_marker_count,
             api_marker_count=api_marker_count,
+            verification_boundary_marker_count=verification_boundary_marker_count,
             zero_call_marker_count=zero_call_marker_count,
             readme_marker_count=readme_marker_count,
         )

@@ -14,9 +14,11 @@ Idea
 -> composed canonical run/evidence read model
 ```
 
-The demo is fixture/dry-run only. It does not call Solar Pro 3, Upstage,
-external providers, original DIV runtime, DAACS target runtime, CLI agents,
-package installers, local app servers, or generated app builds.
+The default demo is fixture/dry-run only. It does not call Solar Pro 3,
+Upstage, external providers, original DIV runtime, DAACS target runtime, CLI
+agents, package installers, local app servers, or generated app builds.
+Explicit opt-in flags can run bounded local package/build or local preview
+checks inside the run-scoped generated fixture app workspace.
 
 ## Run
 
@@ -236,18 +238,75 @@ counts only. It does not return command output bodies, dependency values, file
 contents, local root paths, start a server, call providers, or execute the DAACS
 target runtime.
 
-To run the AW-DEMO-FINAL-01 portfolio package in one command:
+To include the AW-PREVIEW-01 local preview attempt boundary without allowing a
+preview server:
 
 ```powershell
-python examples/demo-service-flow/run_portfolio_demo.py --output-dir .local/aw-demo-final-01 --allow-local-build-attempt
+python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-preview-01-demo --include-daacs-runtime-local-preview-attempt
 ```
 
-This writes `aw-demo-final-01-summary.json` and
-`aw-demo-final-01-preview.html` under the selected output directory. The printed
-report contains output file names, stage coverage, fixture app file count,
-local build attempt status/counts, and execution boundary counters only. It
-does not print local root paths, command output bodies, file contents, hosted
-state, provider output, or target runtime output.
+This records the blocked default path. Package installs, builds, preview server
+starts, browser verification attempts, provider calls, network calls, and DAACS
+target runtime calls remain `0`.
+
+To opt in to one local fixture app preview-server/browser verification attempt:
+
+```powershell
+python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-preview-01-demo --include-daacs-runtime-local-preview-attempt --allow-local-preview-attempt
+```
+
+This may first run the AW-BUILD-04 local package/build attempt, then runs a
+browser runtime preflight. If Playwright/browser runtime support is unavailable,
+the preview attempt returns `environment_blocked` before starting a server and
+returns install guidance labels/hashes only. If the browser runtime is
+available, the command starts the generated fixture app preview server inside
+the run-scoped workspace and verifies the first screen. The verification path
+uses Python Playwright when available and falls back to an installed
+Chromium-family system browser in headless mode when Playwright is not
+installed. The public summary returns status, reason, hashes, visible marker
+count, screenshot hash/byte count when available, and server start/stop
+counters only. It does not return command output bodies, file contents,
+screenshot paths, page text, local root paths, provider output, or target
+runtime output.
+
+To include the AW-PREVIEW-03 browser runtime setup boundary without running
+setup commands:
+
+```powershell
+python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-preview-03-demo --include-daacs-runtime-browser-setup-attempt
+```
+
+This records setup status, command labels, hashes, and counts only. Setup
+command executions remain `0` without `--allow-browser-runtime-setup`.
+
+To explicitly allow the local Playwright setup attempt:
+
+```powershell
+python examples/demo-service-flow/run_local_demo.py --store-root .local/aw-preview-03-demo --include-daacs-runtime-browser-setup-attempt --allow-browser-runtime-setup
+```
+
+This may run local Playwright package/browser setup commands following the
+official Playwright browser installation flow. The public summary still does
+not return raw command output, argv, browser error text, local paths, provider
+payloads, or DAACS runtime output.
+
+To run the AW-DEMO-FINAL-04 interaction-backed portfolio package in one command:
+
+```powershell
+python examples/demo-service-flow/run_portfolio_demo.py --output-dir .local/aw-demo-final-04 --screenshot-backed
+```
+
+This writes `aw-demo-final-04-summary.json` and
+`aw-demo-final-04-preview.html` under the selected output directory.
+`--screenshot-backed` is an explicit opt-in for one local build attempt and one
+local preview/browser verification attempt. It does not opt in to browser
+runtime setup commands. The printed report contains output file names, stage
+coverage, fixture app file count, local build attempt status/counts, local
+preview status, screenshot hash/byte-count status, owner filter click evidence,
+reviewer decision click evidence, browser setup status, and
+execution boundary counters only. It does not print local root paths, command
+output bodies, file contents, screenshot paths, page text, hosted state,
+provider output, or target runtime output.
 
 To render the AW-APP-01 portfolio-facing artifact preview over the same public
 summary:
@@ -413,8 +472,53 @@ rows.
 - When `run_portfolio_demo.py --allow-local-build-attempt` is used, the command
   writes one sanitized JSON summary and one static HTML preview for portfolio
   review. The generated fixture app local build attempt is included, while
-  server starts, provider calls, DAACS target runtime calls, raw body exposure,
-  and local root path exposure remain `0`.
+  local preview and browser setup states are included as status/count fields.
+  In the default browser setup path, setup command attempts, server starts,
+  provider calls, DAACS target runtime calls, raw body exposure, screenshot path
+  exposure, page text exposure, and local root path exposure remain `0`.
+- AW-GENERATED-QUALITY-01 upgrades the generated fixture app surface with
+  workflow stages, artifact cards, runner plan, verification summary, execution
+  boundary counters, and task board sections. The static validation path records
+  app markers `7/7`, API markers `4/4`, verification/boundary markers `4/4`,
+  and zero-call markers `5/5`.
+- AW-PREVIEW-04 records explicit opt-in browser screenshot evidence for the
+  generated fixture app. In the measured system-headless-browser path, the
+  portfolio command records screenshot evidence count `1`, screenshot byte
+  count `53009`, preview server starts/stops `1/1`, cleanup `100.0%`, provider
+  calls `0`, DAACS target runtime calls `0`, and raw/path/page-text exposure
+  findings `0`.
+- AW-DEMO-FINAL-03 promotes the portfolio command to a screenshot-backed
+  package. The measured `--screenshot-backed` path records generated fixture app
+  files `9`, local build status `passed`, local preview status `passed`,
+  screenshot evidence count `1`, screenshot byte count `52645`, preview server
+  starts/stops `1/1`, cleanup `100.0%`, provider calls `0`, DAACS target
+  runtime calls `0`, and raw/path/page-text exposure findings `0`.
+- AW-DEMO-FINAL-04 promotes the portfolio command to an interaction-backed
+  package. The measured `--screenshot-backed` path records generated fixture app
+  files `9`, local build status `passed`, local preview status `passed`,
+  screenshot evidence count `1`, screenshot byte count `146583`, owner filter
+  click status `passed`, reviewer decision click status `passed`, verified
+  interaction paths `2/2`, interaction hash evidence count `4`, preview server
+  cleanup `100.0%`, provider calls `0`, DAACS target runtime calls `0`, and
+  raw/path/page-text exposure findings `0`.
+- AW-GENERATED-QUALITY-02 deepens the generated fixture app with a first-screen
+  feature depth control strip, Action Center, Evidence Timeline, Owner Filter,
+  Reviewer Decision, and interaction-ready task board state. Static validation
+  records app markers `13/13`, API markers `8/8`, verification/boundary markers
+  `4/4`, and zero-call markers `5/5`.
+- AW-GENERATED-E2E-01 verifies the generated fixture app owner filter click
+  path in the screenshot-backed portfolio command. The measured path records
+  click status `passed`, click attempts `1`, click passes `1`, target label hash
+  count `1`, task count `3 -> 1`, screenshot evidence count `1`, screenshot
+  byte count `143515`, preview server cleanup `100.0%`, provider calls `0`,
+  DAACS target runtime calls `0`, and raw/path/page-text exposure findings `0`.
+- AW-GENERATED-E2E-02 verifies the generated fixture app reviewer decision
+  click path in the screenshot-backed portfolio command. The measured path
+  records click status `passed`, click attempts `1`, click passes `1`, target
+  label hash count `1`, state hash count `2`, state changed count `1`,
+  screenshot evidence count `1`, screenshot byte count `146487`, preview server
+  cleanup `100.0%`, provider calls `0`, DAACS target runtime calls `0`, and
+  raw/path/page-text exposure findings `0`.
 - When `--include-provider-precheck` is used, manual proposal, disabled
   executor, one-shot permission, preflight audit, readiness decision, review
   packet, review packet export/read-model, handoff packet, and operator opt-in

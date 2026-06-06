@@ -6268,3 +6268,544 @@ Interpretation: the generated fixture app now carries document-chain evidence
 through `codegen_input_hash` and document hash counts, while side-effect counts
 remain closed by default. It does not claim DAACS runtime execution, hosted app
 behavior, or Solar-authored canonical artifact generation.
+
+## AW-PREVIEW-01 Local Fixture App Preview Metrics
+
+`AW-PREVIEW-01` adds an explicit opt-in local preview-server/browser
+verification boundary over the document-linked generated fixture app. The
+default path remains blocked; the opt-in path can start the local preview server
+inside the run-scoped workspace and records browser verification as
+`environment_blocked` when browser runtime support is unavailable.
+
+| Metric | Value |
+|---|---:|
+| Representative preview scenario count | 1 |
+| Public projection count | 1 |
+| Required visible marker count | 4 |
+| Runtime comparison variants | 13 |
+| Default path preview opt-in present | 0 |
+| Default path preview server starts | 0 |
+| Default path browser verification attempts | 0 |
+| Opt-in path preview server starts | 1 |
+| Opt-in path preview server stops | 1 |
+| Opt-in path browser verification status | environment_blocked |
+| Opt-in path screenshot evidence count in current environment | 0 |
+| Unit fake-runner screenshot evidence count | 1 |
+| Provider calls | 0 |
+| Solar additional live calls | 0 |
+| DAACS target runtime calls | 0 |
+| Preview boundary external network calls | 0 |
+| Public raw command output exposure | 0 |
+| Public file body exposure | 0 |
+| Public local root path exposure | 0 |
+| New unit tests | 5 |
+| New smoke tests | 2 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m compileall packages\daacs_builder\target_runtime_local_preview_attempt.py apps\api\agentic_workbench_api\services\target_runtime_local_preview_attempt.py apps\api\agentic_workbench_api\main.py examples\demo-service-flow\run_local_demo.py packages\daacs_builder\__init__.py tests\unit\test_target_runtime_local_preview_attempt.py tests\smoke\test_daacs_runtime_preflight.py -q` | passed |
+| `python -m pytest tests\unit\test_target_runtime_local_preview_attempt.py -q --color=no` | 5 passed |
+| `python -m pytest tests\smoke\test_daacs_runtime_preflight.py::test_daacs_runtime_local_preview_attempt_api_requires_explicit_opt_in tests\smoke\test_daacs_runtime_preflight.py::test_local_service_demo_records_local_preview_attempt_as_blocked_without_allow -q --color=no` | 2 passed |
+| `python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-preview-01-cli-blocked --include-daacs-runtime-local-preview-attempt` | passed with preview status `blocked` and server starts `0` |
+| `python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-preview-01-cli-optin --include-daacs-runtime-local-preview-attempt --allow-local-preview-attempt` | passed with preview status `environment_blocked` and server start/stop count `1/1` |
+| `python -m pytest tests -q --color=no` | 736 passed |
+
+Interpretation: AW-PREVIEW-01 proves the preview-server boundary and cleanup
+path without exposing raw output or opening provider/DAACS runtime execution.
+Current local browser screenshot verification is environment-blocked because
+Playwright/browser runtime support is not installed in this environment; the
+success screenshot path is covered by the fake-runner unit test.
+
+## AW-PREVIEW-02 Browser Runtime Preflight Metrics
+
+`AW-PREVIEW-02` adds browser runtime availability preflight before local preview
+server startup. In the current environment, Python Playwright is unavailable,
+so the opt-in preview path returns `environment_blocked` before starting the
+preview server and exposes install guidance labels/hashes only.
+
+| Metric | Value |
+|---|---:|
+| Browser runtime preflight scenarios | 1 |
+| Browser runtime preflight records | 1 |
+| Browser runtime available count in current environment | 0 |
+| Browser import check count | 1 |
+| Browser launch check count | 0 |
+| Install guidance label count | 2 |
+| Install guidance hash count | 2 |
+| Default preview server starts without opt-in | 0 |
+| Opt-in preview server starts when browser runtime unavailable | 0 |
+| Opt-in preview server stops when browser runtime unavailable | 0 |
+| Screenshot evidence count in current environment | 0 |
+| Unit fake-runner screenshot evidence count | 1 |
+| Provider calls | 0 |
+| Solar additional live calls | 0 |
+| DAACS target runtime calls | 0 |
+| Raw browser error exposure | 0 |
+| Raw command output exposure | 0 |
+| Public local path exposure | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m compileall packages\daacs_builder\target_runtime_local_preview_attempt.py apps\api\agentic_workbench_api\services\target_runtime_local_preview_attempt.py examples\demo-service-flow\run_local_demo.py packages\daacs_builder\__init__.py tests\unit\test_target_runtime_local_preview_attempt.py -q` | passed |
+| `python -m pytest tests\unit\test_target_runtime_local_preview_attempt.py -q --color=no` | 5 passed |
+| `python -m pytest tests\unit\test_target_runtime_local_preview_attempt.py tests\smoke\test_daacs_runtime_preflight.py::test_daacs_runtime_local_preview_attempt_api_requires_explicit_opt_in tests\smoke\test_daacs_runtime_preflight.py::test_local_service_demo_records_local_preview_attempt_as_blocked_without_allow tests\unit\test_public_claim_projection_docs.py -q --color=no` | 10 passed |
+| `python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-preview-02-cli-blocked --include-daacs-runtime-local-preview-attempt` | passed with preview status `blocked`, reason `local_preview_opt_in_required`, preflight count `0`, server starts/stops `0/0` |
+| `python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-preview-02-cli-optin --include-daacs-runtime-local-preview-attempt --allow-local-preview-attempt` | passed with preview status `environment_blocked`, reason `playwright_python_package_missing`, preflight count `1`, availability count `0`, server starts/stops `0/0`, install guidance labels `2` |
+| `python -m pytest tests -q --color=no` | 736 passed in 233.10s |
+
+Interpretation: AW-PREVIEW-02 makes the missing-browser condition explicit and
+prevents unnecessary preview server startup when screenshot verification cannot
+run. It does not install browser binaries, open provider calls, or execute the
+DAACS target runtime.
+
+## AW-PREVIEW-03 Explicit Browser Runtime Setup Metrics
+
+`AW-PREVIEW-03` adds an explicit browser runtime setup attempt boundary. It does
+not install Playwright or browser binaries by default. Public projection exposes
+only setup status, reason, labels, hashes, and counts.
+
+| Metric | Value |
+|---|---:|
+| Browser setup attempt scenarios | 1 |
+| Default setup command executions | 0 |
+| Explicit setup opt-in count in current CLI run | 0 |
+| Setup command attempts in current CLI run | 0 |
+| Browser runtime available after setup in current CLI run | 0 |
+| Unit fake-success setup command attempts | 2 |
+| Unit fake-success browser runtime available after setup | 1 |
+| Screenshot evidence count in current environment | 0 |
+| Preview server starts in current setup CLI run | 0 |
+| Provider calls | 0 |
+| Solar additional live calls | 0 |
+| DAACS target runtime calls | 0 |
+| Raw command output exposure | 0 |
+| Raw argv exposure | 0 |
+| Browser error exposure | 0 |
+| Public local path exposure | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m compileall packages\daacs_builder\target_runtime_browser_setup_attempt.py apps\api\agentic_workbench_api\services\target_runtime_browser_setup_attempt.py apps\api\agentic_workbench_api\main.py packages\daacs_builder\__init__.py examples\demo-service-flow\run_local_demo.py tests\unit\test_target_runtime_browser_setup_attempt.py tests\smoke\test_daacs_runtime_preflight.py -q` | passed |
+| `python -m pytest tests\unit\test_target_runtime_browser_setup_attempt.py tests\smoke\test_daacs_runtime_preflight.py::test_daacs_runtime_browser_setup_attempt_api_requires_explicit_opt_in tests\unit\test_public_claim_projection_docs.py -q --color=no` | 7 passed |
+| `python examples\demo-service-flow\run_local_demo.py --store-root .local\aw-preview-03-cli-blocked --include-daacs-runtime-browser-setup-attempt` | passed with setup status `blocked`, reason `browser_runtime_setup_opt_in_required`, setup command attempts `0` |
+| `python -m pytest tests -q --color=no` | 740 passed in 243.14s |
+
+Interpretation: AW-PREVIEW-03 creates the approved setup boundary needed to turn
+browser `environment_blocked` into screenshot evidence later, but it does not
+perform package/browser installation without explicit operator opt-in.
+
+## AW-DEMO-FINAL-02 Portfolio Demo Package Browser Status Metrics
+
+`AW-DEMO-FINAL-02` extends the local portfolio package with local preview and
+browser runtime setup status. The generated bundle remains local and
+public-safe: it exposes hashes, status, counts, and reasons only.
+
+| Metric | Value |
+|---|---:|
+| Portfolio command count | 1 |
+| Summary JSON generated | 1 |
+| Static HTML preview generated | 1 |
+| Stage coverage | 7/7 |
+| Stage coverage percent | 100.0 |
+| Generated fixture app files | 9 |
+| Local build status | passed |
+| Local build command results | 2 |
+| Package install attempts | 1 |
+| Build attempts | 1 |
+| Local preview status | blocked |
+| Local preview opt-in present | 0 |
+| Preview server starts | 0 |
+| Preview server stops | 0 |
+| Browser setup status | blocked |
+| Browser setup preflight count | 1 |
+| Browser setup command attempts | 0 |
+| Browser setup default command executions | 0 |
+| Browser runtime available before setup | 0 |
+| Browser runtime available after setup | 0 |
+| Screenshot evidence count | 0 |
+| Screenshot hash count | 0 |
+| Screenshot byte count | 0 |
+| Provider calls | 0 |
+| DAACS target runtime calls | 0 |
+| Public raw body exposure | 0 |
+| Public local root path exposure | 0 |
+| Screenshot path exposure | 0 |
+| Page text exposure | 0 |
+| Public claim drift findings | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m compileall examples\demo-service-flow\run_portfolio_demo.py examples\demo-service-flow\render_artifact_preview.py tests\smoke\test_portfolio_demo_package.py` | passed |
+| `python -m pytest tests\smoke\test_portfolio_demo_package.py -q --color=no` | 3 passed |
+| `python examples\demo-service-flow\run_portfolio_demo.py --output-dir .local\aw-demo-final-02 --allow-local-build-attempt` | passed |
+| `python -m pytest tests -q --color=no` | 740 passed in 239.36s |
+
+Interpretation: AW-DEMO-FINAL-02 gives a first-time reviewer one command and
+one static preview that summarize the current document-to-app flow. Browser
+setup remains blocked by default, and screenshot evidence is not claimed when
+no screenshot hash/byte count exists.
+
+## AW-GENERATED-QUALITY-01 Portfolio Generated App Realism Metrics
+
+`AW-GENERATED-QUALITY-01` upgrades the generated fixture app content while
+keeping the same restricted workspace and public projection boundaries. The app
+now includes workflow stages, artifact cards, runner plan, verification
+summary, execution boundary counters, and task board sections.
+
+| Metric | Value |
+|---|---:|
+| Representative scenario count | 1 |
+| Stage coverage | 7/7 |
+| Generated app file records | 9 |
+| Generated app byte count | 11176 |
+| Static files checked | 9 |
+| Static file reads | 9 |
+| App markers | 7/7 |
+| API markers | 4/4 |
+| Verification/boundary markers | 4/4 |
+| Zero-call markers | 5/5 |
+| Comparison variants | 13 |
+| Local build status | passed |
+| Local build command results | 2 |
+| Package install attempts | 1 |
+| Build attempts | 1 |
+| Browser setup command attempts by default | 0 |
+| Server starts | 0 |
+| Provider calls | 0 |
+| DAACS target runtime calls | 0 |
+| Public raw body exposure | 0 |
+| Public local root path exposure | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m compileall packages\daacs_builder\target_runtime_restricted_workspace_generation.py packages\daacs_builder\target_runtime_generated_workspace_static_validation.py examples\demo-service-flow\run_local_demo.py examples\demo-service-flow\render_artifact_preview.py tests\unit\test_target_runtime_restricted_workspace_generation.py tests\unit\test_target_runtime_generated_workspace_static_validation.py tests\smoke\test_daacs_runtime_preflight.py tests\smoke\test_artifact_preview_surface.py` | passed |
+| `python -m pytest tests\unit\test_target_runtime_restricted_workspace_generation.py tests\unit\test_target_runtime_generated_workspace_static_validation.py tests\smoke\test_artifact_preview_surface.py -q --color=no` | 22 passed |
+| `python -m pytest tests\smoke\test_daacs_runtime_preflight.py::test_daacs_runtime_restricted_workspace_generation_api_writes_app_skeleton tests\smoke\test_daacs_runtime_preflight.py::test_local_service_demo_statically_validates_generated_workspace -q --color=no` | 2 passed |
+| `python examples\demo-service-flow\run_portfolio_demo.py --output-dir .local\aw-generated-quality-01 --allow-local-build-attempt` | passed |
+| `git diff --check` | passed |
+| `python -m pytest tests\unit\test_public_claim_projection_docs.py -q --color=no` | 3 passed |
+| `python -m pytest tests\unit\test_target_runtime_restricted_workspace_generation.py tests\unit\test_target_runtime_generated_workspace_static_validation.py tests\smoke\test_daacs_runtime_preflight.py::test_daacs_runtime_restricted_workspace_generation_api_writes_app_skeleton tests\smoke\test_daacs_runtime_preflight.py::test_local_service_demo_statically_validates_generated_workspace tests\smoke\test_artifact_preview_surface.py tests\smoke\test_portfolio_demo_package.py -q --color=no` | 27 passed |
+| `python -m pytest tests -q --color=no` | 740 passed in 238.93s |
+
+Interpretation: generated app realism improved without adding unapproved
+provider calls, DAACS target runtime execution, server starts, hosted behavior,
+or public raw body exposure.
+
+## AW-PREVIEW-04 Generated App Screenshot Evidence Metrics
+
+`AW-PREVIEW-04` adds explicit opt-in screenshot evidence for the generated
+fixture app. The implementation probes Python Playwright first and then falls
+back to an installed system Chromium-family browser in headless mode when
+Playwright is not installed. The public report exposes screenshot hash/count
+and byte-count evidence only.
+
+| Metric | Value |
+|---|---:|
+| Representative scenario count | 1 |
+| Stage coverage | 7/7 |
+| Generated fixture app file count | 9 |
+| Local build status | passed |
+| Browser runtime available | 1 |
+| Browser setup command attempts | 0 |
+| Browser setup status | passed |
+| Local preview status | passed |
+| Preview server start attempts | 1 |
+| Preview server starts | 1 |
+| Preview server stops | 1 |
+| Preview server cleanup percent | 100.0 |
+| Screenshot capture status | verified |
+| Screenshot evidence count | 1 |
+| Screenshot hash count | 1 |
+| Screenshot byte count | 53009 |
+| Provider calls | 0 |
+| Solar additional calls | 0 |
+| DAACS target runtime calls | 0 |
+| Public raw body exposure | 0 |
+| Screenshot path exposure | 0 |
+| Page text exposure | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m compileall packages\daacs_builder\target_runtime_local_preview_attempt.py examples\demo-service-flow\run_local_demo.py examples\demo-service-flow\run_portfolio_demo.py tests\unit\test_target_runtime_local_preview_attempt.py tests\smoke\test_portfolio_demo_package.py tests\smoke\test_daacs_runtime_preflight.py` | passed |
+| `python -m pytest tests\unit\test_target_runtime_local_preview_attempt.py -q --color=no` | 5 passed |
+| `python -m pytest tests\smoke\test_portfolio_demo_package.py tests\smoke\test_daacs_runtime_preflight.py::test_local_service_demo_retries_preview_when_browser_setup_makes_runtime_available -q --color=no` | 5 passed |
+| `python -m pytest tests\smoke\test_artifact_preview_surface.py -q --color=no` | 3 passed |
+| `python examples\demo-service-flow\run_portfolio_demo.py --output-dir .local\aw-preview-04-system-browser --allow-local-build-attempt --allow-local-preview-attempt` | passed |
+| `python -m pytest tests\unit\test_target_runtime_local_preview_attempt.py tests\smoke\test_portfolio_demo_package.py tests\smoke\test_daacs_runtime_preflight.py::test_local_service_demo_retries_preview_when_browser_setup_makes_runtime_available tests\smoke\test_artifact_preview_surface.py tests\unit\test_public_claim_projection_docs.py -q --color=no` | 16 passed |
+| `git diff --check` | passed |
+| `python -m pytest tests -q --color=no` | 742 passed in 242.41s |
+
+Interpretation: the portfolio demo now reaches document output, generated app
+file output, local build evidence, preview server verification, and screenshot
+hash evidence on an explicit opt-in path. It still does not claim hosted
+deployment, production readiness, external provider success, or uncontrolled
+DAACS target runtime execution.
+
+## AW-DEMO-FINAL-03 Screenshot-Backed Portfolio Package Metrics
+
+`AW-DEMO-FINAL-03` packages the service-shaped workflow, generated fixture app,
+local build evidence, preview verification, and screenshot hash evidence behind
+one explicit `--screenshot-backed` command.
+
+| Metric | Value |
+|---|---:|
+| Portfolio command count | 1 |
+| Summary JSON generated | 1 |
+| Static HTML preview generated | 1 |
+| Stage coverage | 7/7 |
+| Generated fixture app files | 9 |
+| Local build status | passed |
+| Package install attempts | 1 |
+| Build attempts | 1 |
+| Local preview status | passed |
+| Browser runtime available | 1 |
+| Browser setup command attempts | 0 |
+| Preview server starts/stops | 1/1 |
+| Preview server cleanup percent | 100.0 |
+| Screenshot capture status | verified |
+| Screenshot evidence count | 1 |
+| Screenshot hash count | 1 |
+| Screenshot byte count | 52645 |
+| Provider calls | 0 |
+| Solar additional calls | 0 |
+| DAACS target runtime calls | 0 |
+| Public raw body exposure | 0 |
+| Public local root path exposure | 0 |
+| Screenshot path exposure | 0 |
+| Page text exposure | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python examples\demo-service-flow\run_portfolio_demo.py --output-dir .local\aw-demo-final-03 --screenshot-backed` | passed |
+| `python -m compileall examples\demo-service-flow\run_portfolio_demo.py examples\demo-service-flow\render_artifact_preview.py tests\smoke\test_portfolio_demo_package.py tests\smoke\test_artifact_preview_surface.py` | passed |
+| `python -m pytest tests\smoke\test_portfolio_demo_package.py tests\smoke\test_artifact_preview_surface.py tests\unit\test_public_claim_projection_docs.py -q --color=no` | 10 passed |
+| `git diff --check` | passed |
+| `python -m pytest tests -q --color=no` | 742 passed in 245.38s |
+
+Interpretation: the portfolio path is now suitable for a first reviewer pass:
+it shows document chain evidence, generated app files, local build evidence,
+and browser screenshot evidence without claiming hosted or production behavior.
+
+## AW-GENERATED-QUALITY-02 Generated App Feature Depth Metrics
+
+`AW-GENERATED-QUALITY-02` makes the generated fixture app more app-shaped by
+adding a first-screen feature depth control strip, Action Center, Evidence
+Timeline, Owner Filter, Reviewer Decision, and interaction-ready task board
+state.
+
+| Metric | Value |
+|---|---:|
+| Generated fixture app file count | 9 |
+| Generated app byte count | 15392 |
+| App markers | 13/13 |
+| API markers | 8/8 |
+| Verification/boundary markers | 4/4 |
+| Zero-call markers | 5/5 |
+| Local build status | passed |
+| Screenshot evidence count | 1 |
+| Screenshot byte count | 53820 |
+| Preview server starts/stops | 1/1 |
+| Provider calls | 0 |
+| Solar additional calls | 0 |
+| DAACS target runtime calls | 0 |
+| Public raw body exposure | 0 |
+| Screenshot path exposure | 0 |
+| Page text exposure | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m compileall packages\daacs_builder\target_runtime_restricted_workspace_generation.py packages\daacs_builder\target_runtime_generated_workspace_static_validation.py examples\demo-service-flow\render_artifact_preview.py tests\unit\test_target_runtime_restricted_workspace_generation.py tests\unit\test_target_runtime_generated_workspace_static_validation.py tests\smoke\test_artifact_preview_surface.py tests\smoke\test_daacs_runtime_preflight.py` | passed |
+| `python -m pytest tests\unit\test_target_runtime_restricted_workspace_generation.py tests\unit\test_target_runtime_generated_workspace_static_validation.py tests\smoke\test_artifact_preview_surface.py tests\smoke\test_daacs_runtime_preflight.py::test_local_service_demo_statically_validates_generated_workspace -q --color=no` | 23 passed |
+| `python examples\demo-service-flow\run_portfolio_demo.py --output-dir .local\aw-generated-quality-02 --screenshot-backed` | passed |
+| `python -m pytest tests\unit\test_public_claim_projection_docs.py -q --color=no` | 3 passed |
+| `git diff --check` | passed |
+| `python -m pytest tests -q --color=no` | 742 passed in 238.60s |
+
+Interpretation: generated app realism increased in the artifact-producing
+template itself, while local build, preview screenshot evidence, and public-safe
+projection boundaries remain intact.
+
+## AW-GENERATED-E2E-01 Owner Filter Click-Path Metrics
+
+`AW-GENERATED-E2E-01` verifies one browser interaction in the generated fixture
+app. The screenshot-backed portfolio command clicks the first non-`All` owner
+filter and records hash/count/status evidence only.
+
+| Metric | Value |
+|---|---:|
+| Stage coverage | 7/7 |
+| Generated fixture app file count | 9 |
+| Local build status | passed |
+| Local preview status | passed |
+| Owner filter click status | passed |
+| Owner filter click attempts | 1 |
+| Owner filter click passes | 1 |
+| Owner filter target label hash count | 1 |
+| Task count before click | 3 |
+| Task count after click | 1 |
+| Changed task count | 2 |
+| Screenshot evidence count | 1 |
+| Screenshot hash count | 1 |
+| Screenshot byte count | 143515 |
+| Preview server starts/stops | 1/1 |
+| Preview server cleanup percent | 100.0 |
+| Provider calls | 0 |
+| Solar additional calls | 0 |
+| DAACS target runtime calls | 0 |
+| Public raw body exposure | 0 |
+| Screenshot path exposure | 0 |
+| Page text exposure | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m compileall packages\daacs_builder\target_runtime_local_preview_attempt.py packages\daacs_builder\target_runtime_restricted_workspace_generation.py examples\demo-service-flow\run_portfolio_demo.py examples\demo-service-flow\render_artifact_preview.py tests\unit\test_target_runtime_local_preview_attempt.py tests\unit\test_target_runtime_restricted_workspace_generation.py tests\smoke\test_portfolio_demo_package.py` | passed |
+| `python -m pytest tests\unit\test_target_runtime_local_preview_attempt.py tests\unit\test_target_runtime_restricted_workspace_generation.py tests\smoke\test_portfolio_demo_package.py -q --color=no` | 19 passed |
+| `python -m pytest tests\unit\test_target_runtime_local_preview_attempt.py tests\unit\test_target_runtime_restricted_workspace_generation.py tests\smoke\test_portfolio_demo_package.py tests\unit\test_public_claim_projection_docs.py -q --color=no` | 22 passed |
+| `python -m pytest tests\smoke\test_artifact_preview_surface.py -q --color=no` | 3 passed |
+| `python examples\demo-service-flow\run_portfolio_demo.py --output-dir .local\aw-generated-e2e-01 --screenshot-backed` | passed |
+| `git diff --check` | passed |
+| `python -m pytest tests -q --color=no` | 743 passed in 239.00s |
+
+Interpretation: the generated fixture app now has one verified interaction
+path. Public output stays limited to status, hashes, counts, and reasons.
+
+## AW-GENERATED-E2E-02 Reviewer Decision Click-Path Metrics
+
+`AW-GENERATED-E2E-02` verifies a second browser interaction in the generated
+fixture app. The screenshot-backed portfolio command clicks one reviewer
+decision control and records hash/count/status evidence only.
+
+| Metric | Value |
+|---|---:|
+| Stage coverage | 7/7 |
+| Generated fixture app file count | 9 |
+| Local build status | passed |
+| Local preview status | passed |
+| Owner filter click status | passed |
+| Owner filter click attempts/passes | 1/1 |
+| Owner filter task count before/after | 3/1 |
+| Reviewer decision click status | passed |
+| Reviewer decision click attempts/passes | 1/1 |
+| Reviewer decision target label hash count | 1 |
+| Reviewer decision state hash count | 2 |
+| Reviewer decision state changed count | 1 |
+| Screenshot evidence count | 1 |
+| Screenshot hash count | 1 |
+| Screenshot byte count | 146487 |
+| Preview server starts/stops | 1/1 |
+| Preview server cleanup percent | 100.0 |
+| Browser setup command attempts | 0 |
+| Provider calls | 0 |
+| Solar additional calls | 0 |
+| DAACS target runtime calls | 0 |
+| Public raw body exposure | 0 |
+| Screenshot path exposure | 0 |
+| Page text exposure | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m compileall packages\daacs_builder\target_runtime_local_preview_attempt.py packages\daacs_builder\target_runtime_restricted_workspace_generation.py examples\demo-service-flow\run_portfolio_demo.py examples\demo-service-flow\render_artifact_preview.py tests\unit\test_target_runtime_local_preview_attempt.py tests\unit\test_target_runtime_restricted_workspace_generation.py tests\smoke\test_portfolio_demo_package.py` | passed |
+| `python -m pytest tests\unit\test_target_runtime_local_preview_attempt.py tests\unit\test_target_runtime_restricted_workspace_generation.py tests\smoke\test_portfolio_demo_package.py tests\unit\test_public_claim_projection_docs.py -q --color=no` | 23 passed |
+| `python -m pytest tests\smoke\test_artifact_preview_surface.py -q --color=no` | 3 passed |
+| `python examples\demo-service-flow\run_portfolio_demo.py --store-root .local\aw-generated-e2e-02-store --output-dir .local\aw-generated-e2e-02 --screenshot-backed` | passed |
+
+Interpretation: the generated fixture app now has two verified interaction
+paths. Public output stays limited to status, hashes, counts, and reasons.
+
+## AW-DEMO-FINAL-04 Interaction-Backed Portfolio Package Metrics
+
+`AW-DEMO-FINAL-04` packages the service-shaped workflow, generated fixture app,
+local build evidence, screenshot evidence, owner filter click evidence, and
+reviewer decision click evidence into one local portfolio report. Public output
+stays limited to status, hashes, counts, and reasons.
+
+| Metric | Value |
+|---|---:|
+| Portfolio command count | 1 |
+| Summary JSON generated | 1 |
+| Static HTML preview generated | 1 |
+| Stage coverage | 7/7 |
+| Generated fixture app files | 9 |
+| Local build status | passed |
+| Package install attempts | 1 |
+| Build attempts | 1 |
+| Local preview status | passed |
+| Browser runtime available | 1 |
+| Browser setup command attempts | 0 |
+| Preview server starts/stops | 1/1 |
+| Preview server cleanup percent | 100.0 |
+| Screenshot capture status | verified |
+| Screenshot evidence count | 1 |
+| Screenshot hash count | 1 |
+| Screenshot byte count | 146583 |
+| Owner filter click status | passed |
+| Owner filter click attempts/passes | 1/1 |
+| Owner filter task count before/after | 3/1 |
+| Reviewer decision click status | passed |
+| Reviewer decision click attempts/passes | 1/1 |
+| Reviewer decision target label hash count | 1 |
+| Reviewer decision state hash count | 2 |
+| Reviewer decision state changed count | 1 |
+| Interaction package status | verified |
+| Interaction package hash count | 1 |
+| Interaction paths verified | 2/2 |
+| Interaction hash evidence count | 4 |
+| Interaction DOM text exposure | 0 |
+| Interaction event exposure | 0 |
+| Provider calls | 0 |
+| Solar additional calls | 0 |
+| DAACS target runtime calls | 0 |
+| Public raw body exposure | 0 |
+| Public local root path exposure | 0 |
+| Screenshot path exposure | 0 |
+| Page text exposure | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python -m compileall examples\demo-service-flow\run_portfolio_demo.py examples\demo-service-flow\render_artifact_preview.py tests\smoke\test_portfolio_demo_package.py tests\smoke\test_artifact_preview_surface.py` | passed |
+| `python -m pytest tests\smoke\test_portfolio_demo_package.py tests\smoke\test_artifact_preview_surface.py tests\unit\test_public_claim_projection_docs.py -q --color=no` | 10 passed |
+| `python examples\demo-service-flow\run_portfolio_demo.py --store-root .local\aw-demo-final-04-store --output-dir .local\aw-demo-final-04 --screenshot-backed` | passed |
+| `git diff --check` | passed |
+| `python -m pytest tests -q --color=no` | 744 passed in 386.24s |
+
+Interpretation: the portfolio report now presents document chain, generated app,
+build, screenshot, and two browser interaction evidence paths in one local
+fixture/demo package without claiming hosted, production, provider, or
+uncontrolled runtime behavior.
+
+## AW-PORTFOLIO-RELEASE-01 Recruiter-Ready Repo Package Metrics
+
+`AW-PORTFOLIO-RELEASE-01` packages the current local demo baseline for GitHub
+review. It adds a top-level README snapshot, a public evidence index, and a
+release eval without changing provider or target runtime behavior.
+
+| Metric | Value |
+|---|---:|
+| README portfolio snapshot | added |
+| Current demo command in README | 1 |
+| Evidence index | added |
+| Evidence index linked from README | 1 |
+| AW-DEMO-FINAL-04 eval linked | 1 |
+| Metrics linked | 1 |
+| Stage coverage recorded | 7/7 |
+| Generated fixture app files recorded | 9 |
+| Local build status recorded | passed |
+| Screenshot evidence/hash count recorded | 1/1 |
+| Owner filter click status recorded | passed |
+| Reviewer decision click status recorded | passed |
+| Verified interaction paths recorded | 2/2 |
+| Full test result recorded | 744 passed |
+| Provider calls in package | 0 |
+| Solar additional calls in package | 0 |
+| DAACS uncontrolled target runtime calls | 0 |
+| `.local` tracked output findings | 0 |
+
+| Verification Command | Result |
+|---|---:|
+| `python examples\demo-service-flow\run_portfolio_demo.py --store-root .local\aw-demo-final-04-store --output-dir .local\aw-demo-final-04 --screenshot-backed` | passed |
+| `python -m pytest tests -q --color=no` | 744 passed in 386.24s |
+| `git diff --check` | passed |
+
+Interpretation: the repository is now easier to review from the first page,
+while the public claim boundary still separates local fixture/demo evidence
+from hosted, provider, or uncontrolled runtime behavior.

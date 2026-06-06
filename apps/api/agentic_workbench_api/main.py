@@ -81,6 +81,15 @@ from .services.target_runtime_local_build_attempt import (
     TargetRuntimeLocalBuildAttemptProvider,
     run_target_runtime_local_build_attempt,
 )
+from .services.target_runtime_browser_setup_attempt import (
+    TargetRuntimeBrowserSetupAttemptProvider,
+    run_target_runtime_browser_setup_attempt,
+)
+from .services.target_runtime_local_preview_attempt import (
+    TargetRuntimeLocalPreviewAttemptConfig,
+    TargetRuntimeLocalPreviewAttemptProvider,
+    run_target_runtime_local_preview_attempt,
+)
 from .services.target_runtime_preflight import run_target_runtime_preflight
 from .services.canonical_run_store import (
     RunArtifactRepositoryConfig,
@@ -161,6 +170,15 @@ def create_app(
     target_runtime_local_build_attempt_provider: (
         TargetRuntimeLocalBuildAttemptProvider | None
     ) = None,
+    target_runtime_browser_setup_attempt_provider: (
+        TargetRuntimeBrowserSetupAttemptProvider | None
+    ) = None,
+    target_runtime_local_preview_attempt_config: (
+        TargetRuntimeLocalPreviewAttemptConfig | None
+    ) = None,
+    target_runtime_local_preview_attempt_provider: (
+        TargetRuntimeLocalPreviewAttemptProvider | None
+    ) = None,
 ):
     if FastAPI is None:
         raise RuntimeError("fastapi is not installed. Install API dependencies before serving.")
@@ -225,6 +243,16 @@ def create_app(
         target_runtime_local_build_attempt_provider
         or TargetRuntimeLocalBuildAttemptProvider(
             target_runtime_local_build_attempt_config
+        )
+    )
+    target_runtime_browser_setup_attempt = (
+        target_runtime_browser_setup_attempt_provider
+        or TargetRuntimeBrowserSetupAttemptProvider()
+    )
+    target_runtime_local_preview_attempt = (
+        target_runtime_local_preview_attempt_provider
+        or TargetRuntimeLocalPreviewAttemptProvider(
+            target_runtime_local_preview_attempt_config
         )
     )
 
@@ -463,6 +491,30 @@ def create_app(
                 "data": run_target_runtime_local_build_attempt(
                     payload,
                     workspace_provider=target_runtime_local_build_attempt,
+                )
+            }
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/daacs/runtime/browser-setup-attempt")
+    def create_daacs_runtime_browser_setup_attempt(payload: dict):
+        try:
+            return {
+                "data": run_target_runtime_browser_setup_attempt(
+                    payload,
+                    provider=target_runtime_browser_setup_attempt,
+                )
+            }
+        except (KeyError, TypeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post("/api/v1/daacs/runtime/local-preview-attempt")
+    def create_daacs_runtime_local_preview_attempt(payload: dict):
+        try:
+            return {
+                "data": run_target_runtime_local_preview_attempt(
+                    payload,
+                    workspace_provider=target_runtime_local_preview_attempt,
                 )
             }
         except (KeyError, TypeError, ValueError) as exc:

@@ -29,6 +29,9 @@ from apps.api.agentic_workbench_api.services.target_runtime_buildable_fixture_ma
 from apps.api.agentic_workbench_api.services.target_runtime_local_build_attempt import (
     TargetRuntimeLocalBuildAttemptConfig,
 )
+from apps.api.agentic_workbench_api.services.target_runtime_local_preview_attempt import (
+    TargetRuntimeLocalPreviewAttemptConfig,
+)
 from packages.core.live_open_policy import LIVE_OPEN_REQUIRED_CONTROLS
 from packages.core.public_projection import assert_public_projection_safe
 from packages.core.schemas import stable_contract_hash
@@ -69,6 +72,16 @@ from packages.daacs_builder.target_runtime_local_build_preflight import (
 from packages.daacs_builder.target_runtime_local_build_attempt import (
     TARGET_RUNTIME_LOCAL_BUILD_ATTEMPT_MODE,
     TARGET_RUNTIME_LOCAL_BUILD_ATTEMPT_VERSION,
+)
+from packages.daacs_builder.target_runtime_local_preview_attempt import (
+    BROWSER_RUNTIME_PREFLIGHT_VERSION,
+    BrowserRuntimePreflightResult,
+    TARGET_RUNTIME_LOCAL_PREVIEW_ATTEMPT_MODE,
+    TARGET_RUNTIME_LOCAL_PREVIEW_ATTEMPT_VERSION,
+)
+from packages.daacs_builder.target_runtime_browser_setup_attempt import (
+    TARGET_RUNTIME_BROWSER_SETUP_ATTEMPT_MODE,
+    TARGET_RUNTIME_BROWSER_SETUP_ATTEMPT_VERSION,
 )
 from packages.daacs_builder.target_runtime_sandbox import (
     TARGET_RUNTIME_MODE_DISABLED_PREFLIGHT,
@@ -869,6 +882,12 @@ def test_daacs_runtime_restricted_workspace_generation_api_writes_app_skeleton(
     assert static_validation["status"] == "passed"
     assert static_validation["counts"]["static_file_checked_count"] == 9
     assert static_validation["counts"]["required_script_present_count"] == 4
+    assert static_validation["counts"]["app_component_marker_present_count"] == 13
+    assert static_validation["counts"]["api_marker_present_count"] == 8
+    assert (
+        static_validation["counts"]["verification_boundary_marker_present_count"]
+        == 4
+    )
     assert static_validation["execution_boundary"]["package_install_calls"] == 0
     assert static_validation["execution_boundary"]["build_calls"] == 0
     assert static_validation["execution_boundary"]["server_start_calls"] == 0
@@ -1075,6 +1094,42 @@ def test_local_service_demo_compares_dry_run_and_target_runtime_preflight(tmp_pa
     assert_public_projection_safe(summary)
 
 
+def test_local_service_demo_retries_preview_when_browser_setup_makes_runtime_available():
+    module = _load_demo_module()
+
+    should_retry = module._should_retry_local_preview_after_browser_setup(
+        local_preview_attempt={
+            "status": "environment_blocked",
+            "reason": "playwright_python_package_missing",
+        },
+        browser_setup_attempt={
+            "status": "passed",
+            "post_setup_browser_runtime_preflight": {"available": True},
+        },
+        allow_local_preview_attempt=True,
+    )
+    blocked_without_opt_in = module._should_retry_local_preview_after_browser_setup(
+        local_preview_attempt={"status": "environment_blocked"},
+        browser_setup_attempt={
+            "status": "passed",
+            "post_setup_browser_runtime_preflight": {"available": True},
+        },
+        allow_local_preview_attempt=False,
+    )
+    blocked_when_already_passed = module._should_retry_local_preview_after_browser_setup(
+        local_preview_attempt={"status": "passed"},
+        browser_setup_attempt={
+            "status": "passed",
+            "post_setup_browser_runtime_preflight": {"available": True},
+        },
+        allow_local_preview_attempt=True,
+    )
+
+    assert should_retry is True
+    assert blocked_without_opt_in is False
+    assert blocked_when_already_passed is False
+
+
 def test_local_service_demo_generates_restricted_workspace_skeleton(tmp_path):
     module = _load_demo_module()
 
@@ -1268,8 +1323,14 @@ def test_local_service_demo_statically_validates_generated_workspace(tmp_path):
     assert comparison[
         "generated_workspace_static_validation_required_script_present_count"
     ] == 4
-    assert comparison["generated_workspace_static_validation_app_marker_count"] == 2
-    assert comparison["generated_workspace_static_validation_api_marker_count"] == 2
+    assert comparison["generated_workspace_static_validation_app_marker_count"] == 13
+    assert comparison["generated_workspace_static_validation_api_marker_count"] == 8
+    assert (
+        comparison[
+            "generated_workspace_static_validation_verification_boundary_marker_count"
+        ]
+        == 4
+    )
     assert comparison[
         "generated_workspace_static_validation_zero_call_marker_count"
     ] == 5
@@ -1630,6 +1691,200 @@ def test_local_service_demo_records_local_build_attempt_as_blocked_without_allow
     assert checks["daacs_runtime_local_build_attempt_results_hash_only"] is True
     assert checks["daacs_runtime_local_build_attempt_public_safe"] is True
     assert checks["daacs_runtime_local_build_attempt_provider_runtime_zero"] is True
+
+    for forbidden in (
+        "raw_prompt",
+        "raw_log",
+        "raw_file_body",
+        "Build a small task collaboration app",
+        "runtime_payload",
+        "provider_payload",
+        "fixture-reference",
+        str(tmp_path),
+    ):
+        assert forbidden not in serialized
+    assert_public_projection_safe(summary)
+
+
+def test_daacs_runtime_local_preview_attempt_api_requires_explicit_opt_in(
+    tmp_path,
+):
+    source_root = tmp_path / "aw-preview-01-api-source"
+    client = TestClient(
+        create_app(
+            target_runtime_local_preview_attempt_config=(
+                TargetRuntimeLocalPreviewAttemptConfig(
+                    root=source_root / "target-runtime-restricted-workspace"
+                )
+            ),
+        )
+    )
+    module = _load_demo_module()
+    summary = module.run_demo(
+        source_root,
+        include_daacs_runtime_local_build_attempt=True,
+        allow_local_build_attempt=True,
+    )
+    local_build_attempt = summary["daacs_runtime_local_build_attempt"]
+
+    response = client.post(
+        "/api/v1/daacs/runtime/local-preview-attempt",
+        json={
+            "run_id": local_build_attempt["run_id"],
+            "local_build_attempt_hash": local_build_attempt[
+                "local_build_attempt_hash"
+            ],
+            "local_build_attempt_projection": local_build_attempt,
+            "mode": TARGET_RUNTIME_LOCAL_PREVIEW_ATTEMPT_MODE,
+            "operator_opt_in": False,
+            "allow_local_preview_server": False,
+            "allow_browser_verification": False,
+            "raw_file_body": "AW_PREVIEW_01_API_RAW_SENTINEL",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    serialized = _serialized(data)
+    assert data["projection_version"] == TARGET_RUNTIME_LOCAL_PREVIEW_ATTEMPT_VERSION
+    assert data["status"] == "blocked"
+    assert data["reason"] == "local_preview_opt_in_required"
+    assert data["mode"] == TARGET_RUNTIME_LOCAL_PREVIEW_ATTEMPT_MODE
+    assert data["local_preview_attempted"] is False
+    assert data["local_preview_opt_in_present"] is False
+    assert data["local_preview_server_allowed"] is False
+    assert data["browser_verification_allowed"] is False
+    assert data["counts"]["preview_server_start_attempt_count"] == 0
+    assert data["counts"]["server_start_count"] == 0
+    assert data["execution_boundary"]["subprocess_calls"] == 0
+    assert data["execution_boundary"]["server_start_calls"] == 0
+    assert data["execution_boundary"]["network_calls"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["repository_boundary"]["root_path_returned"] is False
+    assert data["repository_boundary"]["screenshot_path_returned"] is False
+    assert "AW_PREVIEW_01_API_RAW_SENTINEL" not in serialized
+    assert "raw_file_body" not in serialized
+    assert str(tmp_path) not in serialized
+    assert_public_projection_safe(data)
+
+
+def test_daacs_runtime_browser_setup_attempt_api_requires_explicit_opt_in():
+    client = TestClient(create_app())
+    preflight = BrowserRuntimePreflightResult(
+        available=False,
+        status="environment_blocked",
+        reason="playwright_python_package_missing",
+        import_checked=True,
+        launch_checked=False,
+        browser_engine="chromium",
+        duration_ms=1,
+    ).to_public_record()
+
+    response = client.post(
+        "/api/v1/daacs/runtime/browser-setup-attempt",
+        json={
+            "run_id": "preview-03-api-run",
+            "browser_runtime_preflight_hash": stable_contract_hash(preflight),
+            "browser_runtime_preflight_projection": preflight,
+            "mode": TARGET_RUNTIME_BROWSER_SETUP_ATTEMPT_MODE,
+            "operator_opt_in": False,
+            "allow_browser_runtime_setup": False,
+            "raw_file_body": "AW_PREVIEW_03_API_RAW_SENTINEL",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    serialized = _serialized(data)
+    assert data["projection_version"] == TARGET_RUNTIME_BROWSER_SETUP_ATTEMPT_VERSION
+    assert data["status"] == "blocked"
+    assert data["reason"] == "browser_runtime_setup_opt_in_required"
+    assert data["mode"] == TARGET_RUNTIME_BROWSER_SETUP_ATTEMPT_MODE
+    assert data["setup_attempted"] is False
+    assert data["operator_opt_in_present"] is False
+    assert data["browser_runtime_setup_allowed"] is False
+    assert data["browser_runtime_preflight"]["projection_version"] == (
+        BROWSER_RUNTIME_PREFLIGHT_VERSION
+    )
+    assert data["counts"]["default_setup_command_execution_count"] == 0
+    assert data["counts"]["setup_command_attempt_count"] == 0
+    assert data["counts"]["browser_runtime_available_after_setup_count"] == 0
+    assert data["execution_boundary"]["local_process_calls"] == 0
+    assert data["execution_boundary"]["provider_calls"] == 0
+    assert data["execution_boundary"]["solar_live_calls"] == 0
+    assert data["execution_boundary"]["daacs_target_runtime_calls"] == 0
+    assert data["repository_boundary"]["raw_command_output_stored"] is False
+    assert data["repository_boundary"]["local_root_path_returned"] is False
+    assert "AW_PREVIEW_03_API_RAW_SENTINEL" not in serialized
+    assert "raw_file_body" not in serialized
+    assert "pip install playwright" not in serialized
+    assert "playwright install chromium" not in serialized
+    assert_public_projection_safe(data)
+
+
+def test_local_service_demo_records_local_preview_attempt_as_blocked_without_allow(
+    tmp_path,
+):
+    module = _load_demo_module()
+
+    summary = module.run_demo(
+        tmp_path / "aw-preview-01-store",
+        include_daacs_runtime_local_preview_attempt=True,
+        allow_local_preview_attempt=False,
+    )
+    serialized = _serialized(summary)
+    comparison = summary["daacs_runtime_comparison"]
+    local_build_attempt = summary["daacs_runtime_local_build_attempt"]
+    local_preview_attempt = summary["daacs_runtime_local_preview_attempt"]
+    checks = summary["checks"]
+
+    assert summary["status"] == "passed"
+    assert comparison["comparison_variant_count"] == 13
+    assert comparison["local_build_attempt_status"] == "blocked"
+    assert comparison["local_build_attempt_attempted"] is False
+    assert comparison["local_preview_attempt_status"] == "blocked"
+    assert comparison["local_preview_attempt_reason"] == (
+        "local_preview_opt_in_required"
+    )
+    assert comparison["local_preview_attempt_attempted"] is False
+    assert comparison["local_preview_attempt_opt_in_present"] is False
+    assert comparison["local_preview_attempt_server_allowed"] is False
+    assert comparison["local_preview_attempt_browser_allowed"] is False
+    assert comparison["local_preview_attempt_server_start_attempts"] == 0
+    assert comparison["local_preview_attempt_server_starts"] == 0
+    assert comparison["local_preview_attempt_server_stops"] == 0
+    assert comparison["local_preview_attempt_browser_verification_attempts"] == 0
+    assert comparison["local_preview_attempt_screenshot_evidence_count"] == 0
+    assert comparison["local_preview_attempt_raw_output_returns"] == 0
+    assert comparison["local_preview_attempt_target_runtime_calls"] == 0
+    assert comparison["local_preview_attempt_provider_calls"] == 0
+    assert comparison["local_preview_attempt_sdk_imports"] == 0
+    assert comparison["local_preview_attempt_env_value_reads"] == 0
+    assert comparison["local_preview_attempt_subprocess_calls"] == 0
+    assert comparison["local_preview_attempt_network_calls"] == 0
+    assert comparison["local_preview_attempt_external_network_calls"] == 0
+    assert comparison["local_preview_attempt_package_install_calls"] == 0
+    assert comparison["local_preview_attempt_build_calls"] == 0
+    assert comparison["local_preview_attempt_server_start_calls"] == 0
+    assert comparison["local_preview_attempt_server_stop_calls"] == 0
+    assert local_build_attempt["local_build_attempted"] is False
+    assert local_preview_attempt["projection_version"] == (
+        TARGET_RUNTIME_LOCAL_PREVIEW_ATTEMPT_VERSION
+    )
+    assert local_preview_attempt["status"] == "blocked"
+    assert local_preview_attempt["mode"] == TARGET_RUNTIME_LOCAL_PREVIEW_ATTEMPT_MODE
+    assert local_preview_attempt["local_preview_attempted"] is False
+    assert local_preview_attempt["repository_boundary"]["root_path_returned"] is False
+    assert (
+        local_preview_attempt["repository_boundary"]["screenshot_path_returned"]
+        is False
+    )
+    assert checks["daacs_runtime_local_preview_attempt_projection"] is True
+    assert checks["daacs_runtime_local_preview_attempt_status_recorded"] is True
+    assert checks["daacs_runtime_local_preview_attempt_policy"] is True
+    assert checks["daacs_runtime_local_preview_attempt_evidence_hash_only"] is True
+    assert checks["daacs_runtime_local_preview_attempt_public_safe"] is True
+    assert checks["daacs_runtime_local_preview_attempt_provider_runtime_zero"] is True
 
     for forbidden in (
         "raw_prompt",

@@ -104,11 +104,15 @@ def test_artifact_preview_cli_can_write_html_without_echoing_store_path(
     assert "Build-Ready Candidate Manifest" in html
     assert "Local Build Preflight" in html
     assert "Local Build Attempt" in html
+    assert "Interaction-Backed Portfolio Evidence" in html
     assert "verified files: 9" in html
     assert "static checks: passed" in html
     assert "build-ready candidate: ready" in html
     assert "local build preflight: eligible" in html
     assert "local build: not attempted" in html
+    assert "Screenshot status</span><strong>skipped</strong>" in html
+    assert "Capture status</span><strong>skipped</strong>" in html
+    assert "Server cleanup</span><strong>0.0%</strong>" in html
     assert "Expected files</span><strong>9</strong>" in html
     assert "Checked files</span><strong>9</strong>" in html
     assert "Hash matches</span><strong>9</strong>" in html
@@ -116,8 +120,9 @@ def test_artifact_preview_cli_can_write_html_without_echoing_store_path(
     assert "Files checked</span><strong>9</strong>" in html
     assert "Package JSON</span><strong>1</strong>" in html
     assert "Script labels</span><strong>4/4</strong>" in html
-    assert "App markers</span><strong>2/2</strong>" in html
-    assert "API markers</span><strong>2/2</strong>" in html
+    assert "App markers</span><strong>13/13</strong>" in html
+    assert "API markers</span><strong>8/8</strong>" in html
+    assert "Verification boundary markers</span><strong>4/4</strong>" in html
     assert "Zero-call markers</span><strong>5/5</strong>" in html
     assert "Candidate</span><strong>ready</strong>" in html
     assert "Files read</span><strong>5</strong>" in html

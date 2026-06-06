@@ -110,6 +110,9 @@ from apps.api.agentic_workbench_api.services.target_runtime_buildable_fixture_ma
 from apps.api.agentic_workbench_api.services.target_runtime_local_build_attempt import (
     TargetRuntimeLocalBuildAttemptConfig,
 )
+from apps.api.agentic_workbench_api.services.target_runtime_local_preview_attempt import (
+    TargetRuntimeLocalPreviewAttemptConfig,
+)
 from packages.core.live_open_policy import LIVE_OPEN_REQUIRED_CONTROLS
 from packages.core.public_projection import assert_public_projection_safe
 from packages.core.schemas import stable_contract_hash
@@ -154,6 +157,14 @@ from packages.daacs_builder.target_runtime_local_build_preflight import (
 from packages.daacs_builder.target_runtime_local_build_attempt import (
     TARGET_RUNTIME_LOCAL_BUILD_ATTEMPT_MODE,
     TARGET_RUNTIME_LOCAL_BUILD_ATTEMPT_VERSION,
+)
+from packages.daacs_builder.target_runtime_local_preview_attempt import (
+    TARGET_RUNTIME_LOCAL_PREVIEW_ATTEMPT_MODE,
+    TARGET_RUNTIME_LOCAL_PREVIEW_ATTEMPT_VERSION,
+)
+from packages.daacs_builder.target_runtime_browser_setup_attempt import (
+    TARGET_RUNTIME_BROWSER_SETUP_ATTEMPT_MODE,
+    TARGET_RUNTIME_BROWSER_SETUP_ATTEMPT_VERSION,
 )
 from packages.div_planner.provider_boundary import (
     PLANNER_PROVIDER_MODE_SOLAR_DISABLED,
@@ -216,6 +227,7 @@ def _client(
     include_target_runtime_buildable_fixture_manifest: bool = False,
     include_target_runtime_local_build_preflight: bool = False,
     include_target_runtime_local_build_attempt: bool = False,
+    include_target_runtime_local_preview_attempt: bool = False,
 ) -> TestClient:
     provider_envelope_config = (
         ProviderEnvelopeRepositoryConfig(root=store_root / "provider-envelope-evidence")
@@ -300,6 +312,13 @@ def _client(
         if include_target_runtime_local_build_attempt
         else None
     )
+    target_runtime_local_preview_attempt_config = (
+        TargetRuntimeLocalPreviewAttemptConfig(
+            root=store_root / "target-runtime-restricted-workspace"
+        )
+        if include_target_runtime_local_preview_attempt
+        else None
+    )
     return TestClient(
         create_app(
             run_repository_config=RunArtifactRepositoryConfig(
@@ -330,6 +349,9 @@ def _client(
             ),
             target_runtime_local_build_attempt_config=(
                 target_runtime_local_build_attempt_config
+            ),
+            target_runtime_local_preview_attempt_config=(
+                target_runtime_local_preview_attempt_config
             ),
         )
     )
@@ -2062,6 +2084,103 @@ def _post_daacs_runtime_local_build_attempt(
     return response.json()["data"]
 
 
+def _daacs_runtime_local_preview_attempt_payload(
+    *,
+    run_id: str,
+    local_build_attempt_hash: str,
+    local_build_attempt_projection: dict[str, Any],
+    allow_local_preview_attempt: bool,
+) -> dict[str, Any]:
+    return {
+        "run_id": run_id,
+        "local_build_attempt_hash": local_build_attempt_hash,
+        "local_build_attempt_projection": local_build_attempt_projection,
+        "mode": TARGET_RUNTIME_LOCAL_PREVIEW_ATTEMPT_MODE,
+        "operator_opt_in": allow_local_preview_attempt,
+        "allow_local_preview_server": allow_local_preview_attempt,
+        "allow_browser_verification": allow_local_preview_attempt,
+        "require_browser_runtime_preflight": True,
+        "preview_timeout_seconds": 45,
+    }
+
+
+def _post_daacs_runtime_local_preview_attempt(
+    client: TestClient,
+    *,
+    run_id: str,
+    local_build_attempt_hash: str,
+    local_build_attempt_projection: dict[str, Any],
+    allow_local_preview_attempt: bool,
+) -> dict[str, Any]:
+    response = client.post(
+        "/api/v1/daacs/runtime/local-preview-attempt",
+        json=_daacs_runtime_local_preview_attempt_payload(
+            run_id=run_id,
+            local_build_attempt_hash=local_build_attempt_hash,
+            local_build_attempt_projection=local_build_attempt_projection,
+            allow_local_preview_attempt=allow_local_preview_attempt,
+        ),
+    )
+    response.raise_for_status()
+    return response.json()["data"]
+
+
+def _daacs_runtime_browser_setup_attempt_payload(
+    *,
+    run_id: str,
+    browser_runtime_preflight_projection: dict[str, Any],
+    allow_browser_runtime_setup: bool,
+) -> dict[str, Any]:
+    return {
+        "run_id": run_id,
+        "browser_runtime_preflight_hash": stable_contract_hash(
+            browser_runtime_preflight_projection
+        ),
+        "browser_runtime_preflight_projection": browser_runtime_preflight_projection,
+        "mode": TARGET_RUNTIME_BROWSER_SETUP_ATTEMPT_MODE,
+        "operator_opt_in": allow_browser_runtime_setup,
+        "allow_browser_runtime_setup": allow_browser_runtime_setup,
+        "setup_timeout_seconds": 180,
+    }
+
+
+def _post_daacs_runtime_browser_setup_attempt(
+    client: TestClient,
+    *,
+    run_id: str,
+    browser_runtime_preflight_projection: dict[str, Any],
+    allow_browser_runtime_setup: bool,
+) -> dict[str, Any]:
+    response = client.post(
+        "/api/v1/daacs/runtime/browser-setup-attempt",
+        json=_daacs_runtime_browser_setup_attempt_payload(
+            run_id=run_id,
+            browser_runtime_preflight_projection=browser_runtime_preflight_projection,
+            allow_browser_runtime_setup=allow_browser_runtime_setup,
+        ),
+    )
+    response.raise_for_status()
+    return response.json()["data"]
+
+
+def _should_retry_local_preview_after_browser_setup(
+    *,
+    local_preview_attempt: dict[str, Any] | None,
+    browser_setup_attempt: dict[str, Any] | None,
+    allow_local_preview_attempt: bool,
+) -> bool:
+    """Return whether setup made screenshot capture newly eligible."""
+    if not allow_local_preview_attempt or not browser_setup_attempt:
+        return False
+    if (local_preview_attempt or {}).get("status") == "passed":
+        return False
+    post_setup_preflight = browser_setup_attempt.get(
+        "post_setup_browser_runtime_preflight",
+        {},
+    )
+    return bool(post_setup_preflight.get("available") is True)
+
+
 def _artifact_kinds(artifacts: list[dict[str, Any]]) -> set[str]:
     return {str(artifact.get("kind") or "") for artifact in artifacts}
 
@@ -2168,6 +2287,8 @@ def _checks(
     daacs_runtime_buildable_fixture_manifest_data: dict[str, Any] | None = None,
     daacs_runtime_local_build_preflight_data: dict[str, Any] | None = None,
     daacs_runtime_local_build_attempt_data: dict[str, Any] | None = None,
+    daacs_runtime_browser_setup_attempt_data: dict[str, Any] | None = None,
+    daacs_runtime_local_preview_attempt_data: dict[str, Any] | None = None,
 ) -> dict[str, bool]:
     artifact_kinds = _artifact_kinds(run_data.get("artifacts", []))
     evidence_summary = run_data.get("evidence_summary", {})
@@ -3715,8 +3836,9 @@ def _checks(
             and int(counts.get("file_read_count", -1)) == 9
             and int(counts.get("package_json_parse_pass_count", -1)) == 1
             and int(counts.get("required_script_present_count", -1)) == 4
-            and int(counts.get("app_component_marker_present_count", -1)) == 2
-            and int(counts.get("api_marker_present_count", -1)) == 2
+            and int(counts.get("app_component_marker_present_count", -1)) >= 6
+            and int(counts.get("api_marker_present_count", -1)) >= 4
+            and int(counts.get("verification_boundary_marker_present_count", -1)) >= 4
             and int(counts.get("zero_call_marker_present_count", -1)) == 5
         )
         checks["daacs_runtime_generated_workspace_static_validation_public_safe"] = (
@@ -3930,6 +4052,137 @@ def _checks(
             and int(execution.get("env_key_value_reads", -1)) == 0
             and int(execution.get("server_start_calls", -1)) == 0
         )
+    if daacs_runtime_local_preview_attempt_data is None:
+        checks["daacs_runtime_local_preview_attempt_optional"] = True
+    else:
+        execution = daacs_runtime_local_preview_attempt_data.get(
+            "execution_boundary", {}
+        )
+        repository = daacs_runtime_local_preview_attempt_data.get(
+            "repository_boundary", {}
+        )
+        counts = daacs_runtime_local_preview_attempt_data.get("counts", {})
+        preview_record = daacs_runtime_local_preview_attempt_data.get(
+            "preview_record", {}
+        )
+        attempted = (
+            daacs_runtime_local_preview_attempt_data.get("local_preview_attempted")
+            is True
+        )
+        checks["daacs_runtime_local_preview_attempt_projection"] = (
+            daacs_runtime_local_preview_attempt_data.get("projection_version")
+            == TARGET_RUNTIME_LOCAL_PREVIEW_ATTEMPT_VERSION
+        )
+        checks["daacs_runtime_local_preview_attempt_status_recorded"] = (
+            (
+                daacs_runtime_local_preview_attempt_data.get("status")
+                in {"passed", "failed"}
+                and attempted
+                and int(counts.get("preview_server_start_attempt_count", -1)) == 1
+            )
+            or (
+                daacs_runtime_local_preview_attempt_data.get("status")
+                == "environment_blocked"
+                and int(counts.get("browser_runtime_preflight_count", -1)) == 1
+                and int(counts.get("browser_runtime_available_count", -1)) == 0
+                and int(counts.get("preview_server_start_attempt_count", -1)) == 0
+            )
+            or (
+                daacs_runtime_local_preview_attempt_data.get("status") == "blocked"
+                and daacs_runtime_local_preview_attempt_data.get("reason")
+                == "local_preview_opt_in_required"
+                and not attempted
+                and int(counts.get("preview_server_start_attempt_count", -1)) == 0
+            )
+        )
+        checks["daacs_runtime_local_preview_attempt_policy"] = (
+            daacs_runtime_local_preview_attempt_data.get(
+                "local_preview_opt_in_present"
+            )
+            is daacs_runtime_local_preview_attempt_data.get(
+                "local_preview_server_allowed"
+            )
+            and daacs_runtime_local_preview_attempt_data.get(
+                "local_preview_server_allowed"
+            )
+            is daacs_runtime_local_preview_attempt_data.get(
+                "browser_verification_allowed"
+            )
+        )
+        checks["daacs_runtime_local_preview_attempt_evidence_hash_only"] = (
+            isinstance(preview_record, dict)
+            and preview_record.get("raw_command_output_returned", False) is False
+            and preview_record.get("screenshot_path_returned", False) is False
+            and preview_record.get("page_text_returned", False) is False
+            and preview_record.get("root_path_returned", False) is False
+            and int(counts.get("raw_output_public_return_count", -1)) == 0
+            and int(counts.get("file_content_public_return_count", -1)) == 0
+            and int(counts.get("local_root_path_return_count", -1)) == 0
+            and int(
+                counts.get("browser_runtime_install_guidance_label_count", 0)
+            )
+            in {0, 2}
+            and int(
+                counts.get("browser_runtime_install_guidance_hash_count", 0)
+            )
+            in {0, 2}
+        )
+        checks["daacs_runtime_local_preview_attempt_public_safe"] = (
+            repository.get("root_path_returned") is False
+            and repository.get("file_content_returned") is False
+            and repository.get("command_output_returned") is False
+            and repository.get("screenshot_path_returned") is False
+            and repository.get("page_text_returned") is False
+            and int(counts.get("screenshot_path_return_count", -1)) == 0
+            and int(counts.get("page_text_return_count", -1)) == 0
+        )
+        checks["daacs_runtime_local_preview_attempt_provider_runtime_zero"] = (
+            int(execution.get("target_runtime_calls", -1)) == 0
+            and int(execution.get("provider_calls", -1)) == 0
+            and int(execution.get("sdk_imports", -1)) == 0
+            and int(execution.get("env_key_value_reads", -1)) == 0
+            and int(execution.get("package_install_calls", -1)) == 0
+            and int(execution.get("build_calls", -1)) == 0
+            and int(execution.get("external_network_calls", -1)) == 0
+        )
+    if daacs_runtime_browser_setup_attempt_data is None:
+        checks["daacs_runtime_browser_setup_attempt_optional"] = True
+    else:
+        execution = daacs_runtime_browser_setup_attempt_data.get(
+            "execution_boundary", {}
+        )
+        repository = daacs_runtime_browser_setup_attempt_data.get(
+            "repository_boundary", {}
+        )
+        counts = daacs_runtime_browser_setup_attempt_data.get("counts", {})
+        checks["daacs_runtime_browser_setup_attempt_projection"] = (
+            daacs_runtime_browser_setup_attempt_data.get("projection_version")
+            == TARGET_RUNTIME_BROWSER_SETUP_ATTEMPT_VERSION
+        )
+        checks["daacs_runtime_browser_setup_attempt_status_recorded"] = (
+            daacs_runtime_browser_setup_attempt_data.get("status")
+            in {"passed", "blocked", "environment_blocked"}
+        )
+        checks["daacs_runtime_browser_setup_attempt_policy"] = (
+            daacs_runtime_browser_setup_attempt_data.get("operator_opt_in_present")
+            is daacs_runtime_browser_setup_attempt_data.get(
+                "browser_runtime_setup_allowed"
+            )
+        )
+        checks["daacs_runtime_browser_setup_attempt_public_safe"] = (
+            repository.get("raw_command_output_stored") is False
+            and repository.get("raw_browser_error_stored") is False
+            and repository.get("local_root_path_returned") is False
+            and repository.get("env_value_returned") is False
+            and int(counts.get("raw_output_public_return_count", -1)) == 0
+            and int(counts.get("argv_public_return_count", -1)) == 0
+            and int(counts.get("browser_error_public_return_count", -1)) == 0
+        )
+        checks["daacs_runtime_browser_setup_attempt_provider_runtime_zero"] = (
+            int(execution.get("provider_calls", -1)) == 0
+            and int(execution.get("solar_live_calls", -1)) == 0
+            and int(execution.get("daacs_target_runtime_calls", -1)) == 0
+        )
     return checks
 
 
@@ -3953,7 +4206,11 @@ def run_demo(
     include_daacs_runtime_buildable_fixture_manifest: bool = False,
     include_daacs_runtime_local_build_preflight: bool = False,
     include_daacs_runtime_local_build_attempt: bool = False,
+    include_daacs_runtime_local_preview_attempt: bool = False,
+    include_daacs_runtime_browser_setup_attempt: bool = False,
     allow_local_build_attempt: bool = False,
+    allow_local_preview_attempt: bool = False,
+    allow_browser_runtime_setup: bool = False,
     allow_solar_planner_live_call: bool = False,
     allow_solar_quality_reviewer_approval: bool = False,
 ) -> dict[str, Any]:
@@ -3973,6 +4230,8 @@ def run_demo(
             or include_daacs_runtime_buildable_fixture_manifest
             or include_daacs_runtime_local_build_preflight
             or include_daacs_runtime_local_build_attempt
+            or include_daacs_runtime_local_preview_attempt
+            or include_daacs_runtime_browser_setup_attempt
         ),
         include_target_runtime_output_manifest=(
             include_daacs_runtime_output_manifest
@@ -3984,6 +4243,8 @@ def run_demo(
             or include_daacs_runtime_buildable_fixture_manifest
             or include_daacs_runtime_local_build_preflight
             or include_daacs_runtime_local_build_attempt
+            or include_daacs_runtime_local_preview_attempt
+            or include_daacs_runtime_browser_setup_attempt
         ),
         include_target_runtime_fixture_materialization=(
             include_daacs_runtime_fixture_materialization
@@ -3993,6 +4254,8 @@ def run_demo(
             or include_daacs_runtime_buildable_fixture_manifest
             or include_daacs_runtime_local_build_preflight
             or include_daacs_runtime_local_build_attempt
+            or include_daacs_runtime_local_preview_attempt
+            or include_daacs_runtime_browser_setup_attempt
         ),
         include_target_runtime_restricted_workspace_generation=(
             include_daacs_runtime_restricted_workspace_generation
@@ -4001,6 +4264,8 @@ def run_demo(
             or include_daacs_runtime_buildable_fixture_manifest
             or include_daacs_runtime_local_build_preflight
             or include_daacs_runtime_local_build_attempt
+            or include_daacs_runtime_local_preview_attempt
+            or include_daacs_runtime_browser_setup_attempt
         ),
         include_target_runtime_generated_artifact_verification=(
             include_daacs_runtime_generated_artifact_verification
@@ -4008,20 +4273,30 @@ def run_demo(
             or include_daacs_runtime_buildable_fixture_manifest
             or include_daacs_runtime_local_build_preflight
             or include_daacs_runtime_local_build_attempt
+            or include_daacs_runtime_local_preview_attempt
         ),
         include_target_runtime_generated_workspace_static_validation=(
             include_daacs_runtime_generated_workspace_static_validation
             or include_daacs_runtime_buildable_fixture_manifest
             or include_daacs_runtime_local_build_preflight
             or include_daacs_runtime_local_build_attempt
+            or include_daacs_runtime_browser_setup_attempt
         ),
         include_target_runtime_buildable_fixture_manifest=(
             include_daacs_runtime_buildable_fixture_manifest
             or include_daacs_runtime_local_build_preflight
             or include_daacs_runtime_local_build_attempt
+            or include_daacs_runtime_local_preview_attempt
+            or include_daacs_runtime_browser_setup_attempt
         ),
         include_target_runtime_local_build_attempt=(
             include_daacs_runtime_local_build_attempt
+            or include_daacs_runtime_local_preview_attempt
+            or include_daacs_runtime_browser_setup_attempt
+        ),
+        include_target_runtime_local_preview_attempt=(
+            include_daacs_runtime_local_preview_attempt
+            or include_daacs_runtime_browser_setup_attempt
         ),
     )
 
@@ -4050,6 +4325,9 @@ def run_demo(
     daacs_runtime_buildable_fixture_manifest_data = None
     daacs_runtime_local_build_preflight_data = None
     daacs_runtime_local_build_attempt_data = None
+    daacs_runtime_browser_setup_attempt_data = None
+    daacs_runtime_local_preview_attempt_data = None
+    daacs_runtime_local_preview_retry_after_browser_setup_count = 0
     if include_provider_precheck:
         provider_envelope_data = _post_provider_envelope_precheck(
             client,
@@ -4144,6 +4422,8 @@ def run_demo(
         or include_daacs_runtime_buildable_fixture_manifest
         or include_daacs_runtime_local_build_preflight
         or include_daacs_runtime_local_build_attempt
+        or include_daacs_runtime_local_preview_attempt
+        or include_daacs_runtime_browser_setup_attempt
     ):
         runner_plan_hashes = verification_data.get("runner_plan_hashes", [])
         runner_plan_hash = str(runner_plan_hashes[0] if runner_plan_hashes else "")
@@ -4175,6 +4455,8 @@ def run_demo(
             or include_daacs_runtime_buildable_fixture_manifest
             or include_daacs_runtime_local_build_preflight
             or include_daacs_runtime_local_build_attempt
+            or include_daacs_runtime_local_preview_attempt
+            or include_daacs_runtime_browser_setup_attempt
         ):
             daacs_runtime_adapter_admission_data = _post_daacs_runtime_adapter_admission(
                 client,
@@ -4196,6 +4478,8 @@ def run_demo(
                 or include_daacs_runtime_buildable_fixture_manifest
                 or include_daacs_runtime_local_build_preflight
                 or include_daacs_runtime_local_build_attempt
+                or include_daacs_runtime_local_preview_attempt
+                or include_daacs_runtime_browser_setup_attempt
             ):
                 daacs_runtime_output_manifest_data = _post_daacs_runtime_output_manifest(
                     client,
@@ -4223,6 +4507,8 @@ def run_demo(
                     or include_daacs_runtime_buildable_fixture_manifest
                     or include_daacs_runtime_local_build_preflight
                     or include_daacs_runtime_local_build_attempt
+                    or include_daacs_runtime_local_preview_attempt
+                    or include_daacs_runtime_browser_setup_attempt
                 ):
                     daacs_runtime_generated_artifact_bundle_data = (
                         _post_daacs_runtime_generated_artifact_bundle(
@@ -4247,6 +4533,8 @@ def run_demo(
                         or include_daacs_runtime_buildable_fixture_manifest
                         or include_daacs_runtime_local_build_preflight
                         or include_daacs_runtime_local_build_attempt
+                        or include_daacs_runtime_local_preview_attempt
+                        or include_daacs_runtime_browser_setup_attempt
                     ):
                         daacs_runtime_fixture_materialization_data = (
                             _post_daacs_runtime_fixture_materialization(
@@ -4271,6 +4559,8 @@ def run_demo(
                         or include_daacs_runtime_buildable_fixture_manifest
                         or include_daacs_runtime_local_build_preflight
                         or include_daacs_runtime_local_build_attempt
+                        or include_daacs_runtime_local_preview_attempt
+                        or include_daacs_runtime_browser_setup_attempt
                     ):
                         daacs_runtime_restricted_workspace_generation_data = (
                             _post_daacs_runtime_restricted_workspace_generation(
@@ -4298,6 +4588,8 @@ def run_demo(
                         or include_daacs_runtime_buildable_fixture_manifest
                         or include_daacs_runtime_local_build_preflight
                         or include_daacs_runtime_local_build_attempt
+                        or include_daacs_runtime_local_preview_attempt
+                        or include_daacs_runtime_browser_setup_attempt
                     ):
                         daacs_runtime_generated_artifact_verification_data = (
                             _post_daacs_runtime_generated_artifact_verification(
@@ -4319,6 +4611,8 @@ def run_demo(
                         or include_daacs_runtime_buildable_fixture_manifest
                         or include_daacs_runtime_local_build_preflight
                         or include_daacs_runtime_local_build_attempt
+                        or include_daacs_runtime_local_preview_attempt
+                        or include_daacs_runtime_browser_setup_attempt
                     ):
                         daacs_runtime_generated_workspace_static_validation_data = (
                             _post_daacs_runtime_generated_workspace_static_validation(
@@ -4339,6 +4633,8 @@ def run_demo(
                         include_daacs_runtime_buildable_fixture_manifest
                         or include_daacs_runtime_local_build_preflight
                         or include_daacs_runtime_local_build_attempt
+                        or include_daacs_runtime_local_preview_attempt
+                        or include_daacs_runtime_browser_setup_attempt
                     ):
                         daacs_runtime_buildable_fixture_manifest_data = (
                             _post_daacs_runtime_buildable_fixture_manifest(
@@ -4359,6 +4655,8 @@ def run_demo(
                     if (
                         include_daacs_runtime_local_build_preflight
                         or include_daacs_runtime_local_build_attempt
+                        or include_daacs_runtime_local_preview_attempt
+                        or include_daacs_runtime_browser_setup_attempt
                     ):
                         daacs_runtime_local_build_preflight_data = (
                             _post_daacs_runtime_local_build_preflight(
@@ -4376,7 +4674,11 @@ def run_demo(
                                 ),
                             )
                         )
-                    if include_daacs_runtime_local_build_attempt:
+                    if (
+                        include_daacs_runtime_local_build_attempt
+                        or include_daacs_runtime_local_preview_attempt
+                        or include_daacs_runtime_browser_setup_attempt
+                    ):
                         daacs_runtime_local_build_attempt_data = (
                             _post_daacs_runtime_local_build_attempt(
                                 client,
@@ -4390,9 +4692,76 @@ def run_demo(
                                 local_build_preflight_projection=(
                                     daacs_runtime_local_build_preflight_data or {}
                                 ),
-                                allow_local_build_attempt=allow_local_build_attempt,
+                                allow_local_build_attempt=(
+                                    allow_local_build_attempt
+                                    or allow_local_preview_attempt
+                                ),
                             )
                         )
+                    if (
+                        include_daacs_runtime_local_preview_attempt
+                        or include_daacs_runtime_browser_setup_attempt
+                    ):
+                        daacs_runtime_local_preview_attempt_data = (
+                            _post_daacs_runtime_local_preview_attempt(
+                                client,
+                                run_id=run_id,
+                                local_build_attempt_hash=str(
+                                    daacs_runtime_local_build_attempt_data.get(
+                                        "local_build_attempt_hash",
+                                        "",
+                                    )
+                                ),
+                                local_build_attempt_projection=(
+                                    daacs_runtime_local_build_attempt_data or {}
+                                ),
+                                allow_local_preview_attempt=allow_local_preview_attempt,
+                            )
+                        )
+                    if include_daacs_runtime_browser_setup_attempt:
+                        browser_preflight = (
+                            daacs_runtime_local_preview_attempt_data or {}
+                        ).get("browser_runtime_preflight", {})
+                        daacs_runtime_browser_setup_attempt_data = (
+                            _post_daacs_runtime_browser_setup_attempt(
+                                client,
+                                run_id=run_id,
+                                browser_runtime_preflight_projection=(
+                                    browser_preflight or {}
+                                ),
+                                allow_browser_runtime_setup=(
+                                    allow_browser_runtime_setup
+                                ),
+                            )
+                        )
+                        if _should_retry_local_preview_after_browser_setup(
+                            local_preview_attempt=(
+                                daacs_runtime_local_preview_attempt_data
+                            ),
+                            browser_setup_attempt=(
+                                daacs_runtime_browser_setup_attempt_data
+                            ),
+                            allow_local_preview_attempt=allow_local_preview_attempt,
+                        ):
+                            daacs_runtime_local_preview_attempt_data = (
+                                _post_daacs_runtime_local_preview_attempt(
+                                    client,
+                                    run_id=run_id,
+                                    local_build_attempt_hash=str(
+                                        daacs_runtime_local_build_attempt_data.get(
+                                            "local_build_attempt_hash",
+                                            "",
+                                        )
+                                    ),
+                                    local_build_attempt_projection=(
+                                        daacs_runtime_local_build_attempt_data or {}
+                                    ),
+                                    allow_local_preview_attempt=(
+                                        allow_local_preview_attempt
+                                    ),
+                                )
+                            )
+                            daacs_runtime_local_preview_retry_after_browser_setup_count = 1
 
     checks = _checks(
         create_data,
@@ -4436,6 +4805,12 @@ def run_demo(
         ),
         daacs_runtime_local_build_attempt_data=(
             daacs_runtime_local_build_attempt_data
+        ),
+        daacs_runtime_browser_setup_attempt_data=(
+            daacs_runtime_browser_setup_attempt_data
+        ),
+        daacs_runtime_local_preview_attempt_data=(
+            daacs_runtime_local_preview_attempt_data
         ),
     )
     artifact_kinds = sorted(_artifact_kinds(run_data.get("artifacts", [])))
@@ -4527,6 +4902,11 @@ def run_demo(
         if daacs_runtime_local_build_attempt_data
         else {}
     )
+    daacs_runtime_local_preview_attempt_execution = (
+        daacs_runtime_local_preview_attempt_data.get("execution_boundary", {})
+        if daacs_runtime_local_preview_attempt_data
+        else {}
+    )
     comparison_variant_count = (
         5
         if solar_planner_draft_projection_data
@@ -4539,6 +4919,9 @@ def run_demo(
         else 1
     )
     runtime_comparison_variant_count = (
+        13
+        if daacs_runtime_local_preview_attempt_data
+        else
         12
         if daacs_runtime_local_build_attempt_data
         else
@@ -5525,6 +5908,11 @@ def run_demo(
                 .get("counts", {})
                 .get("api_marker_present_count")
             ),
+            "generated_workspace_static_validation_verification_boundary_marker_count": _as_int(
+                (daacs_runtime_generated_workspace_static_validation_data or {})
+                .get("counts", {})
+                .get("verification_boundary_marker_present_count")
+            ),
             "generated_workspace_static_validation_zero_call_marker_count": _as_int(
                 (daacs_runtime_generated_workspace_static_validation_data or {})
                 .get("counts", {})
@@ -5859,6 +6247,167 @@ def run_demo(
                 daacs_runtime_local_build_attempt_execution.get(
                     "server_start_calls"
                 )
+            ),
+            "local_preview_attempt_status": (
+                daacs_runtime_local_preview_attempt_data.get("status")
+                if daacs_runtime_local_preview_attempt_data
+                else "skipped"
+            ),
+            "local_preview_attempt_reason": (
+                daacs_runtime_local_preview_attempt_data.get("reason")
+                if daacs_runtime_local_preview_attempt_data
+                else "skipped"
+            ),
+            "local_preview_attempt_attempted": (
+                daacs_runtime_local_preview_attempt_data.get(
+                    "local_preview_attempted"
+                )
+                if daacs_runtime_local_preview_attempt_data
+                else False
+            ),
+            "local_preview_attempt_opt_in_present": (
+                daacs_runtime_local_preview_attempt_data.get(
+                    "local_preview_opt_in_present"
+                )
+                if daacs_runtime_local_preview_attempt_data
+                else False
+            ),
+            "local_preview_attempt_server_allowed": (
+                daacs_runtime_local_preview_attempt_data.get(
+                    "local_preview_server_allowed"
+                )
+                if daacs_runtime_local_preview_attempt_data
+                else False
+            ),
+            "local_preview_attempt_browser_allowed": (
+                daacs_runtime_local_preview_attempt_data.get(
+                    "browser_verification_allowed"
+                )
+                if daacs_runtime_local_preview_attempt_data
+                else False
+            ),
+            "local_preview_browser_runtime_preflight_count": _as_int(
+                (daacs_runtime_local_preview_attempt_data or {})
+                .get("counts", {})
+                .get("browser_runtime_preflight_count")
+            ),
+            "local_preview_browser_runtime_available_count": _as_int(
+                (daacs_runtime_local_preview_attempt_data or {})
+                .get("counts", {})
+                .get("browser_runtime_available_count")
+            ),
+            "local_preview_browser_runtime_import_check_count": _as_int(
+                (daacs_runtime_local_preview_attempt_data or {})
+                .get("counts", {})
+                .get("browser_runtime_import_check_count")
+            ),
+            "local_preview_browser_runtime_launch_check_count": _as_int(
+                (daacs_runtime_local_preview_attempt_data or {})
+                .get("counts", {})
+                .get("browser_runtime_launch_check_count")
+            ),
+            "local_preview_browser_runtime_install_guidance_label_count": _as_int(
+                (daacs_runtime_local_preview_attempt_data or {})
+                .get("counts", {})
+                .get("browser_runtime_install_guidance_label_count")
+            ),
+            "local_preview_browser_runtime_install_guidance_hash_count": _as_int(
+                (daacs_runtime_local_preview_attempt_data or {})
+                .get("counts", {})
+                .get("browser_runtime_install_guidance_hash_count")
+            ),
+            "local_preview_attempt_server_start_attempts": _as_int(
+                (daacs_runtime_local_preview_attempt_data or {})
+                .get("counts", {})
+                .get("preview_server_start_attempt_count")
+            ),
+            "local_preview_attempt_server_starts": _as_int(
+                (daacs_runtime_local_preview_attempt_data or {})
+                .get("counts", {})
+                .get("server_start_count")
+            ),
+            "local_preview_attempt_server_stops": _as_int(
+                (daacs_runtime_local_preview_attempt_data or {})
+                .get("counts", {})
+                .get("server_stop_count")
+            ),
+            "local_preview_attempt_browser_verification_attempts": _as_int(
+                (daacs_runtime_local_preview_attempt_data or {})
+                .get("counts", {})
+                .get("browser_verification_attempt_count")
+            ),
+            "local_preview_attempt_browser_verification_passes": _as_int(
+                (daacs_runtime_local_preview_attempt_data or {})
+                .get("counts", {})
+                .get("browser_verification_pass_count")
+            ),
+            "local_preview_retry_after_browser_setup_count": (
+                daacs_runtime_local_preview_retry_after_browser_setup_count
+            ),
+            "local_preview_attempt_screenshot_evidence_count": _as_int(
+                (daacs_runtime_local_preview_attempt_data or {})
+                .get("counts", {})
+                .get("screenshot_evidence_count")
+            ),
+            "local_preview_attempt_screenshot_hash_count": _as_int(
+                (daacs_runtime_local_preview_attempt_data or {})
+                .get("counts", {})
+                .get("screenshot_hash_count")
+            ),
+            "local_preview_attempt_visible_marker_count": _as_int(
+                (daacs_runtime_local_preview_attempt_data or {})
+                .get("counts", {})
+                .get("visible_marker_count")
+            ),
+            "local_preview_attempt_raw_output_returns": _as_int(
+                (daacs_runtime_local_preview_attempt_data or {})
+                .get("counts", {})
+                .get("raw_output_public_return_count")
+            ),
+            "local_preview_attempt_target_runtime_calls": _as_int(
+                daacs_runtime_local_preview_attempt_execution.get(
+                    "target_runtime_calls"
+                )
+            ),
+            "local_preview_attempt_provider_calls": _as_int(
+                daacs_runtime_local_preview_attempt_execution.get("provider_calls")
+            ),
+            "local_preview_attempt_sdk_imports": _as_int(
+                daacs_runtime_local_preview_attempt_execution.get("sdk_imports")
+            ),
+            "local_preview_attempt_env_value_reads": _as_int(
+                daacs_runtime_local_preview_attempt_execution.get(
+                    "env_key_value_reads"
+                )
+            ),
+            "local_preview_attempt_subprocess_calls": _as_int(
+                daacs_runtime_local_preview_attempt_execution.get(
+                    "subprocess_calls"
+                )
+            ),
+            "local_preview_attempt_network_calls": _as_int(
+                daacs_runtime_local_preview_attempt_execution.get("network_calls")
+            ),
+            "local_preview_attempt_external_network_calls": _as_int(
+                daacs_runtime_local_preview_attempt_execution.get(
+                    "external_network_calls"
+                )
+            ),
+            "local_preview_attempt_package_install_calls": _as_int(
+                daacs_runtime_local_preview_attempt_execution.get(
+                    "package_install_calls"
+                )
+            ),
+            "local_preview_attempt_build_calls": _as_int(
+                daacs_runtime_local_preview_attempt_execution.get("build_calls")
+            ),
+            "local_preview_attempt_server_start_calls": _as_int(
+                daacs_runtime_local_preview_attempt_execution.get(
+                    "server_start_calls"
+                )
+            ),
+            "local_preview_attempt_server_stop_calls": _as_int(
+                daacs_runtime_local_preview_attempt_execution.get("server_stop_calls")
             ),
             "adapter_target_runtime_calls": _as_int(
                 daacs_runtime_adapter_execution.get("target_runtime_calls")
@@ -6498,6 +7047,160 @@ def run_demo(
                 "local_build_attempted": False,
                 "local_build_opt_in_present": False,
                 "local_command_execution_allowed": False,
+            }
+        ),
+        "daacs_runtime_browser_setup_attempt": (
+            {
+                "projection_version": (
+                    daacs_runtime_browser_setup_attempt_data.get(
+                        "projection_version"
+                    )
+                ),
+                "run_id": daacs_runtime_browser_setup_attempt_data.get("run_id"),
+                "status": daacs_runtime_browser_setup_attempt_data.get("status"),
+                "reason": daacs_runtime_browser_setup_attempt_data.get("reason"),
+                "mode": daacs_runtime_browser_setup_attempt_data.get("mode"),
+                "setup_attempted": daacs_runtime_browser_setup_attempt_data.get(
+                    "setup_attempted"
+                ),
+                "operator_opt_in_present": (
+                    daacs_runtime_browser_setup_attempt_data.get(
+                        "operator_opt_in_present"
+                    )
+                ),
+                "browser_runtime_setup_allowed": (
+                    daacs_runtime_browser_setup_attempt_data.get(
+                        "browser_runtime_setup_allowed"
+                    )
+                ),
+                "browser_runtime_preflight_hash": (
+                    daacs_runtime_browser_setup_attempt_data.get(
+                        "browser_runtime_preflight_hash"
+                    )
+                ),
+                "browser_runtime_setup_attempt_hash": (
+                    daacs_runtime_browser_setup_attempt_data.get(
+                        "browser_runtime_setup_attempt_hash"
+                    )
+                ),
+                "command_records": daacs_runtime_browser_setup_attempt_data.get(
+                    "command_records", []
+                ),
+                "post_setup_browser_runtime_preflight": (
+                    daacs_runtime_browser_setup_attempt_data.get(
+                        "post_setup_browser_runtime_preflight", {}
+                    )
+                ),
+                "counts": daacs_runtime_browser_setup_attempt_data.get(
+                    "counts", {}
+                ),
+                "repository_boundary": (
+                    daacs_runtime_browser_setup_attempt_data.get(
+                        "repository_boundary", {}
+                    )
+                ),
+                "execution_boundary": (
+                    daacs_runtime_browser_setup_attempt_data.get(
+                        "execution_boundary", {}
+                    )
+                ),
+                "claim_boundary": (
+                    daacs_runtime_browser_setup_attempt_data.get(
+                        "claim_boundary", {}
+                    )
+                ),
+            }
+            if daacs_runtime_browser_setup_attempt_data is not None
+            else {
+                "status": "skipped",
+                "reason": "optional browser runtime setup attempt not requested",
+                "setup_attempted": False,
+                "operator_opt_in_present": False,
+                "browser_runtime_setup_allowed": False,
+            }
+        ),
+        "daacs_runtime_local_preview_attempt": (
+            {
+                "projection_version": (
+                    daacs_runtime_local_preview_attempt_data.get(
+                        "projection_version"
+                    )
+                ),
+                "run_id": daacs_runtime_local_preview_attempt_data.get("run_id"),
+                "status": daacs_runtime_local_preview_attempt_data.get("status"),
+                "reason": daacs_runtime_local_preview_attempt_data.get("reason"),
+                "mode": daacs_runtime_local_preview_attempt_data.get("mode"),
+                "local_preview_attempted": (
+                    daacs_runtime_local_preview_attempt_data.get(
+                        "local_preview_attempted"
+                    )
+                ),
+                "local_preview_opt_in_present": (
+                    daacs_runtime_local_preview_attempt_data.get(
+                        "local_preview_opt_in_present"
+                    )
+                ),
+                "local_preview_server_allowed": (
+                    daacs_runtime_local_preview_attempt_data.get(
+                        "local_preview_server_allowed"
+                    )
+                ),
+                "browser_verification_allowed": (
+                    daacs_runtime_local_preview_attempt_data.get(
+                        "browser_verification_allowed"
+                    )
+                ),
+                "local_build_attempt_hash": (
+                    daacs_runtime_local_preview_attempt_data.get(
+                        "local_build_attempt_hash"
+                    )
+                ),
+                "local_build_attempt_projection_hash": (
+                    daacs_runtime_local_preview_attempt_data.get(
+                        "local_build_attempt_projection_hash"
+                    )
+                ),
+                "browser_runtime_preflight": (
+                    daacs_runtime_local_preview_attempt_data.get(
+                        "browser_runtime_preflight", {}
+                    )
+                ),
+                "local_preview_attempt_hash": (
+                    daacs_runtime_local_preview_attempt_data.get(
+                        "local_preview_attempt_hash"
+                    )
+                ),
+                "preview_record": daacs_runtime_local_preview_attempt_data.get(
+                    "preview_record", {}
+                ),
+                "counts": daacs_runtime_local_preview_attempt_data.get(
+                    "counts", {}
+                ),
+                "repository_boundary": (
+                    daacs_runtime_local_preview_attempt_data.get(
+                        "repository_boundary", {}
+                    )
+                ),
+                "execution_boundary": (
+                    daacs_runtime_local_preview_attempt_data.get(
+                        "execution_boundary", {}
+                    )
+                ),
+                "claim_boundary": (
+                    daacs_runtime_local_preview_attempt_data.get(
+                        "claim_boundary", {}
+                    )
+                ),
+            }
+            if daacs_runtime_local_preview_attempt_data is not None
+            else {
+                "status": "skipped",
+                "reason": "optional local preview attempt not requested",
+                "target_runtime_outcome": False,
+                "local_preview_attempted": False,
+                "local_preview_opt_in_present": False,
+                "local_preview_server_allowed": False,
+                "browser_verification_allowed": False,
             }
         ),
         "provider_envelope_admission": (
@@ -9941,6 +10644,39 @@ def main() -> None:
             "fixture app workspace. This never starts a server."
         ),
     )
+    parser.add_argument(
+        "--include-daacs-runtime-local-preview-attempt",
+        action="store_true",
+        help=(
+            "Also record a local preview-server/browser verification attempt "
+            "over the generated fixture app workspace."
+        ),
+    )
+    parser.add_argument(
+        "--allow-local-preview-attempt",
+        action="store_true",
+        help=(
+            "Allow local preview server start and browser verification inside "
+            "the run-scoped generated fixture app workspace."
+        ),
+    )
+    parser.add_argument(
+        "--include-daacs-runtime-browser-setup-attempt",
+        action="store_true",
+        help=(
+            "Also record an explicit browser runtime setup attempt boundary. "
+            "Without --allow-browser-runtime-setup this remains blocked."
+        ),
+    )
+    parser.add_argument(
+        "--allow-browser-runtime-setup",
+        action="store_true",
+        help=(
+            "Allow local Playwright package/browser setup commands. This may "
+            "download packages or browser binaries and still never calls "
+            "Solar or the DAACS target runtime."
+        ),
+    )
     args = parser.parse_args()
 
     summary = run_demo(
@@ -9982,7 +10718,15 @@ def main() -> None:
         include_daacs_runtime_local_build_attempt=(
             args.include_daacs_runtime_local_build_attempt
         ),
+        include_daacs_runtime_local_preview_attempt=(
+            args.include_daacs_runtime_local_preview_attempt
+        ),
+        include_daacs_runtime_browser_setup_attempt=(
+            args.include_daacs_runtime_browser_setup_attempt
+        ),
         allow_local_build_attempt=args.allow_local_build_attempt,
+        allow_local_preview_attempt=args.allow_local_preview_attempt,
+        allow_browser_runtime_setup=args.allow_browser_runtime_setup,
         allow_solar_planner_live_call=args.allow_solar_planner_live_call,
         allow_solar_quality_reviewer_approval=(
             args.allow_solar_quality_reviewer_approval

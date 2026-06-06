@@ -145,8 +145,9 @@ def test_static_validation_passes_for_verified_generated_workspace(tmp_path):
     assert result["counts"]["file_read_count"] == 9
     assert result["counts"]["package_json_parse_pass_count"] == 1
     assert result["counts"]["required_script_present_count"] == 4
-    assert result["counts"]["app_component_marker_present_count"] == 2
-    assert result["counts"]["api_marker_present_count"] == 2
+    assert result["counts"]["app_component_marker_present_count"] == 13
+    assert result["counts"]["api_marker_present_count"] == 8
+    assert result["counts"]["verification_boundary_marker_present_count"] == 4
     assert result["counts"]["zero_call_marker_present_count"] == 5
     assert result["execution_boundary"]["package_install_calls"] == 0
     assert result["execution_boundary"]["build_calls"] == 0
@@ -254,7 +255,7 @@ def test_static_validation_blocks_missing_app_marker(tmp_path):
 
     assert result["status"] == "blocked"
     assert result["reason"] == "static_validation_app_component_markers_missing"
-    assert result["counts"]["app_component_marker_present_count"] == 1
+    assert result["counts"]["app_component_marker_present_count"] == 12
 
 
 def test_static_validation_exposes_no_private_material(tmp_path):

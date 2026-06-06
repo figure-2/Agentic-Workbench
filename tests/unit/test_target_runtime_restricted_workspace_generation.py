@@ -264,9 +264,33 @@ def test_restricted_workspace_generation_writes_minimal_skeleton(tmp_path):
         / "restricted-workspace"
         / "runs/run-daacs-runtime-mvp-01/generated-app/src/api.ts"
     ).read_text(encoding="utf-8")
+    assert "Workflow Stages" in app_content
+    assert "Artifact Cards" in app_content
+    assert "Runner Plan" in app_content
+    assert "Verification Summary" in app_content
+    assert "Execution Boundary" in app_content
+    assert "Action Center" in app_content
+    assert "Evidence Timeline" in app_content
     assert "Task Board" in app_content
+    assert "Owner Filter" in app_content
+    assert "Reviewer Decision" in app_content
+    assert "Interaction Ready" in app_content
+    assert "data-aw-owner-filter" in app_content
+    assert "data-aw-task-card" in app_content
+    assert "data-aw-selected-owner" in app_content
+    assert "data-aw-reviewer-decision-state" in app_content
+    assert "data-aw-reviewer-decision-value" in app_content
+    assert "data-aw-reviewer-decision-action" in app_content
+    assert "approve-next-pass" in app_content
     assert "getFixtureTasks" in app_content
+    assert "executionBoundary" in api_content
+    assert "export type WorkflowStage" in api_content
+    assert "export type RunnerPlanSummary" in api_content
     assert "export type FixtureTask" in api_content
+    assert "export type FixtureAction" in api_content
+    assert "export type EvidenceEvent" in api_content
+    assert "getFixtureActions" in api_content
+    assert "getEvidenceTimeline" in api_content
     assert "codegenInputHash" in api_content
     assert_public_projection_safe(result)
 

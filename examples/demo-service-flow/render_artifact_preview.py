@@ -93,6 +93,12 @@ def build_artifact_preview_model(summary: dict[str, Any]) -> dict[str, Any]:
     local_build_attempt = _mapping(
         summary.get("daacs_runtime_local_build_attempt")
     )
+    local_preview_attempt = _mapping(
+        summary.get("daacs_runtime_local_preview_attempt")
+    )
+    browser_setup_attempt = _mapping(
+        summary.get("daacs_runtime_browser_setup_attempt")
+    )
     comparison = _mapping(summary.get("daacs_runtime_comparison"))
     verification = _mapping(summary.get("verification_read_model"))
     stage_coverage = _mapping(summary.get("workflow_stage_coverage"))
@@ -152,6 +158,23 @@ def build_artifact_preview_model(summary: dict[str, Any]) -> dict[str, Any]:
     )
     local_build_command_results = _list_of_dicts(
         local_build_attempt.get("command_results")
+    )
+    local_preview_attempt_counts = _mapping(local_preview_attempt.get("counts"))
+    local_preview_attempt_execution = _mapping(
+        local_preview_attempt.get("execution_boundary")
+    )
+    local_preview_attempt_repository = _mapping(
+        local_preview_attempt.get("repository_boundary")
+    )
+    local_preview_record = _mapping(local_preview_attempt.get("preview_record"))
+    browser_preflight = _mapping(
+        local_preview_attempt.get("browser_runtime_preflight")
+    )
+    browser_setup_counts = _mapping(browser_setup_attempt.get("counts"))
+    browser_setup_execution = _mapping(browser_setup_attempt.get("execution_boundary"))
+    browser_setup_repository = _mapping(browser_setup_attempt.get("repository_boundary"))
+    post_setup_preflight = _mapping(
+        browser_setup_attempt.get("post_setup_browser_runtime_preflight")
     )
     artifact_kinds = list(summary.get("artifact_kinds", []))
     stage_order = list(stage_coverage.get("stage_order", []))
@@ -338,6 +361,11 @@ def build_artifact_preview_model(summary: dict[str, Any]) -> dict[str, Any]:
                     "api_marker_present_count"
                 )
             ),
+            "verification_boundary_marker_present_count": _count(
+                generated_workspace_static_validation_counts.get(
+                    "verification_boundary_marker_present_count"
+                )
+            ),
             "zero_call_marker_present_count": _count(
                 generated_workspace_static_validation_counts.get(
                     "zero_call_marker_present_count"
@@ -511,6 +539,198 @@ def build_artifact_preview_model(summary: dict[str, Any]) -> dict[str, Any]:
                 for record in local_build_command_results
             ],
         },
+        "local_preview_attempt": {
+            "status": local_preview_attempt.get("status", "not_requested"),
+            "reason": local_preview_attempt.get("reason", "not_requested"),
+            "attempted": bool(
+                local_preview_attempt.get("local_preview_attempted")
+            ),
+            "opt_in_present": bool(
+                local_preview_attempt.get("local_preview_opt_in_present")
+            ),
+            "server_allowed": bool(
+                local_preview_attempt.get("local_preview_server_allowed")
+            ),
+            "browser_verification_allowed": bool(
+                local_preview_attempt.get("browser_verification_allowed")
+            ),
+            "browser_runtime_available": bool(browser_preflight.get("available")),
+            "browser_runtime_reason": browser_preflight.get("reason", "not_checked"),
+            "preflight_count": _count(
+                local_preview_attempt_counts.get("browser_runtime_preflight_count")
+            ),
+            "browser_available_count": _count(
+                local_preview_attempt_counts.get("browser_runtime_available_count")
+            ),
+            "server_start_count": _count(
+                local_preview_attempt_counts.get("server_start_count")
+            ),
+            "server_start_attempt_count": _count(
+                local_preview_attempt_counts.get("preview_server_start_attempt_count")
+            ),
+            "server_stop_count": _count(
+                local_preview_attempt_counts.get("preview_server_stop_count")
+            ),
+            "server_cleanup_percent": (
+                100.0
+                if (
+                    _count(local_preview_attempt_counts.get("server_start_count"))
+                    and _count(
+                        local_preview_attempt_counts.get(
+                            "preview_server_stop_count"
+                        )
+                    )
+                    >= _count(local_preview_attempt_counts.get("server_start_count"))
+                )
+                else 0.0
+            ),
+            "screenshot_evidence_count": _count(
+                local_preview_attempt_counts.get("screenshot_evidence_count")
+            ),
+            "screenshot_hash_count": _count(
+                local_preview_attempt_counts.get("screenshot_hash_count")
+            ),
+            "screenshot_byte_count": _count(
+                local_preview_attempt_counts.get("screenshot_byte_count")
+            ),
+            "screenshot_capture_status": (
+                "verified"
+                if (
+                    _count(
+                        local_preview_attempt_counts.get(
+                            "screenshot_evidence_count"
+                        )
+                    )
+                    and _count(
+                        local_preview_attempt_counts.get("screenshot_hash_count")
+                    )
+                )
+                else local_preview_attempt.get("status", "not_requested")
+            ),
+            "screenshot_capture_reason": (
+                "screenshot_hash_recorded"
+                if (
+                    _count(
+                        local_preview_attempt_counts.get(
+                            "screenshot_evidence_count"
+                        )
+                    )
+                    and _count(
+                        local_preview_attempt_counts.get("screenshot_hash_count")
+                    )
+                )
+                else local_preview_attempt.get("reason", "not_requested")
+            ),
+            "owner_filter_click_status": local_preview_record.get(
+                "owner_filter_click_status", "not_requested"
+            ),
+            "owner_filter_click_attempt_count": _count(
+                local_preview_attempt_counts.get("owner_filter_click_attempt_count")
+            ),
+            "owner_filter_click_pass_count": _count(
+                local_preview_attempt_counts.get("owner_filter_click_pass_count")
+            ),
+            "owner_filter_click_target_label_hash_count": _count(
+                local_preview_attempt_counts.get(
+                    "owner_filter_click_target_label_hash_count"
+                )
+            ),
+            "owner_filter_before_task_count": _count(
+                local_preview_attempt_counts.get("owner_filter_before_task_count")
+            ),
+            "owner_filter_after_task_count": _count(
+                local_preview_attempt_counts.get("owner_filter_after_task_count")
+            ),
+            "owner_filter_changed_count": _count(
+                local_preview_attempt_counts.get("owner_filter_changed_count")
+            ),
+            "reviewer_decision_click_status": local_preview_record.get(
+                "reviewer_decision_click_status", "not_requested"
+            ),
+            "reviewer_decision_click_attempt_count": _count(
+                local_preview_attempt_counts.get(
+                    "reviewer_decision_click_attempt_count"
+                )
+            ),
+            "reviewer_decision_click_pass_count": _count(
+                local_preview_attempt_counts.get(
+                    "reviewer_decision_click_pass_count"
+                )
+            ),
+            "reviewer_decision_click_target_label_hash_count": _count(
+                local_preview_attempt_counts.get(
+                    "reviewer_decision_click_target_label_hash_count"
+                )
+            ),
+            "reviewer_decision_state_hash_count": _count(
+                local_preview_attempt_counts.get(
+                    "reviewer_decision_state_hash_count"
+                )
+            ),
+            "reviewer_decision_state_changed_count": _count(
+                local_preview_attempt_counts.get(
+                    "reviewer_decision_state_changed_count"
+                )
+            ),
+            "raw_output_returned": _count(
+                local_preview_attempt_counts.get("raw_output_public_return_count")
+            ),
+            "screenshot_path_returned": bool(
+                local_preview_attempt_repository.get("screenshot_path_returned")
+            )
+            or bool(local_preview_record.get("screenshot_path_returned")),
+            "page_text_returned": bool(
+                local_preview_attempt_repository.get("page_text_returned")
+            )
+            or bool(local_preview_record.get("page_text_returned")),
+        },
+        "browser_setup_attempt": {
+            "status": browser_setup_attempt.get("status", "not_requested"),
+            "reason": browser_setup_attempt.get("reason", "not_requested"),
+            "attempted": bool(browser_setup_attempt.get("setup_attempted")),
+            "operator_opt_in_present": bool(
+                browser_setup_attempt.get("operator_opt_in_present")
+            ),
+            "setup_allowed": bool(
+                browser_setup_attempt.get("browser_runtime_setup_allowed")
+            ),
+            "setup_attempt_hash": browser_setup_attempt.get(
+                "browser_runtime_setup_attempt_hash", ""
+            ),
+            "setup_command_attempt_count": _count(
+                browser_setup_counts.get("setup_command_attempt_count")
+            ),
+            "browser_preflight_count": _count(
+                browser_setup_counts.get("browser_runtime_preflight_count")
+            ),
+            "browser_available_before_setup_count": _count(
+                browser_setup_counts.get(
+                    "browser_runtime_available_before_setup_count"
+                )
+            ),
+            "default_setup_command_execution_count": _count(
+                browser_setup_counts.get("default_setup_command_execution_count")
+            ),
+            "explicit_setup_opt_in_count": _count(
+                browser_setup_counts.get("explicit_setup_opt_in_count")
+            ),
+            "browser_available_after_setup_count": _count(
+                browser_setup_counts.get(
+                    "browser_runtime_available_after_setup_count"
+                )
+            ),
+            "post_setup_available": bool(post_setup_preflight.get("available")),
+            "raw_output_returned": _count(
+                browser_setup_counts.get("raw_output_public_return_count")
+            ),
+            "argv_returned": _count(browser_setup_counts.get("argv_public_return_count")),
+            "browser_error_returned": _count(
+                browser_setup_counts.get("browser_error_public_return_count")
+            ),
+            "root_path_returned": bool(
+                browser_setup_repository.get("local_root_path_returned")
+            ),
+        },
         "verification": {
             "status": verification.get("status", "unknown"),
             "report_count": _count(
@@ -673,6 +893,33 @@ def build_artifact_preview_model(summary: dict[str, Any]) -> dict[str, Any]:
             "local_build_attempt_execution_permission_count": _count(
                 local_build_attempt_execution.get("execution_permission_count")
             ),
+            "local_preview_attempt_server_start_calls": _count(
+                local_preview_attempt_execution.get("server_start_calls")
+            ),
+            "local_preview_attempt_server_stop_calls": _count(
+                local_preview_attempt_execution.get("server_stop_calls")
+            ),
+            "local_preview_attempt_provider_calls": _count(
+                local_preview_attempt_execution.get("provider_calls")
+            ),
+            "local_preview_attempt_target_runtime_calls": _count(
+                local_preview_attempt_execution.get("target_runtime_calls")
+            ),
+            "browser_setup_local_process_calls": _count(
+                browser_setup_execution.get("local_process_calls")
+            ),
+            "browser_setup_package_install_calls": _count(
+                browser_setup_execution.get("package_install_calls")
+            ),
+            "browser_setup_binary_install_calls": _count(
+                browser_setup_execution.get("browser_binary_install_calls")
+            ),
+            "browser_setup_provider_calls": _count(
+                browser_setup_execution.get("provider_calls")
+            ),
+            "browser_setup_target_runtime_calls": _count(
+                browser_setup_execution.get("daacs_target_runtime_calls")
+            ),
         },
         "claim_boundary": {
             "scope": claim_boundary.get(
@@ -808,6 +1055,8 @@ def render_artifact_preview(summary: dict[str, Any]) -> str:
     buildable_manifest = model["buildable_fixture_manifest"]
     local_build_preflight = model["local_build_preflight"]
     local_build_attempt = model["local_build_attempt"]
+    local_preview_attempt = model["local_preview_attempt"]
+    browser_setup_attempt = model["browser_setup_attempt"]
     verification = model["verification"]
     execution = model["execution_boundary"]
     comparison = model["comparison"]
@@ -987,6 +1236,8 @@ def render_artifact_preview(summary: dict[str, Any]) -> str:
       <span class="badge ready">build-ready candidate: {buildable_manifest["candidate_label"]}</span>
       <span class="badge ready">local build preflight: {local_build_preflight["eligible_label"]}</span>
       <span class="badge ready">local build: {local_build_attempt["attempted_label"]}</span>
+      <span class="badge closed">local preview: {escape(_text(local_preview_attempt["status"]))}</span>
+      <span class="badge closed">browser setup: {escape(_text(browser_setup_attempt["status"]))}</span>
       <span class="badge closed">runtime: fixture / closed</span>
     </div>
   </header>
@@ -999,6 +1250,13 @@ def render_artifact_preview(summary: dict[str, Any]) -> str:
       {_metric("Fixture status", fixture["status"])}
       {_metric("Runtime calls", execution["target_runtime_calls"])}
       {_metric("Local build opt-in", local_build_preflight["opt_in_required"])}
+      {_metric("Screenshot status", local_preview_attempt["screenshot_capture_status"])}
+      {_metric("Screenshot evidence", local_preview_attempt["screenshot_evidence_count"])}
+      {_metric("Owner filter click", local_preview_attempt["owner_filter_click_status"])}
+      {_metric("Owner filter pass", local_preview_attempt["owner_filter_click_pass_count"])}
+      {_metric("Reviewer decision", local_preview_attempt["reviewer_decision_click_status"])}
+      {_metric("Reviewer decision pass", local_preview_attempt["reviewer_decision_click_pass_count"])}
+      {_metric("Setup commands", browser_setup_attempt["setup_command_attempt_count"])}
     </div>
 
     <section>
@@ -1037,8 +1295,9 @@ def render_artifact_preview(summary: dict[str, Any]) -> str:
         <div><span>Files checked</span><strong>{generated_workspace_static_validation["static_file_checked_count"]}</strong></div>
         <div><span>Package JSON</span><strong>{generated_workspace_static_validation["package_json_parse_pass_count"]}</strong></div>
         <div><span>Script labels</span><strong>{generated_workspace_static_validation["required_script_present_count"]}/4</strong></div>
-        <div><span>App markers</span><strong>{generated_workspace_static_validation["app_component_marker_present_count"]}/2</strong></div>
-        <div><span>API markers</span><strong>{generated_workspace_static_validation["api_marker_present_count"]}/2</strong></div>
+        <div><span>App markers</span><strong>{generated_workspace_static_validation["app_component_marker_present_count"]}/13</strong></div>
+        <div><span>API markers</span><strong>{generated_workspace_static_validation["api_marker_present_count"]}/8</strong></div>
+        <div><span>Verification boundary markers</span><strong>{generated_workspace_static_validation["verification_boundary_marker_present_count"]}/4</strong></div>
         <div><span>Zero-call markers</span><strong>{generated_workspace_static_validation["zero_call_marker_present_count"]}/5</strong></div>
         <div><span>Content returned</span><strong>{escape(_text(generated_workspace_static_validation["file_content_returned"]))}</strong></div>
       </div>
@@ -1100,6 +1359,94 @@ def render_artifact_preview(summary: dict[str, Any]) -> str:
       <div class="grid">{_command_result_cards(local_build_attempt["command_results"])}</div>
     </section>
 
+    <section>
+      <h2>Interaction-Backed Portfolio Evidence</h2>
+      <div class="boundary">
+        <div><span>Capture status</span><strong>{escape(_text(local_preview_attempt["screenshot_capture_status"]))}</strong></div>
+        <div><span>Capture reason</span><strong>{escape(_text(local_preview_attempt["screenshot_capture_reason"]))}</strong></div>
+        <div><span>Screenshot evidence</span><strong>{local_preview_attempt["screenshot_evidence_count"]}</strong></div>
+        <div><span>Screenshot hashes</span><strong>{local_preview_attempt["screenshot_hash_count"]}</strong></div>
+        <div><span>Screenshot bytes</span><strong>{local_preview_attempt["screenshot_byte_count"]}</strong></div>
+        <div><span>Owner filter click</span><strong>{escape(_text(local_preview_attempt["owner_filter_click_status"]))}</strong></div>
+        <div><span>Click attempts</span><strong>{local_preview_attempt["owner_filter_click_attempt_count"]}</strong></div>
+        <div><span>Click passes</span><strong>{local_preview_attempt["owner_filter_click_pass_count"]}</strong></div>
+        <div><span>Target label hashes</span><strong>{local_preview_attempt["owner_filter_click_target_label_hash_count"]}</strong></div>
+        <div><span>Tasks before click</span><strong>{local_preview_attempt["owner_filter_before_task_count"]}</strong></div>
+        <div><span>Tasks after click</span><strong>{local_preview_attempt["owner_filter_after_task_count"]}</strong></div>
+        <div><span>Changed task count</span><strong>{local_preview_attempt["owner_filter_changed_count"]}</strong></div>
+        <div><span>Reviewer decision click</span><strong>{escape(_text(local_preview_attempt["reviewer_decision_click_status"]))}</strong></div>
+        <div><span>Reviewer click attempts</span><strong>{local_preview_attempt["reviewer_decision_click_attempt_count"]}</strong></div>
+        <div><span>Reviewer click passes</span><strong>{local_preview_attempt["reviewer_decision_click_pass_count"]}</strong></div>
+        <div><span>Reviewer target label hashes</span><strong>{local_preview_attempt["reviewer_decision_click_target_label_hash_count"]}</strong></div>
+        <div><span>Reviewer state hashes</span><strong>{local_preview_attempt["reviewer_decision_state_hash_count"]}</strong></div>
+        <div><span>Reviewer state changes</span><strong>{local_preview_attempt["reviewer_decision_state_changed_count"]}</strong></div>
+        <div><span>Server cleanup</span><strong>{local_preview_attempt["server_cleanup_percent"]}%</strong></div>
+        <div><span>Path returned</span><strong>{escape(_text(local_preview_attempt["screenshot_path_returned"]))}</strong></div>
+        <div><span>Page text returned</span><strong>{escape(_text(local_preview_attempt["page_text_returned"]))}</strong></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Local Preview Browser Verification</h2>
+      <div class="boundary">
+        <div><span>Status</span><strong>{escape(_text(local_preview_attempt["status"]))}</strong></div>
+        <div><span>Reason</span><strong>{escape(_text(local_preview_attempt["reason"]))}</strong></div>
+        <div><span>Attempted</span><strong>{escape(_text(local_preview_attempt["attempted"]))}</strong></div>
+        <div><span>Opt-in</span><strong>{escape(_text(local_preview_attempt["opt_in_present"]))}</strong></div>
+        <div><span>Server allowed</span><strong>{escape(_text(local_preview_attempt["server_allowed"]))}</strong></div>
+        <div><span>Browser verify allowed</span><strong>{escape(_text(local_preview_attempt["browser_verification_allowed"]))}</strong></div>
+        <div><span>Browser preflights</span><strong>{local_preview_attempt["preflight_count"]}</strong></div>
+        <div><span>Browser available</span><strong>{local_preview_attempt["browser_available_count"]}</strong></div>
+        <div><span>Runtime reason</span><strong>{escape(_text(local_preview_attempt["browser_runtime_reason"]))}</strong></div>
+        <div><span>Server start attempts</span><strong>{local_preview_attempt["server_start_attempt_count"]}</strong></div>
+        <div><span>Server starts</span><strong>{local_preview_attempt["server_start_count"]}</strong></div>
+        <div><span>Server stops</span><strong>{local_preview_attempt["server_stop_count"]}</strong></div>
+        <div><span>Server cleanup</span><strong>{local_preview_attempt["server_cleanup_percent"]}%</strong></div>
+        <div><span>Screenshot evidence</span><strong>{local_preview_attempt["screenshot_evidence_count"]}</strong></div>
+        <div><span>Screenshot hashes</span><strong>{local_preview_attempt["screenshot_hash_count"]}</strong></div>
+        <div><span>Screenshot bytes</span><strong>{local_preview_attempt["screenshot_byte_count"]}</strong></div>
+        <div><span>Owner filter click</span><strong>{escape(_text(local_preview_attempt["owner_filter_click_status"]))}</strong></div>
+        <div><span>Click attempts</span><strong>{local_preview_attempt["owner_filter_click_attempt_count"]}</strong></div>
+        <div><span>Click passes</span><strong>{local_preview_attempt["owner_filter_click_pass_count"]}</strong></div>
+        <div><span>Target label hashes</span><strong>{local_preview_attempt["owner_filter_click_target_label_hash_count"]}</strong></div>
+        <div><span>Tasks before click</span><strong>{local_preview_attempt["owner_filter_before_task_count"]}</strong></div>
+        <div><span>Tasks after click</span><strong>{local_preview_attempt["owner_filter_after_task_count"]}</strong></div>
+        <div><span>Changed task count</span><strong>{local_preview_attempt["owner_filter_changed_count"]}</strong></div>
+        <div><span>Reviewer decision click</span><strong>{escape(_text(local_preview_attempt["reviewer_decision_click_status"]))}</strong></div>
+        <div><span>Reviewer click attempts</span><strong>{local_preview_attempt["reviewer_decision_click_attempt_count"]}</strong></div>
+        <div><span>Reviewer click passes</span><strong>{local_preview_attempt["reviewer_decision_click_pass_count"]}</strong></div>
+        <div><span>Reviewer target label hashes</span><strong>{local_preview_attempt["reviewer_decision_click_target_label_hash_count"]}</strong></div>
+        <div><span>Reviewer state hashes</span><strong>{local_preview_attempt["reviewer_decision_state_hash_count"]}</strong></div>
+        <div><span>Reviewer state changes</span><strong>{local_preview_attempt["reviewer_decision_state_changed_count"]}</strong></div>
+        <div><span>Raw output returned</span><strong>{local_preview_attempt["raw_output_returned"]}</strong></div>
+        <div><span>Screenshot path returned</span><strong>{escape(_text(local_preview_attempt["screenshot_path_returned"]))}</strong></div>
+        <div><span>Page text returned</span><strong>{escape(_text(local_preview_attempt["page_text_returned"]))}</strong></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Browser Runtime Setup Attempt</h2>
+      <div class="boundary">
+        <div><span>Status</span><strong>{escape(_text(browser_setup_attempt["status"]))}</strong></div>
+        <div><span>Reason</span><strong>{escape(_text(browser_setup_attempt["reason"]))}</strong></div>
+        <div><span>Attempted</span><strong>{escape(_text(browser_setup_attempt["attempted"]))}</strong></div>
+        <div><span>Operator opt-in</span><strong>{escape(_text(browser_setup_attempt["operator_opt_in_present"]))}</strong></div>
+        <div><span>Setup allowed</span><strong>{escape(_text(browser_setup_attempt["setup_allowed"]))}</strong></div>
+        <div><span>Setup hash</span><strong>{escape(_short_hash(browser_setup_attempt["setup_attempt_hash"]))}</strong></div>
+        <div><span>Browser preflights</span><strong>{browser_setup_attempt["browser_preflight_count"]}</strong></div>
+        <div><span>Available before setup</span><strong>{browser_setup_attempt["browser_available_before_setup_count"]}</strong></div>
+        <div><span>Setup command attempts</span><strong>{browser_setup_attempt["setup_command_attempt_count"]}</strong></div>
+        <div><span>Default command executions</span><strong>{browser_setup_attempt["default_setup_command_execution_count"]}</strong></div>
+        <div><span>Explicit opt-ins</span><strong>{browser_setup_attempt["explicit_setup_opt_in_count"]}</strong></div>
+        <div><span>Available after setup</span><strong>{browser_setup_attempt["browser_available_after_setup_count"]}</strong></div>
+        <div><span>Post-setup available</span><strong>{escape(_text(browser_setup_attempt["post_setup_available"]))}</strong></div>
+        <div><span>Raw output returned</span><strong>{browser_setup_attempt["raw_output_returned"]}</strong></div>
+        <div><span>Argv returned</span><strong>{browser_setup_attempt["argv_returned"]}</strong></div>
+        <div><span>Browser errors returned</span><strong>{browser_setup_attempt["browser_error_returned"]}</strong></div>
+        <div><span>Root returned</span><strong>{escape(_text(browser_setup_attempt["root_path_returned"]))}</strong></div>
+      </div>
+    </section>
+
     <div class="split">
       <section>
         <h2>Document Chain</h2>
@@ -1146,6 +1493,15 @@ def render_artifact_preview(summary: dict[str, Any]) -> str:
         <div><span>Local build network attempts</span><strong>{execution["local_build_attempt_network_calls"]}</strong></div>
         <div><span>Local build target runtime</span><strong>{execution["local_build_attempt_target_runtime_calls"]}</strong></div>
         <div><span>Local build provider calls</span><strong>{execution["local_build_attempt_provider_calls"]}</strong></div>
+        <div><span>Preview server starts</span><strong>{execution["local_preview_attempt_server_start_calls"]}</strong></div>
+        <div><span>Preview server stops</span><strong>{execution["local_preview_attempt_server_stop_calls"]}</strong></div>
+        <div><span>Preview target runtime</span><strong>{execution["local_preview_attempt_target_runtime_calls"]}</strong></div>
+        <div><span>Preview provider calls</span><strong>{execution["local_preview_attempt_provider_calls"]}</strong></div>
+        <div><span>Browser setup processes</span><strong>{execution["browser_setup_local_process_calls"]}</strong></div>
+        <div><span>Browser setup package installs</span><strong>{execution["browser_setup_package_install_calls"]}</strong></div>
+        <div><span>Browser binary installs</span><strong>{execution["browser_setup_binary_install_calls"]}</strong></div>
+        <div><span>Browser setup target runtime</span><strong>{execution["browser_setup_target_runtime_calls"]}</strong></div>
+        <div><span>Browser setup provider calls</span><strong>{execution["browser_setup_provider_calls"]}</strong></div>
         <div><span>Outside workspace writes</span><strong>{fixture["outside_workspace_write_count"]}</strong></div>
         <div><span>Artifact content returned</span><strong>{escape(_text(fixture["artifact_content_returned"]))}</strong></div>
         <div><span>Generated content returned</span><strong>{escape(_text(generated_workspace["file_content_returned"]))}</strong></div>
