@@ -6865,3 +6865,30 @@ blocked because the repository is private.
 Interpretation: GitHub source handoff succeeded for authenticated repository
 access. Public portfolio access still requires a visibility decision or reviewer
 invites.
+
+## AW-PORTFOLIO-RELEASE-05 Visibility Decision and Recruiter Walkthrough Metrics
+
+`AW-PORTFOLIO-RELEASE-05` records the access decision and adds a first-time
+reviewer walkthrough. It does not change GitHub repository visibility.
+
+| Metric | Value |
+|---|---:|
+| Visibility decision recorded | `public_after_review` |
+| Visibility change executed | 0 |
+| Recruiter walkthrough added | 1 |
+| README walkthrough link added | 1 |
+| Stage coverage recorded | 7/7 |
+| Generated fixture app files recorded | 9 |
+| Full local test suite recorded | 744 passed |
+| Interaction paths recorded | 2/2 |
+| Tracked local artifact findings | 0 |
+| Tracked high-confidence secret files | 3 test sentinel files |
+| GitHub repository visibility | PRIVATE |
+| Public unauthenticated raw README check | 404 |
+| Hosted/production overclaim blocking findings | 0 |
+| Provider calls | 0 |
+| Solar additional calls | 0 |
+| DAACS uncontrolled target runtime calls | 0 |
+
+Interpretation: public visibility is recommended for portfolio review after
+operator approval, but the actual GitHub visibility change remains blocked.

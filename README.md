@@ -50,6 +50,8 @@ Latest evidence:
 
 Evidence index: [docs/portfolio-evidence-index.md](docs/portfolio-evidence-index.md)
 
+Recruiter walkthrough: [docs/recruiter-walkthrough.md](docs/recruiter-walkthrough.md)
+
 ## Problem
 
 LLM에게 앱 구현을 한 번에 맡기면 요구사항 누락, 문서와 코드의 불일치, 실행 전 위험 확인 부족, 검증 누락이 동시에 발생할 수 있다. Agentic Workbench는 이 과정을 artifact pipeline으로 나누고, 승인 전 handoff와 side effect를 통제한다.
