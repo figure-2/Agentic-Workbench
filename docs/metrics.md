@@ -6921,3 +6921,37 @@ explicit operator approval and verified unauthenticated portfolio review paths.
 Interpretation: the portfolio repository is now publicly accessible. The public
 claim boundary still does not claim hosted deployment, production readiness, or
 uncontrolled runtime/provider success.
+
+## AW-PORTFOLIO-RELEASE-07 Public Repo Reviewer QA Metrics
+
+`AW-PORTFOLIO-RELEASE-07` reviews the public repository as a first-time
+portfolio reviewer and records public URL, navigation, metadata, and claim
+boundary checks.
+
+| Metric | Value |
+|---|---:|
+| GitHub repository page HTTP status | 200 |
+| README raw HTTP status | 200 |
+| Evidence index raw HTTP status | 200 |
+| Recruiter walkthrough raw HTTP status | 200 |
+| AW-PORTFOLIO-RELEASE-06 eval raw HTTP status | 200 |
+| AW-PORTFOLIO-RELEASE-07 work order raw HTTP status | 200 |
+| README marker checks | 3/3 |
+| Evidence index marker checks after label update | 3/3 |
+| Recruiter walkthrough marker checks | 3/3 |
+| Broken core public links | 0 |
+| Repository visibility | PUBLIC |
+| Default branch | main |
+| Repository description | present |
+| Repository topics | intentionally deferred |
+| Repository license | intentionally deferred |
+| Tracked local artifact findings | 0 |
+| High-confidence tracked secret findings | 0 |
+| Hosted/production overclaim blocking findings | 0 |
+| Provider calls | 0 |
+| Solar additional calls | 0 |
+| DAACS uncontrolled target runtime calls | 0 |
+
+Interpretation: the public repository is reviewable without authentication. The
+remaining portfolio polish is metadata/license decision work, not core workflow
+functionality.

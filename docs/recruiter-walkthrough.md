@@ -71,30 +71,36 @@ python examples\demo-service-flow\run_portfolio_demo.py --output-dir .local\aw-d
 
 ## Repository Access Decision
 
-Current repository visibility is `PRIVATE`.
+Current repository visibility is `PUBLIC`.
 
-Recommended portfolio decision: `public_after_review`.
+Repository URL: [https://github.com/figure-2/Agentic-Workbench](https://github.com/figure-2/Agentic-Workbench).
 
-Reason: the project is meant for portfolio review, and the current
+Decision executed: `public_after_review`.
+
+Reason: the project is meant for portfolio review, and the latest
 public-exposure scan found no tracked `.local`, `.env`, build output, live
-credential, or raw evidence file that should block public review. The remaining
-high-confidence secret-like strings are test sentinel values used to verify
-blocking behavior.
+credential, raw evidence file, or high-confidence secret match that should block
+public review.
 
-Status: visibility change is blocked until the operator explicitly approves the
-external GitHub state change.
+Status: public unauthenticated access is available. Repository description is
+present; topics and license selection are intentionally deferred to a separate
+metadata/license decision.
 
 ## Public Exposure Scan Summary
 
 | Check | Result |
 |---|---:|
 | Tracked `.local`, `.env`, `dist`, `build`, or `node_modules` findings | 0 |
-| High-confidence tracked secret files | 3 test sentinel files |
+| High-confidence tracked secret findings | 0 |
 | Remote README marker | verified |
 | Remote evidence index marker | verified |
 | History commits scanned for release docs | 121 |
-| GitHub repository visibility | PRIVATE |
-| Public unauthenticated raw README check | 404 |
+| GitHub repository visibility | PUBLIC |
+| Public unauthenticated raw README check | 200 |
+| Public unauthenticated evidence index check | 200 |
+| Public unauthenticated recruiter walkthrough check | 200 |
 
-Interpretation: the repository has been pushed, but public unauthenticated
-access is blocked by private visibility.
+Interpretation: the repository is publicly reachable for portfolio review. This
+does not change the claim boundary: the project still does not claim hosted
+deployment, production readiness, external provider benchmark success, or
+uncontrolled target runtime execution.
