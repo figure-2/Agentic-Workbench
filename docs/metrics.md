@@ -6892,3 +6892,32 @@ reviewer walkthrough. It does not change GitHub repository visibility.
 
 Interpretation: public visibility is recommended for portfolio review after
 operator approval, but the actual GitHub visibility change remains blocked.
+
+## AW-PORTFOLIO-RELEASE-06 Public Visibility Execution Metrics
+
+`AW-PORTFOLIO-RELEASE-06` changed the repository visibility to public after
+explicit operator approval and verified unauthenticated portfolio review paths.
+
+| Metric | Value |
+|---|---:|
+| Explicit operator approval | 1 |
+| Pre-change visibility | PRIVATE |
+| Post-change visibility | PUBLIC |
+| Visibility command status | passed |
+| README unauthenticated HTTP status | 200 |
+| Evidence index unauthenticated HTTP status | 200 |
+| Recruiter walkthrough unauthenticated HTTP status | 200 |
+| AW-PORTFOLIO-RELEASE-06 work order unauthenticated HTTP status | 200 |
+| README marker check | passed |
+| Evidence index claim-boundary marker check | passed |
+| Recruiter walkthrough non-claim marker check | passed |
+| Tracked local artifact findings before change | 0 |
+| Tracked high-confidence secret files before change | 3 test sentinel files |
+| Force push usage | 0 |
+| Provider calls | 0 |
+| Solar additional calls | 0 |
+| DAACS uncontrolled target runtime calls | 0 |
+
+Interpretation: the portfolio repository is now publicly accessible. The public
+claim boundary still does not claim hosted deployment, production readiness, or
+uncontrolled runtime/provider success.

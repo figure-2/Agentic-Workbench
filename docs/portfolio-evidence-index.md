@@ -90,6 +90,7 @@ Not claimed:
 - Publish gate: [docs/evals/aw-portfolio-release-03-github-publish-gate.md](evals/aw-portfolio-release-03-github-publish-gate.md)
 - Push verification: [docs/evals/aw-portfolio-release-04-github-push-post-push-verification.md](evals/aw-portfolio-release-04-github-push-post-push-verification.md)
 - Recruiter walkthrough: [docs/recruiter-walkthrough.md](recruiter-walkthrough.md)
+- Public visibility: [docs/evals/aw-portfolio-release-06-public-visibility-execution.md](evals/aw-portfolio-release-06-public-visibility-execution.md)
 - Metrics: [docs/metrics.md](metrics.md)
 - Work order: [docs/work-orders/aw-demo-final-04-interaction-backed-portfolio-package.md](work-orders/aw-demo-final-04-interaction-backed-portfolio-package.md)
 - Release work order: [docs/work-orders/aw-portfolio-release-01-recruiter-ready-repo-package.md](work-orders/aw-portfolio-release-01-recruiter-ready-repo-package.md)
